@@ -7,10 +7,22 @@ interface ToolbarProps {
 	onSort: (criteria: 'name' | 'lastUsed' | 'group') => void;
 	sortCriteria?: 'name' | 'lastUsed' | 'group';
 	onQuickConnect: (connectionString: string) => void;
+	selectedCount?: number;
+	onBulkDelete?: () => void;
+	onBulkExport?: () => void;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ onRefresh, onImport, onExport, onSort, sortCriteria, onQuickConnect }) => {
-
+const Toolbar: React.FC<ToolbarProps> = ({
+	onRefresh,
+	onImport,
+	onExport,
+	onSort,
+	sortCriteria,
+	onQuickConnect,
+	selectedCount = 0,
+	onBulkDelete,
+	onBulkExport
+}) => {
 	const handleImportClick = () => {
 		onImport('ssh-config');
 	};
@@ -32,6 +44,25 @@ const Toolbar: React.FC<ToolbarProps> = ({ onRefresh, onImport, onExport, onSort
 
 	return (
 		<div className="toolbar">
+			{/* Bulk Actions (shown when hosts are selected) */}
+			{selectedCount > 0 && (
+				<div className="bulk-actions">
+					<span className="selected-count">{selectedCount} selected</span>
+					{onBulkExport && (
+						<button onClick={onBulkExport} title="Export Selected">
+							<i className="codicon codicon-cloud-download"></i>
+						</button>
+					)}
+					{onBulkDelete && (
+						<button onClick={onBulkDelete} title="Delete Selected" className="danger">
+							<i className="codicon codicon-trash"></i>
+						</button>
+					)}
+					<div className="toolbar-separator"></div>
+				</div>
+			)}
+
+			{/* Quick Connect */}
 			<div className="quick-connect">
 				<input
 					type="text"
@@ -62,10 +93,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ onRefresh, onImport, onExport, onSort
 
 			<div className="dropdown-wrapper">
 				<i className="codicon codicon-sort-precedence dropdown-icon"></i>
-				<select className="toolbar-select" onChange={(e) => onSort(e.target.value as any)} defaultValue="name">
+				<select
+					className="toolbar-select"
+					onChange={(e) => onSort(e.target.value as 'name' | 'lastUsed' | 'group')}
+					value={sortCriteria || 'name'}
+				>
 					<option value="name">Name</option>
 					<option value="lastUsed">Last Used</option>
-					<option value="group">Group</option>
+					<option value="group">Folder</option>
 				</select>
 			</div>
 
@@ -79,3 +114,4 @@ const Toolbar: React.FC<ToolbarProps> = ({ onRefresh, onImport, onExport, onSort
 };
 
 export default Toolbar;
+

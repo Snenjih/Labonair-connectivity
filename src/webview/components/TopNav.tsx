@@ -1,33 +1,45 @@
 import React from 'react';
+import { ViewType } from '../../common/types';
 
 interface TopNavProps {
-	activeView: 'list' | 'edit' | 'credentials';
-	onNavigate: (view: 'list' | 'edit' | 'credentials') => void;
+	activeView: ViewType;
+	onNavigate: (view: ViewType) => void;
 }
 
 const TopNav: React.FC<TopNavProps> = ({ activeView, onNavigate }) => {
 	return (
 		<div className="top-nav">
 			<button
-				className={activeView === 'list' ? 'active' : ''}
-				onClick={() => onNavigate('list')}
+				className={activeView === 'hosts' ? 'active' : ''}
+				onClick={() => onNavigate('hosts')}
 			>
-				Host Viewer
+				<i className="codicon codicon-server"></i>
+				Hosts
 			</button>
 			<button
-				className={activeView === 'edit' ? 'active' : ''}
-				onClick={() => onNavigate('edit')}
+				className={activeView === 'addHost' ? 'active' : ''}
+				onClick={() => onNavigate('addHost')}
 			>
+				<i className="codicon codicon-add"></i>
 				Add Host
 			</button>
 			<button
 				className={activeView === 'credentials' ? 'active' : ''}
 				onClick={() => onNavigate('credentials')}
 			>
+				<i className="codicon codicon-key"></i>
 				Credentials
+			</button>
+			<button
+				className={activeView === 'addCredential' ? 'active' : ''}
+				onClick={() => onNavigate('addCredential')}
+			>
+				<i className="codicon codicon-add"></i>
+				Add Credential
 			</button>
 		</div>
 	);
 };
 
 export default TopNav;
+

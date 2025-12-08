@@ -11,7 +11,7 @@ export function registerCommands(context: vscode.ExtensionContext, hostService: 
 			const items: vscode.QuickPickItem[] = hosts.map(host => ({
 				label: `$(server) ${host.name}`,
 				description: `$(chevron-right) ${host.username}@${host.host}`,
-				detail: host.group,
+				detail: host.folder,
 				picked: false,
 				// store id in a way we can retrieve index or object
 				// but QuickPickItem structure is strict.

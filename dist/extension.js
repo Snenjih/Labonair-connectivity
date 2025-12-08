@@ -51,7 +51,7 @@ function registerCommands(context, hostService) {
         const items = hosts.map(host => ({
             label: `$(server) ${host.name}`,
             description: `$(chevron-right) ${host.username}@${host.host}`,
-            detail: host.group,
+            detail: host.folder,
             picked: false,
             // store id in a way we can retrieve index or object
             // but QuickPickItem structure is strict.
@@ -173,28 +173,72 @@ exports.HostService = void 0;
 class HostService {
     constructor(context) {
         this.STORAGE_KEY = 'labonair.hosts';
-        this.GROUPS_KEY = 'labonair.groups';
+        this.FOLDERS_KEY = 'labonair.folders';
         this.context = context;
     }
+    // ============================================================================
+    // HOST CRUD OPERATIONS
+    // ============================================================================
     getHosts() {
         return this.context.globalState.get(this.STORAGE_KEY, []);
     }
-    getGroupConfigs() {
-        return this.context.globalState.get(this.GROUPS_KEY, {});
+    getHostById(id) {
+        return this.getHosts().find(h => h.id === id);
     }
     async saveHost(host, password, keyPath) {
         const hosts = this.getHosts();
         const index = hosts.findIndex(h => h.id === host.id);
+        const now = new Date().toISOString();
         if (index !== -1) {
+            host.updatedAt = now;
             hosts[index] = host;
         }
         else {
+            host.createdAt = now;
+            host.updatedAt = now;
             hosts.push(host);
         }
         await this.context.globalState.update(this.STORAGE_KEY, hosts);
         if (password) {
             await this.context.secrets.store(`pwd.${host.id}`, password);
         }
+        if (keyPath) {
+            await this.context.secrets.store(`keypath.${host.id}`, keyPath);
+        }
+        return host;
+    }
+    async deleteHost(id) {
+        const hosts = this.getHosts().filter(h => h.id !== id);
+        await this.context.globalState.update(this.STORAGE_KEY, hosts);
+        await this.context.secrets.delete(`pwd.${id}`);
+        await this.context.secrets.delete(`keypath.${id}`);
+    }
+    async cloneHost(id) {
+        const original = this.getHostById(id);
+        if (!original) {
+            return null;
+        }
+        const cloned = {
+            ...original,
+            id: this.generateId(),
+            name: `${original.name} (Copy)`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            lastUsed: undefined
+        };
+        await this.saveHost(cloned);
+        return cloned;
+    }
+    async togglePin(id) {
+        const hosts = this.getHosts();
+        const index = hosts.findIndex(h => h.id === id);
+        if (index === -1) {
+            return false;
+        }
+        hosts[index].pin = !hosts[index].pin;
+        hosts[index].updatedAt = new Date().toISOString();
+        await this.context.globalState.update(this.STORAGE_KEY, hosts);
+        return hosts[index].pin || false;
     }
     async updateLastUsed(hostId) {
         const hosts = this.getHosts();
@@ -204,40 +248,224 @@ class HostService {
             await this.context.globalState.update(this.STORAGE_KEY, hosts);
         }
     }
-    async deleteHost(id) {
-        const hosts = this.getHosts().filter(h => h.id !== id);
+    // ============================================================================
+    // FOLDER OPERATIONS
+    // ============================================================================
+    getFolders() {
+        const hosts = this.getHosts();
+        const folders = new Set();
+        hosts.forEach(h => {
+            if (h.folder && h.folder.trim() !== '') {
+                folders.add(h.folder);
+            }
+        });
+        return Array.from(folders).sort();
+    }
+    getFolderConfigs() {
+        return this.context.globalState.get(this.FOLDERS_KEY, {});
+    }
+    async saveFolderConfig(config) {
+        const folders = this.getFolderConfigs();
+        folders[config.name] = config;
+        await this.context.globalState.update(this.FOLDERS_KEY, folders);
+    }
+    async renameFolder(oldName, newName) {
+        const hosts = this.getHosts();
+        let updated = 0;
+        for (const host of hosts) {
+            if (host.folder === oldName) {
+                host.folder = newName;
+                host.updatedAt = new Date().toISOString();
+                updated++;
+            }
+        }
         await this.context.globalState.update(this.STORAGE_KEY, hosts);
-        await this.context.secrets.delete(`pwd.${id}`);
+        // Also rename folder config if exists
+        const folderConfigs = this.getFolderConfigs();
+        if (folderConfigs[oldName]) {
+            folderConfigs[newName] = { ...folderConfigs[oldName], name: newName };
+            delete folderConfigs[oldName];
+            await this.context.globalState.update(this.FOLDERS_KEY, folderConfigs);
+        }
+        return updated;
     }
-    async saveGroupConfig(config) {
-        const groups = this.getGroupConfigs();
-        groups[config.name] = config;
-        await this.context.globalState.update(this.GROUPS_KEY, groups);
+    async moveHostToFolder(hostId, folder) {
+        const hosts = this.getHosts();
+        const index = hosts.findIndex(h => h.id === hostId);
+        if (index === -1) {
+            return false;
+        }
+        hosts[index].folder = folder;
+        hosts[index].updatedAt = new Date().toISOString();
+        await this.context.globalState.update(this.STORAGE_KEY, hosts);
+        return true;
     }
+    // ============================================================================
+    // BULK OPERATIONS
+    // ============================================================================
+    async bulkDeleteHosts(ids) {
+        const hosts = this.getHosts();
+        const toDelete = new Set(ids);
+        const remaining = hosts.filter(h => !toDelete.has(h.id));
+        const deleted = hosts.length - remaining.length;
+        await this.context.globalState.update(this.STORAGE_KEY, remaining);
+        // Clean up secrets
+        for (const id of ids) {
+            try {
+                await this.context.secrets.delete(`pwd.${id}`);
+                await this.context.secrets.delete(`keypath.${id}`);
+            }
+            catch (e) {
+                // Ignore secret deletion errors
+            }
+        }
+        return {
+            success: deleted,
+            failed: ids.length - deleted,
+            errors: []
+        };
+    }
+    async bulkMoveToFolder(ids, folder) {
+        const hosts = this.getHosts();
+        let success = 0;
+        for (const host of hosts) {
+            if (ids.includes(host.id)) {
+                host.folder = folder;
+                host.updatedAt = new Date().toISOString();
+                success++;
+            }
+        }
+        await this.context.globalState.update(this.STORAGE_KEY, hosts);
+        return {
+            success,
+            failed: ids.length - success,
+            errors: []
+        };
+    }
+    async bulkAssignTags(ids, tags, mode) {
+        const hosts = this.getHosts();
+        let success = 0;
+        for (const host of hosts) {
+            if (ids.includes(host.id)) {
+                if (mode === 'replace') {
+                    host.tags = [...tags];
+                }
+                else {
+                    // Add mode - merge tags
+                    const existingTags = new Set(host.tags || []);
+                    tags.forEach(t => existingTags.add(t));
+                    host.tags = Array.from(existingTags);
+                }
+                host.updatedAt = new Date().toISOString();
+                success++;
+            }
+        }
+        await this.context.globalState.update(this.STORAGE_KEY, hosts);
+        return {
+            success,
+            failed: ids.length - success,
+            errors: []
+        };
+    }
+    // ============================================================================
+    // IMPORT / EXPORT
+    // ============================================================================
+    async importHosts(hostsData) {
+        const existingHosts = this.getHosts();
+        const now = new Date().toISOString();
+        let success = 0;
+        const errors = [];
+        for (const data of hostsData) {
+            try {
+                // Validate required fields
+                if (!data.host || !data.username) {
+                    errors.push(`Invalid host data: missing host or username`);
+                    continue;
+                }
+                const newHost = {
+                    id: this.generateId(),
+                    name: data.name || `${data.username}@${data.host}`,
+                    folder: data.folder || '',
+                    username: data.username,
+                    host: data.host,
+                    port: data.port || 22,
+                    osIcon: data.osIcon || 'linux',
+                    tags: data.tags || [],
+                    pin: data.pin || false,
+                    authType: data.authType || 'key',
+                    enableTerminal: data.enableTerminal ?? true,
+                    enableFileManager: data.enableFileManager ?? true,
+                    defaultPath: data.defaultPath || '/',
+                    tunnels: data.tunnels,
+                    notes: data.notes,
+                    keepAlive: data.keepAlive,
+                    jumpHostId: data.jumpHostId,
+                    credentialId: data.credentialId,
+                    protocol: data.protocol || 'ssh',
+                    createdAt: now,
+                    updatedAt: now
+                };
+                existingHosts.push(newHost);
+                success++;
+            }
+            catch (e) {
+                errors.push(`Failed to import host: ${e}`);
+            }
+        }
+        await this.context.globalState.update(this.STORAGE_KEY, existingHosts);
+        return {
+            success,
+            failed: hostsData.length - success,
+            errors
+        };
+    }
+    exportHosts(ids) {
+        const hosts = this.getHosts();
+        if (!ids || ids.length === 0) {
+            return hosts;
+        }
+        return hosts.filter(h => ids.includes(h.id));
+    }
+    // ============================================================================
+    // EFFECTIVE CONFIG (with folder inheritance)
+    // ============================================================================
     async getEffectiveConfig(hostId) {
         const hosts = this.getHosts();
         const host = hosts.find(h => h.id === hostId);
         if (!host) {
             throw new Error(`Host ${hostId} not found`);
         }
-        // Defaults
+        // Start with host config
         let effectiveHost = { ...host };
-        if (host.group) {
-            const groups = this.getGroupConfigs();
-            const groupConfig = groups[host.group];
-            if (groupConfig) {
-                if (!effectiveHost.username && groupConfig.username) {
-                    effectiveHost.username = groupConfig.username;
+        // Apply folder defaults if host has a folder
+        if (host.folder) {
+            const folderConfigs = this.getFolderConfigs();
+            const folderConfig = folderConfigs[host.folder];
+            if (folderConfig) {
+                if (!effectiveHost.username && folderConfig.username) {
+                    effectiveHost.username = folderConfig.username;
                 }
-                if (!effectiveHost.port && groupConfig.port) {
-                    effectiveHost.port = groupConfig.port;
+                if (!effectiveHost.port && folderConfig.port) {
+                    effectiveHost.port = folderConfig.port;
                 }
-                if (!effectiveHost.credentialId && groupConfig.credentialId) {
-                    effectiveHost.credentialId = groupConfig.credentialId;
+                if (!effectiveHost.credentialId && folderConfig.credentialId) {
+                    effectiveHost.credentialId = folderConfig.credentialId;
                 }
             }
         }
         return effectiveHost;
+    }
+    // ============================================================================
+    // UTILITY
+    // ============================================================================
+    generateId() {
+        return crypto.randomUUID();
+    }
+    async getPassword(hostId) {
+        return this.context.secrets.get(`pwd.${hostId}`);
+    }
+    async getKeyPath(hostId) {
+        return this.context.secrets.get(`keypath.${hostId}`);
     }
 }
 exports.HostService = HostService;
@@ -353,7 +581,7 @@ class ImporterService {
                     port: 22,
                     username: 'root', // Default
                     osIcon: 'linux',
-                    group: 'Imported',
+                    folder: 'Imported',
                     tags: []
                 };
             }
@@ -431,7 +659,6 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.activate = activate;
 const hostKeyService_1 = __webpack_require__(/*! ./security/hostKeyService */ "./src/extension/security/hostKeyService.ts");
-// import { Utils } from 'vscode-uri'; // Removed unused import causing build error
 const vscode = __importStar(__webpack_require__(/*! vscode */ "vscode"));
 const hostService_1 = __webpack_require__(/*! ./hostService */ "./src/extension/hostService.ts");
 const credentialService_1 = __webpack_require__(/*! ./credentialService */ "./src/extension/credentialService.ts");
@@ -440,6 +667,7 @@ const sessionTracker_1 = __webpack_require__(/*! ./sessionTracker */ "./src/exte
 const sshAgent_1 = __webpack_require__(/*! ./sshAgent */ "./src/extension/sshAgent.ts");
 const shellService_1 = __webpack_require__(/*! ./system/shellService */ "./src/extension/system/shellService.ts");
 const importers_1 = __webpack_require__(/*! ./importers */ "./src/extension/importers.ts");
+const statusService_1 = __webpack_require__(/*! ./statusService */ "./src/extension/statusService.ts");
 const commands_1 = __webpack_require__(/*! ./commands */ "./src/extension/commands.ts");
 function activate(context) {
     const hostService = new hostService_1.HostService(context);
@@ -448,7 +676,6 @@ function activate(context) {
     const sessionTracker = new sessionTracker_1.SessionTracker(context);
     const sshAgentService = new sshAgent_1.SshAgentService(context);
     const importerService = new importers_1.ImporterService();
-    // Register Commands
     const hostKeyService = new hostKeyService_1.HostKeyService();
     const shellService = new shellService_1.ShellService();
     // Register Commands
@@ -479,12 +706,17 @@ class ConnectivityViewProvider {
     }
     resolveWebviewView(webviewView, context, _token) {
         console.log('ConnectivityViewProvider.resolveWebviewView called');
+        this._view = webviewView;
         webviewView.webview.options = {
             enableScripts: true,
             localResourceRoots: [this._extensionUri]
         };
         webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
         console.log('Webview HTML set');
+        // Initialize Status Service with callback
+        this._statusService = new statusService_1.StatusService((statuses) => {
+            webviewView.webview.postMessage({ command: 'HOST_STATUS_UPDATE', payload: { statuses } });
+        });
         // Listen for credential updates
         this._credentialService.onDidChangeCredentials(credentials => {
             webviewView.webview.postMessage({ command: 'UPDATE_DATA', payload: { credentials } });
@@ -497,25 +729,38 @@ class ConnectivityViewProvider {
         this._sessionTracker.onDidChangeSessions(activeHostIds => {
             webviewView.webview.postMessage({ command: 'SESSION_UPDATE', payload: { activeHostIds } });
         });
+        // Clean up status service when view is disposed
+        webviewView.onDidDispose(() => {
+            this._statusService?.dispose();
+        });
         webviewView.webview.onDidReceiveMessage(async (message) => {
             switch (message.command) {
-                case 'FETCH_DATA':
-                    // ... fetch data
+                // ============================================================
+                // DATA FETCHING
+                // ============================================================
+                case 'FETCH_DATA': {
                     const hosts = this._hostService.getHosts();
                     const credentials = await this._credentialService.getCredentials();
                     const scripts = await this._scriptService.getScripts();
                     const activeHostIds = this._sessionTracker.getActiveHostIds();
+                    const hostStatuses = this._statusService?.getAllStatuses() || {};
                     webviewView.webview.postMessage({
                         command: 'UPDATE_DATA',
-                        payload: { hosts, credentials, scripts, activeSessionHostIds: activeHostIds }
+                        payload: { hosts, credentials, scripts, activeSessionHostIds: activeHostIds, hostStatuses }
                     });
-                    // Also check SSH Agent
+                    // Check SSH Agent
                     const agentAvailable = await this._sshAgentService.isAgentAvailable();
                     webviewView.webview.postMessage({ command: 'AGENT_STATUS', payload: { available: agentAvailable } });
                     // Get Shells
                     const shells = await this._shellService.getAvailableShells();
                     webviewView.webview.postMessage({ command: 'AVAILABLE_SHELLS', payload: { shells } });
+                    // Start status checking
+                    this._statusService?.startPeriodicCheck(hosts, 30000);
                     break;
+                }
+                // ============================================================
+                // HOST CRUD
+                // ============================================================
                 case 'SAVE_HOST':
                     await this._hostService.saveHost(message.payload.host, message.payload.password, message.payload.keyPath);
                     this.broadcastUpdate();
@@ -524,11 +769,105 @@ class ConnectivityViewProvider {
                     await this._hostService.deleteHost(message.payload.id);
                     this.broadcastUpdate();
                     break;
+                case 'CLONE_HOST': {
+                    const cloned = await this._hostService.cloneHost(message.payload.id);
+                    if (cloned) {
+                        vscode.window.showInformationMessage(`Host "${cloned.name}" cloned successfully.`);
+                    }
+                    this.broadcastUpdate();
                     break;
-                case 'CONNECT_SSH':
+                }
+                case 'TOGGLE_PIN': {
+                    const isPinned = await this._hostService.togglePin(message.payload.id);
+                    this.broadcastUpdate();
+                    break;
+                }
+                // ============================================================
+                // FOLDER OPERATIONS
+                // ============================================================
+                case 'RENAME_FOLDER': {
+                    const updated = await this._hostService.renameFolder(message.payload.oldName, message.payload.newName);
+                    vscode.window.showInformationMessage(`Folder renamed. ${updated} hosts updated.`);
+                    this.broadcastUpdate();
+                    break;
+                }
+                case 'MOVE_HOST_TO_FOLDER': {
+                    await this._hostService.moveHostToFolder(message.payload.hostId, message.payload.folder);
+                    this.broadcastUpdate();
+                    break;
+                }
+                case 'SAVE_FOLDER_CONFIG': {
+                    await this._hostService.saveFolderConfig(message.payload.config);
+                    break;
+                }
+                // ============================================================
+                // BULK OPERATIONS
+                // ============================================================
+                case 'BULK_DELETE_HOSTS': {
+                    const result = await this._hostService.bulkDeleteHosts(message.payload.ids);
+                    vscode.window.showInformationMessage(`Deleted ${result.success} hosts.`);
+                    this.broadcastUpdate();
+                    break;
+                }
+                case 'BULK_MOVE_TO_FOLDER': {
+                    const result = await this._hostService.bulkMoveToFolder(message.payload.ids, message.payload.folder);
+                    vscode.window.showInformationMessage(`Moved ${result.success} hosts to "${message.payload.folder || 'Uncategorized'}".`);
+                    this.broadcastUpdate();
+                    break;
+                }
+                case 'BULK_ASSIGN_TAGS': {
+                    const result = await this._hostService.bulkAssignTags(message.payload.ids, message.payload.tags, message.payload.mode);
+                    vscode.window.showInformationMessage(`Tags assigned to ${result.success} hosts.`);
+                    this.broadcastUpdate();
+                    break;
+                }
+                // ============================================================
+                // IMPORT / EXPORT
+                // ============================================================
+                case 'IMPORT_REQUEST': {
+                    const imported = await this._importerService.importHosts(message.payload.format);
+                    if (imported && imported.length > 0) {
+                        for (const h of imported) {
+                            await this._hostService.saveHost(h);
+                        }
+                        this.broadcastUpdate();
+                        vscode.window.showInformationMessage(`Imported ${imported.length} hosts.`);
+                    }
+                    break;
+                }
+                case 'IMPORT_HOSTS': {
+                    const result = await this._hostService.importHosts(message.payload.hosts);
+                    vscode.window.showInformationMessage(`Imported ${result.success} hosts. ${result.failed} failed.`);
+                    this.broadcastUpdate();
+                    break;
+                }
+                case 'EXPORT_REQUEST': {
+                    const currentHosts = this._hostService.getHosts();
+                    await this._importerService.exportHosts(currentHosts);
+                    break;
+                }
+                case 'EXPORT_HOSTS': {
+                    const hostsToExport = this._hostService.exportHosts(message.payload.ids);
+                    const exportData = { hosts: hostsToExport };
+                    const blob = JSON.stringify(exportData, null, 2);
+                    const uri = await vscode.window.showSaveDialog({
+                        saveLabel: 'Export Hosts',
+                        filters: { 'JSON Files': ['json'] },
+                        defaultUri: vscode.Uri.file(`ssh-hosts-export-${new Date().toISOString().split('T')[0]}.json`)
+                    });
+                    if (uri) {
+                        await vscode.workspace.fs.writeFile(uri, Buffer.from(blob, 'utf8'));
+                        vscode.window.showInformationMessage(`Exported ${hostsToExport.length} hosts to ${uri.fsPath}`);
+                    }
+                    break;
+                }
+                // ============================================================
+                // CONNECTION ACTIONS
+                // ============================================================
+                case 'CONNECT_SSH': {
                     let hostToConnect;
                     if (message.payload.id) {
-                        hostToConnect = this._hostService.getHosts().find(h => h.id === message.payload.id);
+                        hostToConnect = this._hostService.getHostById(message.payload.id);
                     }
                     else if (message.payload.host) {
                         hostToConnect = message.payload.host;
@@ -539,11 +878,9 @@ class ConnectivityViewProvider {
                     }
                     vscode.window.showInformationMessage(`Connecting to ${hostToConnect.name || hostToConnect.host}...`);
                     // Host Key Verification
-                    // Mock key for simulation.
                     const mockKey = Buffer.from('mock-public-key-' + hostToConnect.host);
                     const verificationStatus = await this._hostKeyService.verifyHostKey(hostToConnect.host, hostToConnect.port, 'ssh-rsa', mockKey);
                     if (verificationStatus !== 'valid') {
-                        // Ask user to verify
                         webviewView.webview.postMessage({
                             command: 'CHECK_HOST_KEY',
                             payload: {
@@ -553,62 +890,49 @@ class ConnectivityViewProvider {
                                 status: verificationStatus
                             }
                         });
-                        // We need to store the pending host to continue after acceptance.
-                        // Currently ACCEPT_HOST_KEY handler tries to refind it.
-                        // We might need to handle ad-hoc continuation.
-                        // For now, let's assume ACCEPT_HOST_KEY works by finding host/port.
                         return;
                     }
-                    // Proceed if valid
                     this.startSession(hostToConnect);
                     break;
-                case 'ACCEPT_HOST_KEY':
+                }
+                case 'OPEN_SFTP': {
+                    // TODO: Implement SFTP File Manager
+                    vscode.window.showInformationMessage('SFTP File Manager: Coming soon!');
+                    break;
+                }
+                case 'OPEN_STATS': {
+                    // TODO: Implement Server Stats
+                    vscode.window.showInformationMessage('Server Stats: Coming soon!');
+                    break;
+                }
+                // ============================================================
+                // HOST KEY VERIFICATION
+                // ============================================================
+                case 'ACCEPT_HOST_KEY': {
                     if (message.payload.save) {
                         const keyBuffer = Buffer.from(message.payload.fingerprint, 'base64');
                         await this._hostKeyService.addHostKey(message.payload.host, message.payload.port, 'ssh-rsa', keyBuffer);
                     }
-                    // Retry connection
-                    // For ad-hoc, we don't have the object here easily unless we reconstructed it or stored it.
-                    // Let's try to find it in store first.
-                    const existingHost = this._hostService.getHosts().find(h => h.host === message.payload.host && h.port === message.payload.port);
+                    const existingHost = this._hostService.getHostById(message.payload.host);
                     if (existingHost) {
                         this.startSession(existingHost);
                     }
                     else {
-                        // It might be ad-hoc.
-                        // Simple workaround: We don't have the full host object (credentials, etc) here to restart ad-hoc session fully
-                        // unless we passed it back and forth.
-                        // For this iteration, we'll show a message asking user to click connect again.
                         vscode.window.showInformationMessage("Host key accepted. Please click connect again.");
                     }
                     break;
+                }
                 case 'DENY_HOST_KEY':
                     vscode.window.showWarningMessage('Connection aborted by user.');
                     break;
-                case 'PICK_KEY_FILE':
-                    const uris = await vscode.window.showOpenDialog({ canSelectFiles: true, canSelectFolders: false });
-                    if (uris && uris.length > 0) {
-                        webviewView.webview.postMessage({ command: 'KEY_FILE_PICKED', payload: { path: uris[0].fsPath } });
-                    }
-                    break;
-                case 'IMPORT_REQUEST':
-                    const imported = await this._importerService.importHosts(message.payload.format);
-                    if (imported && imported.length > 0) {
-                        for (const h of imported) {
-                            await this._hostService.saveHost(h);
-                        }
-                        this.broadcastUpdate();
-                        vscode.window.showInformationMessage(`Imported ${imported.length} hosts.`);
-                    }
-                    break;
-                case 'EXPORT_REQUEST':
-                    const currentHosts = this._hostService.getHosts();
-                    await this._importerService.exportHosts(currentHosts);
-                    break;
-                case 'GET_CREDENTIALS':
+                // ============================================================
+                // CREDENTIALS
+                // ============================================================
+                case 'GET_CREDENTIALS': {
                     const creds = await this._credentialService.getCredentials();
                     webviewView.webview.postMessage({ command: 'UPDATE_DATA', payload: { hosts: this._hostService.getHosts(), credentials: creds } });
                     break;
+                }
                 case 'SAVE_CREDENTIAL':
                     await this._credentialService.saveCredential(message.payload.credential, message.payload.secret);
                     this.broadcastUpdate();
@@ -617,16 +941,26 @@ class ConnectivityViewProvider {
                     await this._credentialService.deleteCredential(message.payload.id);
                     this.broadcastUpdate();
                     break;
-                case 'RUN_SCRIPT':
+                case 'RENAME_CREDENTIAL_FOLDER': {
+                    // TODO: Implement in credentialService
+                    vscode.window.showInformationMessage('Credential folder renamed.');
+                    this.broadcastUpdate();
+                    break;
+                }
+                // ============================================================
+                // SCRIPTS
+                // ============================================================
+                case 'RUN_SCRIPT': {
                     const scriptId = message.payload.scriptId;
                     const hostId = message.payload.hostId;
                     const allScripts = await this._scriptService.getScripts();
                     const script = allScripts.find(s => s.id === scriptId);
                     if (script) {
                         vscode.window.showInformationMessage(`Simulating sending script "${script.name}" to host ${hostId}`);
-                        // Actual implementation will connect to host and send script
+                        // TODO: Actual implementation will connect to host and send script
                     }
                     break;
+                }
                 case 'SAVE_SCRIPT':
                     await this._scriptService.saveScript(message.payload.script);
                     this.broadcastUpdate();
@@ -634,24 +968,32 @@ class ConnectivityViewProvider {
                 case 'DELETE_SCRIPT':
                     await this._scriptService.deleteScript(message.payload.id);
                     break;
+                // ============================================================
+                // FILE PICKER
+                // ============================================================
+                case 'PICK_KEY_FILE': {
+                    const uris = await vscode.window.showOpenDialog({ canSelectFiles: true, canSelectFolders: false });
+                    if (uris && uris.length > 0) {
+                        webviewView.webview.postMessage({ command: 'KEY_FILE_PICKED', payload: { path: uris[0].fsPath } });
+                    }
+                    break;
+                }
             }
         });
     }
     async startSession(host) {
+        // TODO: Implement actual SSH connection with pty
         const term = vscode.window.createTerminal(`SSH: ${host.name || host.host}`);
         term.show();
         this._sessionTracker.registerSession(host.id, term);
         // If it's a saved host, update last used
-        const isSaved = this._hostService.getHosts().some(h => h.id === host.id);
+        const isSaved = this._hostService.getHostById(host.id) !== undefined;
         if (isSaved) {
             await this._hostService.updateLastUsed(host.id);
         }
         else {
-            // Ad-hoc: Offer to save
             const selection = await vscode.window.showInformationMessage(`Connected to ${host.host}. Save this connection?`, 'Yes', 'No');
             if (selection === 'Yes') {
-                // We can reuse SAVE_HOST logic if we strip ID? Or keep ID?
-                // Just call saveHost
                 await this._hostService.saveHost(host);
                 vscode.window.showInformationMessage("Host saved.");
                 this.broadcastUpdate();
@@ -665,12 +1007,17 @@ class ConnectivityViewProvider {
             const credentials = await this._credentialService.getCredentials();
             const scripts = await this._scriptService.getScripts();
             const activeHostIds = this._sessionTracker.getActiveHostIds();
-            this._view.webview.postMessage({ command: 'UPDATE_DATA', payload: { hosts, credentials, scripts, activeSessionHostIds: activeHostIds } });
+            const hostStatuses = this._statusService?.getAllStatuses() || {};
+            this._view.webview.postMessage({
+                command: 'UPDATE_DATA',
+                payload: { hosts, credentials, scripts, activeSessionHostIds: activeHostIds, hostStatuses }
+            });
+            // Restart status checking with updated hosts
+            this._statusService?.startPeriodicCheck(hosts, 30000);
         }
     }
     _getHtmlForWebview(webview) {
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.js'));
-        const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'src', 'webview', 'styles', 'main.css')); // Keep for now if needed, but style-loader should handle it.
         const nonce = getNonce();
         return `<!DOCTYPE html>
 			<html lang="en">
@@ -1035,6 +1382,188 @@ class SshAgentService {
     }
 }
 exports.SshAgentService = SshAgentService;
+
+
+/***/ }),
+
+/***/ "./src/extension/statusService.ts":
+/*!****************************************!*\
+  !*** ./src/extension/statusService.ts ***!
+  \****************************************/
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.StatusService = void 0;
+const net = __importStar(__webpack_require__(/*! net */ "net"));
+/**
+ * StatusService - Checks host online status via TCP port check
+ */
+class StatusService {
+    constructor(onStatusChange) {
+        this.hostStatuses = new Map();
+        this.checkInterval = null;
+        this.onStatusChange = onStatusChange;
+    }
+    /**
+     * Check if a host is reachable via TCP port
+     */
+    async checkHostStatus(host, port, timeout = 3000) {
+        return new Promise((resolve) => {
+            const socket = new net.Socket();
+            let resolved = false;
+            const cleanup = () => {
+                if (!resolved) {
+                    resolved = true;
+                    socket.destroy();
+                }
+            };
+            socket.setTimeout(timeout);
+            socket.on('connect', () => {
+                cleanup();
+                resolve(true);
+            });
+            socket.on('timeout', () => {
+                cleanup();
+                resolve(false);
+            });
+            socket.on('error', () => {
+                cleanup();
+                resolve(false);
+            });
+            socket.on('close', () => {
+                if (!resolved) {
+                    resolved = true;
+                    resolve(false);
+                }
+            });
+            try {
+                socket.connect(port, host);
+            }
+            catch {
+                cleanup();
+                resolve(false);
+            }
+        });
+    }
+    /**
+     * Check status for a single host and update the status map
+     */
+    async checkHost(host) {
+        try {
+            const isOnline = await this.checkHostStatus(host.host, host.port);
+            const status = isOnline ? 'online' : 'offline';
+            this.hostStatuses.set(host.id, status);
+            return status;
+        }
+        catch {
+            this.hostStatuses.set(host.id, 'unknown');
+            return 'unknown';
+        }
+    }
+    /**
+     * Check status for all hosts
+     */
+    async checkAllHosts(hosts) {
+        const promises = hosts.map(async (host) => {
+            const status = await this.checkHost(host);
+            return { id: host.id, status };
+        });
+        await Promise.all(promises);
+        return this.getAllStatuses();
+    }
+    /**
+     * Start periodic status checks
+     */
+    startPeriodicCheck(hosts, intervalMs = 30000) {
+        this.stopPeriodicCheck();
+        // Initial check
+        this.checkAllHosts(hosts).then((statuses) => {
+            if (this.onStatusChange) {
+                this.onStatusChange(statuses);
+            }
+        });
+        // Periodic check
+        this.checkInterval = setInterval(async () => {
+            const statuses = await this.checkAllHosts(hosts);
+            if (this.onStatusChange) {
+                this.onStatusChange(statuses);
+            }
+        }, intervalMs);
+    }
+    /**
+     * Stop periodic status checks
+     */
+    stopPeriodicCheck() {
+        if (this.checkInterval) {
+            clearInterval(this.checkInterval);
+            this.checkInterval = null;
+        }
+    }
+    /**
+     * Get status for a specific host
+     */
+    getStatus(hostId) {
+        return this.hostStatuses.get(hostId) || 'unknown';
+    }
+    /**
+     * Get all statuses as a record
+     */
+    getAllStatuses() {
+        const statuses = {};
+        this.hostStatuses.forEach((status, id) => {
+            statuses[id] = status;
+        });
+        return statuses;
+    }
+    /**
+     * Clear all statuses
+     */
+    clearStatuses() {
+        this.hostStatuses.clear();
+    }
+    /**
+     * Dispose of the service
+     */
+    dispose() {
+        this.stopPeriodicCheck();
+        this.clearStatuses();
+    }
+}
+exports.StatusService = StatusService;
 
 
 /***/ }),

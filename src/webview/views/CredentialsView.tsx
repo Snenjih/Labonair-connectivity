@@ -4,9 +4,11 @@ import vscode from '../utils/vscode';
 
 interface CredentialsViewProps {
 	credentials: Credential[];
+	onEdit?: (credential: Credential) => void;
 }
 
-const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials }) => {
+const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit }) => {
+
 	const [isEditing, setIsEditing] = useState(false);
 	const [editingCred, setEditingCred] = useState<Partial<Credential> & { secret?: string }>({});
 

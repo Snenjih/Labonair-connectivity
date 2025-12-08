@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Host, Tunnel, Message } from '../../common/types';
+import { Host, Tunnel, Message, Credential } from '../../common/types';
 import { TagInput } from '../components/TagInput';
 import { TunnelList } from '../components/TunnelList';
 import vscode from '../utils/vscode';
@@ -9,23 +9,35 @@ interface EditHostProps {
 	initialHost: Host | null;
 	agentAvailable?: boolean;
 	availableShells?: string[];
+	existingFolders?: string[];
+	credentials?: Credential[];
 	onSave: (host: Host, password?: string, keyPath?: string) => void;
 	onCancel: () => void;
 }
 
-const EditHost: React.FC<EditHostProps> = ({ initialHost, agentAvailable, availableShells, onSave, onCancel }) => {
-	const [activeTab, setActiveTab] = useState<'general' | 'connection' | 'advanced'>('connection'); // Changed default tab to 'connection'
+const EditHost: React.FC<EditHostProps> = ({
+	initialHost,
+	agentAvailable,
+	availableShells,
+	existingFolders = [],
+	credentials = [],
+	onSave,
+	onCancel
+}) => {
+	const [activeTab, setActiveTab] = useState<'general' | 'connection' | 'advanced'>('connection');
 
 	// Form State
 	const [name, setName] = useState(initialHost?.name || '');
-	const [group, setGroup] = useState(initialHost?.group || '');
+	const [folder, setFolder] = useState(initialHost?.folder || '');
 	const [protocol, setProtocol] = useState<'ssh' | 'local' | 'wsl'>(initialHost?.protocol || 'ssh');
 	const [host, setHost] = useState(initialHost?.host || '');
-	const [port, setPort] = useState(initialHost?.port || 22); // Changed to number type
+	const [port, setPort] = useState(initialHost?.port || 22);
 	const [username, setUsername] = useState(initialHost?.username || '');
 	const [osIcon, setOsIcon] = useState<Host['osIcon']>(initialHost?.osIcon || 'linux');
 	const [tags, setTags] = useState<string[]>(initialHost?.tags || []);
 	const [jumpHostId, setJumpHostId] = useState(initialHost?.jumpHostId || '');
+	const [pin, setPin] = useState(initialHost?.pin || false);
+
 
 	const [tunnels, setTunnels] = useState<Tunnel[]>(initialHost?.tunnels || []);
 	const [notes, setNotes] = useState(initialHost?.notes || '');
@@ -58,19 +70,22 @@ const EditHost: React.FC<EditHostProps> = ({ initialHost, agentAvailable, availa
 		const newHost: Host = {
 			id: initialHost?.id || crypto.randomUUID(),
 			name,
-			group,
+			folder,
 			host,
-			port: port, // Use port directly as it's a number
+			port,
 			username,
 			osIcon,
 			tags,
+			pin,
 			jumpHostId: jumpHostId || undefined,
 			tunnels: tunnels.length > 0 ? tunnels : undefined,
 			notes: notes || undefined,
 			keepAlive: keepAlive || undefined,
-			protocol, // Added protocol
-			authType, // Added authType
-			credentialId: authType === 'credential' ? credentialId : undefined, // Conditionally add credentialId
+			protocol,
+			authType,
+			credentialId: authType === 'credential' ? credentialId : undefined,
+			enableTerminal: true,
+			enableFileManager: true,
 		};
 
 		onSave(newHost, password || undefined, keyPath || undefined);
@@ -107,13 +122,21 @@ const EditHost: React.FC<EditHostProps> = ({ initialHost, agentAvailable, availa
 						<label>Label</label>
 						<input className="vscode-input" value={name} onChange={e => setName(e.target.value)} required />
 
-						<label>Group</label>
-						<input className="vscode-input" value={group} onChange={e => setGroup(e.target.value)} list="group-suggestions" />
-						<datalist id="group-suggestions">
+						<label>Folder</label>
+						<input className="vscode-input" value={folder} onChange={e => setFolder(e.target.value)} list="folder-suggestions" />
+						<datalist id="folder-suggestions">
+							{existingFolders.map(f => (
+								<option key={f} value={f} />
+							))}
 							<option value="Production" />
 							<option value="Staging" />
 							<option value="Development" />
 						</datalist>
+
+						<label className="checkbox-label">
+							<input type="checkbox" checked={pin} onChange={e => setPin(e.target.checked)} />
+							Pin this host
+						</label>
 
 						<label>Tags</label>
 						<TagInput tags={tags} onChange={setTags} />
@@ -201,19 +224,14 @@ const EditHost: React.FC<EditHostProps> = ({ initialHost, agentAvailable, availa
 										<label>Credential</label>
 										<select className="vscode-input" value={credentialId} onChange={e => setCredentialId(e.target.value)}>
 											<option value="">Select a credential...</option>
-											{/* Credentials would be passed here ideally or we just use IDs.
-												For now we don't have the list passed to EditHost.
-												We need to pass it or just save ID.
-												Actually App.tsx passes credentials? No?
-												Wait, EditHost doesn't receive credentials prop.
-												It needs it if we use dropdown.
-												Let's assume input for ID or simple text for now if prop missing.
-											*/}
-											<option value="test">Test Cred (Mock)</option>
+											{credentials.map(c => (
+												<option key={c.id} value={c.id}>{c.name} ({c.username})</option>
+											))}
 										</select>
 										<small>Manage credentials in the Credentials tab.</small>
 									</div>
 								)}
+
 							</>
 						) : (
 							<div className="form-group">

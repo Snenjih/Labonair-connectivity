@@ -35645,15 +35645,18 @@ const ScriptList_1 = __importDefault(__webpack_require__(/*! ./components/Script
 const SearchBar_1 = __importDefault(__webpack_require__(/*! ./components/SearchBar */ "./src/webview/components/SearchBar.tsx"));
 const TunnelDialog_1 = __importDefault(__webpack_require__(/*! ./dialogs/TunnelDialog */ "./src/webview/dialogs/TunnelDialog.tsx"));
 const EmptyState_1 = __importDefault(__webpack_require__(/*! ./components/EmptyState */ "./src/webview/components/EmptyState.tsx"));
+__webpack_require__(/*! ./styles/main.css */ "./src/webview/styles/main.css");
 const App = () => {
-    // ... existing ...
     const [state, setState] = (0, react_1.useState)({
-        view: 'list',
+        view: 'hosts',
         hosts: [],
         selectedHost: null,
         credentials: [],
         scripts: [],
-        activeSessionHostIds: []
+        activeSessionHostIds: [],
+        hostStatuses: {},
+        selectedHostIds: [],
+        editingCredential: null
     });
     const [filterText, setFilterText] = (0, react_1.useState)('');
     const [sortCriteria, setSortCriteria] = (0, react_1.useState)('name');
@@ -35661,7 +35664,7 @@ const App = () => {
     const [tunnelDialogHost, setTunnelDialogHost] = (0, react_1.useState)(null);
     const [hostKeyRequest, setHostKeyRequest] = (0, react_1.useState)(null);
     (0, react_1.useEffect)(() => {
-        window.addEventListener('message', event => {
+        const handleMessage = (event) => {
             const message = event.data;
             switch (message.command) {
                 case 'UPDATE_DATA':
@@ -35670,13 +35673,20 @@ const App = () => {
                         hosts: message.payload.hosts || prev.hosts,
                         credentials: message.payload.credentials || prev.credentials,
                         scripts: message.payload.scripts || prev.scripts,
-                        activeSessionHostIds: message.payload.activeSessionHostIds !== undefined ? message.payload.activeSessionHostIds : prev.activeSessionHostIds
+                        activeSessionHostIds: message.payload.activeSessionHostIds !== undefined ? message.payload.activeSessionHostIds : prev.activeSessionHostIds,
+                        hostStatuses: message.payload.hostStatuses || prev.hostStatuses
                     }));
                     break;
                 case 'SESSION_UPDATE':
                     setState(prev => ({
                         ...prev,
                         activeSessionHostIds: message.payload.activeHostIds
+                    }));
+                    break;
+                case 'HOST_STATUS_UPDATE':
+                    setState(prev => ({
+                        ...prev,
+                        hostStatuses: message.payload.statuses
                     }));
                     break;
                 case 'CHECK_HOST_KEY':
@@ -35686,11 +35696,116 @@ const App = () => {
                     setState(prev => ({ ...prev, availableShells: message.payload.shells }));
                     break;
             }
+        };
+        window.addEventListener('message', handleMessage);
+        vscode_1.default.postMessage({ command: 'FETCH_DATA' });
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+    // ============================================================
+    // NAVIGATION
+    // ============================================================
+    const handleNavigate = (0, react_1.useCallback)((view) => {
+        setState(prev => ({
+            ...prev,
+            view,
+            selectedHost: view === 'hosts' ? null : prev.selectedHost,
+            editingCredential: view === 'credentials' ? null : prev.editingCredential
+        }));
+        if (view === 'credentials') {
+            vscode_1.default.postMessage({ command: 'GET_CREDENTIALS' });
+        }
+    }, []);
+    // ============================================================
+    // HOST ACTIONS
+    // ============================================================
+    const handleSaveHost = (0, react_1.useCallback)((host, password, keyPath) => {
+        vscode_1.default.postMessage({ command: 'SAVE_HOST', payload: { host, password, keyPath } });
+        setState(prev => ({ ...prev, view: 'hosts', selectedHost: null }));
+    }, []);
+    const handleDeleteHost = (0, react_1.useCallback)((id) => {
+        vscode_1.default.postMessage({ command: 'DELETE_HOST', payload: { id } });
+    }, []);
+    const handleConnect = (0, react_1.useCallback)((id) => {
+        vscode_1.default.postMessage({ command: 'CONNECT_SSH', payload: { id } });
+    }, []);
+    const handleTogglePin = (0, react_1.useCallback)((id) => {
+        vscode_1.default.postMessage({ command: 'TOGGLE_PIN', payload: { id } });
+    }, []);
+    const handleCloneHost = (0, react_1.useCallback)((id) => {
+        vscode_1.default.postMessage({ command: 'CLONE_HOST', payload: { id } });
+    }, []);
+    const handleEditHost = (0, react_1.useCallback)((host) => {
+        setState(prev => ({ ...prev, view: 'addHost', selectedHost: host }));
+    }, []);
+    // ============================================================
+    // BULK ACTIONS
+    // ============================================================
+    const handleToggleSelection = (0, react_1.useCallback)((id) => {
+        setState(prev => {
+            const selected = new Set(prev.selectedHostIds || []);
+            if (selected.has(id)) {
+                selected.delete(id);
+            }
+            else {
+                selected.add(id);
+            }
+            return { ...prev, selectedHostIds: Array.from(selected) };
         });
-        // Initial fetch
+    }, []);
+    const handleSelectAll = (0, react_1.useCallback)((ids) => {
+        setState(prev => ({ ...prev, selectedHostIds: ids }));
+    }, []);
+    const handleClearSelection = (0, react_1.useCallback)(() => {
+        setState(prev => ({ ...prev, selectedHostIds: [] }));
+    }, []);
+    const handleBulkDelete = (0, react_1.useCallback)(() => {
+        if (state.selectedHostIds && state.selectedHostIds.length > 0) {
+            vscode_1.default.postMessage({ command: 'BULK_DELETE_HOSTS', payload: { ids: state.selectedHostIds } });
+            handleClearSelection();
+        }
+    }, [state.selectedHostIds, handleClearSelection]);
+    const handleBulkMoveToFolder = (0, react_1.useCallback)((folder) => {
+        if (state.selectedHostIds && state.selectedHostIds.length > 0) {
+            vscode_1.default.postMessage({ command: 'BULK_MOVE_TO_FOLDER', payload: { ids: state.selectedHostIds, folder } });
+            handleClearSelection();
+        }
+    }, [state.selectedHostIds, handleClearSelection]);
+    const handleBulkAssignTags = (0, react_1.useCallback)((tags, mode) => {
+        if (state.selectedHostIds && state.selectedHostIds.length > 0) {
+            vscode_1.default.postMessage({ command: 'BULK_ASSIGN_TAGS', payload: { ids: state.selectedHostIds, tags, mode } });
+            handleClearSelection();
+        }
+    }, [state.selectedHostIds, handleClearSelection]);
+    // ============================================================
+    // FOLDER ACTIONS
+    // ============================================================
+    const handleRenameFolder = (0, react_1.useCallback)((oldName, newName) => {
+        vscode_1.default.postMessage({ command: 'RENAME_FOLDER', payload: { oldName, newName } });
+    }, []);
+    const handleMoveHostToFolder = (0, react_1.useCallback)((hostId, folder) => {
+        vscode_1.default.postMessage({ command: 'MOVE_HOST_TO_FOLDER', payload: { hostId, folder } });
+    }, []);
+    // ============================================================
+    // IMPORT / EXPORT
+    // ============================================================
+    const handleImport = (0, react_1.useCallback)((format) => {
+        vscode_1.default.postMessage({ command: 'IMPORT_REQUEST', payload: { format } });
+    }, []);
+    const handleExport = (0, react_1.useCallback)(() => {
+        vscode_1.default.postMessage({ command: 'EXPORT_REQUEST' });
+    }, []);
+    const handleExportSelected = (0, react_1.useCallback)(() => {
+        if (state.selectedHostIds && state.selectedHostIds.length > 0) {
+            vscode_1.default.postMessage({ command: 'EXPORT_HOSTS', payload: { ids: state.selectedHostIds } });
+        }
+    }, [state.selectedHostIds]);
+    const handleRefresh = (0, react_1.useCallback)(() => {
         vscode_1.default.postMessage({ command: 'FETCH_DATA' });
     }, []);
-    const handleHostKeyAccept = (save) => {
+    // ============================================================
+    // HOST KEY DIALOG
+    // ============================================================
+    const handleHostKeyAccept = (0, react_1.useCallback)((save) => {
         if (hostKeyRequest) {
             vscode_1.default.postMessage({
                 command: 'ACCEPT_HOST_KEY',
@@ -35703,94 +35818,124 @@ const App = () => {
             });
             setHostKeyRequest(null);
         }
-    };
-    const handleHostKeyDeny = () => {
+    }, [hostKeyRequest]);
+    const handleHostKeyDeny = (0, react_1.useCallback)(() => {
         vscode_1.default.postMessage({ command: 'DENY_HOST_KEY' });
         setHostKeyRequest(null);
-    };
-    const handleNavigate = (view) => {
-        setState(prev => ({ ...prev, view }));
-        if (view === 'credentials' && (!state.credentials || state.credentials.length === 0)) {
-            vscode_1.default.postMessage({ command: 'GET_CREDENTIALS' });
+    }, []);
+    // ============================================================
+    // SFTP / STATS (TODO)
+    // ============================================================
+    const handleOpenSftp = (0, react_1.useCallback)((id) => {
+        // TODO: Implement SFTP
+        vscode_1.default.postMessage({ command: 'OPEN_SFTP', payload: { id } });
+    }, []);
+    const handleOpenStats = (0, react_1.useCallback)((id) => {
+        // TODO: Implement Stats
+        vscode_1.default.postMessage({ command: 'OPEN_STATS', payload: { id } });
+    }, []);
+    // ============================================================
+    // FILTERING & SORTING
+    // ============================================================
+    const filteredHosts = (0, react_1.useMemo)(() => {
+        return state.hosts.filter(h => {
+            if (!filterText)
+                return true;
+            const lower = filterText.toLowerCase();
+            return h.name.toLowerCase().includes(lower) ||
+                h.host.toLowerCase().includes(lower) ||
+                h.tags.some(t => t.toLowerCase().includes(lower)) ||
+                (h.folder && h.folder.toLowerCase().includes(lower));
+        });
+    }, [state.hosts, filterText]);
+    const sortedHosts = (0, react_1.useMemo)(() => {
+        return [...filteredHosts].sort((a, b) => {
+            // Pinned first
+            if (a.pin && !b.pin)
+                return -1;
+            if (!a.pin && b.pin)
+                return 1;
+            // Then by criteria
+            if (sortCriteria === 'name')
+                return a.name.localeCompare(b.name);
+            if (sortCriteria === 'lastUsed')
+                return (b.lastUsed || 0) - (a.lastUsed || 0);
+            if (sortCriteria === 'group')
+                return (a.folder || 'Uncategorized').localeCompare(b.folder || 'Uncategorized');
+            return 0;
+        });
+    }, [filteredHosts, sortCriteria]);
+    // Group by folder
+    const groupedHosts = (0, react_1.useMemo)(() => {
+        const grouped = {};
+        sortedHosts.forEach(host => {
+            const folder = host.folder || 'Uncategorized';
+            if (!grouped[folder])
+                grouped[folder] = [];
+            grouped[folder].push(host);
+        });
+        // Sort folders: Uncategorized first, then alphabetical
+        const sortedFolders = Object.keys(grouped).sort((a, b) => {
+            if (a === 'Uncategorized')
+                return -1;
+            if (b === 'Uncategorized')
+                return 1;
+            return a.localeCompare(b);
+        });
+        const result = {};
+        sortedFolders.forEach(f => { result[f] = grouped[f]; });
+        return result;
+    }, [sortedHosts]);
+    const existingFolders = (0, react_1.useMemo)(() => {
+        return Array.from(new Set(state.hosts.map(h => h.folder).filter(Boolean)));
+    }, [state.hosts]);
+    // ============================================================
+    // QUICK CONNECT
+    // ============================================================
+    const handleQuickConnect = (0, react_1.useCallback)((input) => {
+        let user = '';
+        let host = input;
+        let port = 22;
+        if (host.includes('@')) {
+            const parts = host.split('@');
+            user = parts[0];
+            host = parts[1];
         }
-    };
-    const handleSaveHost = (host, password, keyPath) => {
-        vscode_1.default.postMessage({ command: 'SAVE_HOST', payload: { host, password, keyPath } });
-        setState(prev => ({ ...prev, view: 'list' }));
-    };
-    const handleDeleteHost = (id) => {
-        vscode_1.default.postMessage({ command: 'DELETE_HOST', payload: { id } });
-    };
-    const handleConnect = (id) => {
-        vscode_1.default.postMessage({ command: 'CONNECT_SSH', payload: { id } });
-    };
-    const handleImport = (format) => {
-        vscode_1.default.postMessage({ command: 'IMPORT_REQUEST', payload: { format } });
-    };
-    const handleExport = () => {
-        vscode_1.default.postMessage({ command: 'EXPORT_REQUEST' });
-    };
-    const handleRefresh = () => {
-        vscode_1.default.postMessage({ command: 'FETCH_DATA' });
-    };
-    // Filtering
-    const filteredHosts = state.hosts.filter(h => {
-        if (!filterText)
-            return true;
-        const lower = filterText.toLowerCase();
-        return h.name.toLowerCase().includes(lower) ||
-            h.host.toLowerCase().includes(lower) ||
-            h.tags.some(t => t.toLowerCase().includes(lower));
-    });
-    // Sorting
-    const sortedHosts = [...filteredHosts].sort((a, b) => {
-        if (sortCriteria === 'name')
-            return a.name.localeCompare(b.name);
-        if (sortCriteria === 'lastUsed')
-            return (b.lastUsed || 0) - (a.lastUsed || 0);
-        if (sortCriteria === 'group')
-            return (a.group || 'Ungrouped').localeCompare(b.group || 'Ungrouped');
-        return 0;
-    });
-    // Grouping
-    const groupedHosts = {};
-    sortedHosts.forEach(host => {
-        const group = host.group || 'Ungrouped';
-        if (!groupedHosts[group])
-            groupedHosts[group] = [];
-        groupedHosts[group].push(host);
-    });
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "app-container", children: [hostKeyRequest && ((0, jsx_runtime_1.jsx)(HostKeyDialog_1.default, { host: hostKeyRequest.host, port: hostKeyRequest.port, fingerprint: hostKeyRequest.fingerprint, status: hostKeyRequest.status, onAccept: handleHostKeyAccept, onDeny: handleHostKeyDeny })), (0, jsx_runtime_1.jsx)(TopNav_1.default, { activeView: state.view, onNavigate: handleNavigate }), state.view === 'list' && ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(Toolbar_1.default, { onRefresh: handleRefresh, onImport: handleImport, onExport: handleExport, onSort: setSortCriteria, sortCriteria: sortCriteria, onQuickConnect: (input) => {
-                            // Parse user@host:port
-                            let user = '';
-                            let host = input;
-                            let port = 22;
-                            if (host.includes('@')) {
-                                const parts = host.split('@');
-                                user = parts[0];
-                                host = parts[1];
-                            }
-                            if (host.includes(':')) {
-                                const parts = host.split(':');
-                                host = parts[0];
-                                port = parseInt(parts[1]) || 22;
-                            }
-                            const ephemeralHost = {
-                                id: crypto.randomUUID(),
-                                name: input,
-                                group: 'Quick Connect',
-                                host: host,
-                                port: port,
-                                username: user || 'root', // Default to root if no user? Or prompt?
-                                osIcon: 'linux',
-                                tags: [],
-                                authType: 'key' // Default to key? Or try password?
-                            };
-                            // Just connect
-                            vscode_1.default.postMessage({ command: 'CONNECT_SSH', payload: { host: ephemeralHost } });
-                        } }), (0, jsx_runtime_1.jsx)(SearchBar_1.default, { value: filterText, onChange: setFilterText }), (0, jsx_runtime_1.jsx)("div", { className: "host-list", children: state.hosts.length === 0 ? ((0, jsx_runtime_1.jsx)(EmptyState_1.default, {})) : (Object.entries(groupedHosts).map(([group, hosts]) => ((0, jsx_runtime_1.jsx)(HostGroup_1.default, { name: group, count: hosts.length, credentials: state.credentials, children: hosts.map(host => ((0, jsx_runtime_1.jsx)(HostCard_1.default, { host: host, isActive: state.activeSessionHostIds?.includes(host.id), onConnect: () => handleConnect(host.id), onDelete: () => handleDeleteHost(host.id), onManageTunnels: () => setTunnelDialogHost(host), onEdit: () => {
-                                    setState(prev => ({ ...prev, view: 'edit', selectedHost: host }));
-                                } }, host.id))) }, group)))) }), (0, jsx_runtime_1.jsx)(ScriptList_1.default, { scripts: state.scripts || [] })] })), state.view === 'edit' && ((0, jsx_runtime_1.jsx)(EditHost_1.default, { initialHost: state.selectedHost, agentAvailable: state.sshAgentAvailable, availableShells: state.availableShells || [], onSave: handleSaveHost, onCancel: () => setState(prev => ({ ...prev, view: 'list', selectedHost: null })) })), state.view === 'credentials' && ((0, jsx_runtime_1.jsx)(CredentialsView_1.default, { credentials: state.credentials || [] })), tunnelDialogHost && ((0, jsx_runtime_1.jsx)(TunnelDialog_1.default, { host: tunnelDialogHost, onSave: (updatedHost) => handleSaveHost(updatedHost), onClose: () => setTunnelDialogHost(null) }))] }));
+        if (host.includes(':')) {
+            const parts = host.split(':');
+            host = parts[0];
+            port = parseInt(parts[1]) || 22;
+        }
+        const ephemeralHost = {
+            id: crypto.randomUUID(),
+            name: input,
+            folder: 'Quick Connect',
+            host: host,
+            port: port,
+            username: user || 'root',
+            osIcon: 'linux',
+            tags: [],
+            authType: 'key',
+            enableTerminal: true,
+            enableFileManager: true,
+        };
+        vscode_1.default.postMessage({ command: 'CONNECT_SSH', payload: { host: ephemeralHost } });
+    }, []);
+    // ============================================================
+    // RENDER
+    // ============================================================
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "app-container", children: [hostKeyRequest && ((0, jsx_runtime_1.jsx)(HostKeyDialog_1.default, { host: hostKeyRequest.host, port: hostKeyRequest.port, fingerprint: hostKeyRequest.fingerprint, status: hostKeyRequest.status, onAccept: handleHostKeyAccept, onDeny: handleHostKeyDeny })), (0, jsx_runtime_1.jsx)(TopNav_1.default, { activeView: state.view, onNavigate: handleNavigate }), state.view === 'hosts' && ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(Toolbar_1.default, { onRefresh: handleRefresh, onImport: handleImport, onExport: handleExport, onSort: setSortCriteria, sortCriteria: sortCriteria, onQuickConnect: handleQuickConnect, selectedCount: state.selectedHostIds?.length || 0, onBulkDelete: handleBulkDelete, onBulkExport: handleExportSelected }), (0, jsx_runtime_1.jsx)(SearchBar_1.default, { value: filterText, onChange: setFilterText }), (0, jsx_runtime_1.jsx)("div", { className: "host-list", children: state.hosts.length === 0 ? ((0, jsx_runtime_1.jsx)(EmptyState_1.default, {})) : (Object.entries(groupedHosts).map(([folder, hosts]) => ((0, jsx_runtime_1.jsx)(HostGroup_1.default, { name: folder, count: hosts.length, credentials: state.credentials, selectedHostIds: state.selectedHostIds || [], onSelectAll: (selected) => {
+                                if (selected) {
+                                    handleSelectAll([...(state.selectedHostIds || []), ...hosts.map(h => h.id)]);
+                                }
+                                else {
+                                    const hostIds = new Set(hosts.map(h => h.id));
+                                    setState(prev => ({
+                                        ...prev,
+                                        selectedHostIds: (prev.selectedHostIds || []).filter(id => !hostIds.has(id))
+                                    }));
+                                }
+                            }, onRenameFolder: handleRenameFolder, children: hosts.map(host => ((0, jsx_runtime_1.jsx)(HostCard_1.default, { host: host, isActive: state.activeSessionHostIds?.includes(host.id), isSelected: state.selectedHostIds?.includes(host.id) || false, status: state.hostStatuses?.[host.id] || 'unknown', onConnect: () => handleConnect(host.id), onDelete: () => handleDeleteHost(host.id), onManageTunnels: () => setTunnelDialogHost(host), onEdit: () => handleEditHost(host), onTogglePin: () => handleTogglePin(host.id), onToggleSelect: () => handleToggleSelection(host.id), onOpenSftp: () => handleOpenSftp(host.id), onOpenStats: () => handleOpenStats(host.id), onMoveToFolder: handleMoveHostToFolder }, host.id))) }, folder)))) }), (0, jsx_runtime_1.jsx)(ScriptList_1.default, { scripts: state.scripts || [] })] })), state.view === 'addHost' && ((0, jsx_runtime_1.jsx)(EditHost_1.default, { initialHost: state.selectedHost, agentAvailable: state.sshAgentAvailable, availableShells: state.availableShells || [], existingFolders: existingFolders, credentials: state.credentials || [], onSave: handleSaveHost, onCancel: () => handleNavigate('hosts') })), state.view === 'credentials' && ((0, jsx_runtime_1.jsx)(CredentialsView_1.default, { credentials: state.credentials || [], onEdit: (credential) => setState(prev => ({ ...prev, view: 'addCredential', editingCredential: credential })) })), state.view === 'addCredential' && ((0, jsx_runtime_1.jsxs)("div", { className: "edit-host-view", children: [(0, jsx_runtime_1.jsx)("h2", { children: state.editingCredential ? 'Edit Credential' : 'New Credential' }), (0, jsx_runtime_1.jsx)("p", { children: "Credential editor coming soon..." }), (0, jsx_runtime_1.jsx)("div", { className: "form-actions", children: (0, jsx_runtime_1.jsx)("button", { className: "vscode-button secondary", onClick: () => handleNavigate('credentials'), children: "Cancel" }) })] })), tunnelDialogHost && ((0, jsx_runtime_1.jsx)(TunnelDialog_1.default, { host: tunnelDialogHost, onSave: (updatedHost) => handleSaveHost(updatedHost), onClose: () => setTunnelDialogHost(null) }))] }));
 };
 exports["default"] = App;
 
@@ -35831,7 +35976,7 @@ exports["default"] = EmptyState;
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
-const HostCard = ({ host, isActive, onConnect, onEdit, onDelete, onManageTunnels }) => {
+const HostCard = ({ host, isActive, isSelected, status = 'unknown', onConnect, onEdit, onDelete, onManageTunnels, onTogglePin, onToggleSelect, onOpenSftp, onOpenStats, onMoveToFolder }) => {
     const handleDragOver = (e) => {
         if (e.dataTransfer.types.includes('application/labonair-script')) {
             e.preventDefault();
@@ -35851,7 +35996,9 @@ const HostCard = ({ host, isActive, onConnect, onEdit, onDelete, onManageTunnels
             vscode.postMessage({ command: 'RUN_SCRIPT', payload: { scriptId, hostId: host.id } });
         }
     };
-    return ((0, jsx_runtime_1.jsxs)("div", { className: `host-card ${isActive ? 'active-session' : ''}`, onDoubleClick: onConnect, onDragOver: handleDragOver, onDragLeave: handleDragLeave, onDrop: handleDrop, children: [(0, jsx_runtime_1.jsxs)("div", { className: "card-top", children: [isActive && (0, jsx_runtime_1.jsx)("div", { className: "active-indicator", title: "Active Session" }), (0, jsx_runtime_1.jsx)("input", { type: "checkbox" }), (0, jsx_runtime_1.jsxs)("div", { className: "host-info", children: [(0, jsx_runtime_1.jsxs)("div", { className: "host-name", children: [(0, jsx_runtime_1.jsx)("i", { className: `codicon codicon-${host.osIcon === 'windows' ? 'window' : 'terminal-linux'}` }), host.name] }), (0, jsx_runtime_1.jsxs)("div", { className: "host-address", children: [host.username, "@", host.host, ":", host.port] })] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "card-middle", children: [host.tags.map((tag, index) => ((0, jsx_runtime_1.jsx)("span", { className: "tag-pill", children: tag }, index))), host.notes && ((0, jsx_runtime_1.jsx)("span", { className: "notes-icon", title: host.notes, children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-note" }) }))] }), (0, jsx_runtime_1.jsxs)("div", { className: "card-bottom", children: [(0, jsx_runtime_1.jsx)("button", { className: "action-btn", title: "Stats", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-graph" }) }), (0, jsx_runtime_1.jsx)("button", { className: "action-btn", title: "SSH", onClick: onConnect, children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-remote" }) }), (0, jsx_runtime_1.jsx)("button", { className: "action-btn", title: "SFTP", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-file-symlink-directory" }) }), (0, jsx_runtime_1.jsx)("button", { className: "action-btn secondary", onClick: onManageTunnels, title: "Tunnels", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-plug" }) }), (0, jsx_runtime_1.jsx)("button", { className: "action-btn secondary", onClick: onEdit, title: "Edit", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-edit" }) }), (0, jsx_runtime_1.jsx)("button", { className: "action-btn secondary", onClick: onDelete, title: "Delete", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-trash" }) })] })] }));
+    const statusClass = status === 'online' ? 'status-online' :
+        status === 'offline' ? 'status-offline' : 'status-unknown';
+    return ((0, jsx_runtime_1.jsxs)("div", { className: `host-card ${isActive ? 'active-session' : ''} ${isSelected ? 'selected' : ''}`, onDoubleClick: onConnect, onDragOver: handleDragOver, onDragLeave: handleDragLeave, onDrop: handleDrop, children: [(0, jsx_runtime_1.jsxs)("div", { className: "card-top", children: [onToggleSelect && ((0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: isSelected, onChange: onToggleSelect, onClick: e => e.stopPropagation() })), (0, jsx_runtime_1.jsx)("div", { className: `status-indicator ${statusClass}`, title: `Status: ${status}` }), isActive && (0, jsx_runtime_1.jsx)("div", { className: "active-indicator", title: "Active Session" }), (0, jsx_runtime_1.jsxs)("div", { className: "host-info", children: [(0, jsx_runtime_1.jsxs)("div", { className: "host-name", children: [host.pin && (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-pinned pin-icon", title: "Pinned" }), (0, jsx_runtime_1.jsx)("i", { className: `codicon codicon-${host.osIcon === 'windows' ? 'window' : 'terminal-linux'}` }), host.name] }), (0, jsx_runtime_1.jsxs)("div", { className: "host-address", children: [host.username, "@", host.host, ":", host.port] })] }), onTogglePin && ((0, jsx_runtime_1.jsx)("button", { className: "icon-button", onClick: onTogglePin, title: host.pin ? 'Unpin' : 'Pin', children: (0, jsx_runtime_1.jsx)("i", { className: `codicon codicon-${host.pin ? 'pinned' : 'pin'}` }) }))] }), (0, jsx_runtime_1.jsxs)("div", { className: "card-middle", children: [host.tags.map((tag, index) => ((0, jsx_runtime_1.jsx)("span", { className: "tag-pill", children: tag }, index))), host.notes && ((0, jsx_runtime_1.jsx)("span", { className: "notes-icon", title: host.notes, children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-note" }) }))] }), (0, jsx_runtime_1.jsxs)("div", { className: "card-bottom", children: [onOpenStats && ((0, jsx_runtime_1.jsx)("button", { className: "action-btn secondary", title: "Stats", onClick: onOpenStats, children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-graph" }) })), (0, jsx_runtime_1.jsx)("button", { className: "action-btn", title: "SSH", onClick: onConnect, children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-remote" }) }), onOpenSftp && ((0, jsx_runtime_1.jsx)("button", { className: "action-btn", title: "SFTP", onClick: onOpenSftp, children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-file-symlink-directory" }) })), (0, jsx_runtime_1.jsx)("button", { className: "action-btn secondary", onClick: onManageTunnels, title: "Tunnels", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-plug" }) }), (0, jsx_runtime_1.jsx)("button", { className: "action-btn secondary", onClick: onEdit, title: "Edit", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-edit" }) }), (0, jsx_runtime_1.jsx)("button", { className: "action-btn secondary", onClick: onDelete, title: "Delete", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-trash" }) })] })] }));
 };
 exports["default"] = HostCard;
 
@@ -35872,21 +36019,50 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 const react_1 = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 const vscode_1 = __importDefault(__webpack_require__(/*! ../utils/vscode */ "./src/webview/utils/vscode.ts"));
-const HostGroup = ({ name, count, credentials = [], children }) => {
+const HostGroup = ({ name, count, credentials = [], children, selectedHostIds = [], onSelectAll, onRenameFolder }) => {
     const [isOpen, setIsOpen] = (0, react_1.useState)(true);
     const [showSettings, setShowSettings] = (0, react_1.useState)(false);
+    const [isRenaming, setIsRenaming] = (0, react_1.useState)(false);
+    const [newName, setNewName] = (0, react_1.useState)(name);
     const [config, setConfig] = (0, react_1.useState)({});
     const toggleOpen = () => setIsOpen(!isOpen);
+    // Check if all hosts in this group are selected
+    const allSelected = (0, react_1.useMemo)(() => {
+        // This is a simplified check - in real implementation we'd need host IDs
+        return false; // Placeholder
+    }, [selectedHostIds]);
     const handleSettingsClick = (e) => {
         e.stopPropagation();
         setShowSettings(true);
-        // Ideally we should fetch existing group config here, but we don't have it in props yet.
-        // For now simple implementation: just overwrites.
-        // TODO: Fetch current group settings if possible.
+    };
+    const handleRenameClick = (e) => {
+        e.stopPropagation();
+        setNewName(name);
+        setIsRenaming(true);
+    };
+    const handleRenameSubmit = () => {
+        if (newName && newName !== name && onRenameFolder) {
+            onRenameFolder(name, newName);
+        }
+        setIsRenaming(false);
+    };
+    const handleRenameKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleRenameSubmit();
+        }
+        else if (e.key === 'Escape') {
+            setIsRenaming(false);
+        }
+    };
+    const handleSelectAllClick = (e) => {
+        e.stopPropagation();
+        if (onSelectAll) {
+            onSelectAll(!allSelected);
+        }
     };
     const handleSaveSettings = () => {
         vscode_1.default.postMessage({
-            command: 'SAVE_GROUP_CONFIG',
+            command: 'SAVE_FOLDER_CONFIG',
             payload: {
                 config: {
                     name,
@@ -35896,7 +36072,7 @@ const HostGroup = ({ name, count, credentials = [], children }) => {
         });
         setShowSettings(false);
     };
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "host-group", children: [(0, jsx_runtime_1.jsxs)("div", { className: "group-header", onClick: toggleOpen, children: [(0, jsx_runtime_1.jsxs)("div", { className: "group-title", children: [(0, jsx_runtime_1.jsx)("i", { className: `codicon codicon-chevron-${isOpen ? 'down' : 'right'}` }), (0, jsx_runtime_1.jsx)("span", { children: name }), (0, jsx_runtime_1.jsx)("span", { className: "badge", children: count })] }), (0, jsx_runtime_1.jsx)("button", { className: "icon-button", onClick: handleSettingsClick, title: "Group Settings", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-gear" }) })] }), isOpen && (0, jsx_runtime_1.jsx)("div", { className: "group-content", children: children }), showSettings && ((0, jsx_runtime_1.jsx)("div", { className: "modal-overlay", children: (0, jsx_runtime_1.jsxs)("div", { className: "modal-content", children: [(0, jsx_runtime_1.jsxs)("h3", { children: ["Settings for ", name] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Default Username" }), (0, jsx_runtime_1.jsx)("input", { type: "text", value: config.username || '', onChange: e => setConfig(prev => ({ ...prev, username: e.target.value })), placeholder: "Inherited by hosts in this group" })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Default Port" }), (0, jsx_runtime_1.jsx)("input", { type: "number", value: config.port || '', onChange: e => setConfig(prev => ({ ...prev, port: parseInt(e.target.value) || undefined })), placeholder: "e.g. 22" })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Default Identity" }), (0, jsx_runtime_1.jsxs)("select", { value: config.credentialId || '', onChange: e => setConfig(prev => ({ ...prev, credentialId: e.target.value })), children: [(0, jsx_runtime_1.jsx)("option", { value: "", children: "-- None --" }), credentials.map(c => ((0, jsx_runtime_1.jsxs)("option", { value: c.id, children: [c.name, " (", c.username, ")"] }, c.id)))] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-actions", children: [(0, jsx_runtime_1.jsx)("button", { className: "primary-button", onClick: handleSaveSettings, children: "Save" }), (0, jsx_runtime_1.jsx)("button", { className: "secondary-button", onClick: () => setShowSettings(false), children: "Cancel" })] })] }) }))] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "host-group", children: [(0, jsx_runtime_1.jsxs)("div", { className: "group-header", onClick: toggleOpen, children: [(0, jsx_runtime_1.jsxs)("div", { className: "group-title", children: [onSelectAll && ((0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: allSelected, onClick: handleSelectAllClick, onChange: () => { }, className: "group-checkbox" })), (0, jsx_runtime_1.jsx)("i", { className: `codicon codicon-chevron-${isOpen ? 'down' : 'right'}` }), isRenaming ? ((0, jsx_runtime_1.jsx)("input", { type: "text", value: newName, onChange: e => setNewName(e.target.value), onBlur: handleRenameSubmit, onKeyDown: handleRenameKeyDown, onClick: e => e.stopPropagation(), autoFocus: true, className: "rename-input" })) : ((0, jsx_runtime_1.jsx)("span", { onDoubleClick: handleRenameClick, children: name })), (0, jsx_runtime_1.jsx)("span", { className: "badge", children: count })] }), (0, jsx_runtime_1.jsxs)("div", { className: "group-actions", children: [name !== 'Uncategorized' && ((0, jsx_runtime_1.jsx)("button", { className: "icon-button", onClick: handleRenameClick, title: "Rename Folder", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-edit" }) })), (0, jsx_runtime_1.jsx)("button", { className: "icon-button", onClick: handleSettingsClick, title: "Folder Settings", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-gear" }) })] })] }), isOpen && (0, jsx_runtime_1.jsx)("div", { className: "group-content", children: children }), showSettings && ((0, jsx_runtime_1.jsx)("div", { className: "modal-overlay", children: (0, jsx_runtime_1.jsxs)("div", { className: "modal-content", children: [(0, jsx_runtime_1.jsxs)("h3", { children: ["Settings for ", name] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Default Username" }), (0, jsx_runtime_1.jsx)("input", { type: "text", value: config.username || '', onChange: e => setConfig(prev => ({ ...prev, username: e.target.value })), placeholder: "Inherited by hosts in this folder" })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Default Port" }), (0, jsx_runtime_1.jsx)("input", { type: "number", value: config.port || '', onChange: e => setConfig(prev => ({ ...prev, port: parseInt(e.target.value) || undefined })), placeholder: "e.g. 22" })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Default Identity" }), (0, jsx_runtime_1.jsxs)("select", { value: config.credentialId || '', onChange: e => setConfig(prev => ({ ...prev, credentialId: e.target.value })), children: [(0, jsx_runtime_1.jsx)("option", { value: "", children: "-- None --" }), credentials.map(c => ((0, jsx_runtime_1.jsxs)("option", { value: c.id, children: [c.name, " (", c.username, ")"] }, c.id)))] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-actions", children: [(0, jsx_runtime_1.jsx)("button", { className: "primary-button", onClick: handleSaveSettings, children: "Save" }), (0, jsx_runtime_1.jsx)("button", { className: "secondary-button", onClick: () => setShowSettings(false), children: "Cancel" })] })] }) }))] }));
 };
 exports["default"] = HostGroup;
 
@@ -36031,7 +36207,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 const react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
-const Toolbar = ({ onRefresh, onImport, onExport, onSort, sortCriteria, onQuickConnect }) => {
+const Toolbar = ({ onRefresh, onImport, onExport, onSort, sortCriteria, onQuickConnect, selectedCount = 0, onBulkDelete, onBulkExport }) => {
     const handleImportClick = () => {
         onImport('ssh-config');
     };
@@ -36047,7 +36223,7 @@ const Toolbar = ({ onRefresh, onImport, onExport, onSort, sortCriteria, onQuickC
             handleConnectClick();
         }
     };
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "toolbar", children: [(0, jsx_runtime_1.jsxs)("div", { className: "quick-connect", children: [(0, jsx_runtime_1.jsx)("input", { type: "text", className: "vscode-input", placeholder: "user@host:port", value: quickConnect, onChange: e => setQuickConnect(e.target.value), onKeyDown: handleKeyDown }), (0, jsx_runtime_1.jsx)("button", { onClick: handleConnectClick, title: "Quick Connect", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-plug" }) })] }), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsx)("button", { onClick: onRefresh, title: "Refresh", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-refresh" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: handleImportClick, title: "Import SSH Config", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-cloud-upload" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: onExport, title: "Export JSON", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-cloud-download" }) }), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsxs)("div", { className: "dropdown-wrapper", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-sort-precedence dropdown-icon" }), (0, jsx_runtime_1.jsxs)("select", { className: "toolbar-select", onChange: (e) => onSort(e.target.value), defaultValue: "name", children: [(0, jsx_runtime_1.jsx)("option", { value: "name", children: "Name" }), (0, jsx_runtime_1.jsx)("option", { value: "lastUsed", children: "Last Used" }), (0, jsx_runtime_1.jsx)("option", { value: "group", children: "Group" })] })] }), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsx)("button", { title: "Local Terminal", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-terminal" }) })] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "toolbar", children: [selectedCount > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "bulk-actions", children: [(0, jsx_runtime_1.jsxs)("span", { className: "selected-count", children: [selectedCount, " selected"] }), onBulkExport && ((0, jsx_runtime_1.jsx)("button", { onClick: onBulkExport, title: "Export Selected", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-cloud-download" }) })), onBulkDelete && ((0, jsx_runtime_1.jsx)("button", { onClick: onBulkDelete, title: "Delete Selected", className: "danger", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-trash" }) })), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" })] })), (0, jsx_runtime_1.jsxs)("div", { className: "quick-connect", children: [(0, jsx_runtime_1.jsx)("input", { type: "text", className: "vscode-input", placeholder: "user@host:port", value: quickConnect, onChange: e => setQuickConnect(e.target.value), onKeyDown: handleKeyDown }), (0, jsx_runtime_1.jsx)("button", { onClick: handleConnectClick, title: "Quick Connect", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-plug" }) })] }), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsx)("button", { onClick: onRefresh, title: "Refresh", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-refresh" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: handleImportClick, title: "Import SSH Config", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-cloud-upload" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: onExport, title: "Export JSON", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-cloud-download" }) }), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsxs)("div", { className: "dropdown-wrapper", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-sort-precedence dropdown-icon" }), (0, jsx_runtime_1.jsxs)("select", { className: "toolbar-select", onChange: (e) => onSort(e.target.value), value: sortCriteria || 'name', children: [(0, jsx_runtime_1.jsx)("option", { value: "name", children: "Name" }), (0, jsx_runtime_1.jsx)("option", { value: "lastUsed", children: "Last Used" }), (0, jsx_runtime_1.jsx)("option", { value: "group", children: "Folder" })] })] }), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsx)("button", { title: "Local Terminal", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-terminal" }) })] }));
 };
 exports["default"] = Toolbar;
 
@@ -36064,7 +36240,7 @@ exports["default"] = Toolbar;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 const TopNav = ({ activeView, onNavigate }) => {
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "top-nav", children: [(0, jsx_runtime_1.jsx)("button", { className: activeView === 'list' ? 'active' : '', onClick: () => onNavigate('list'), children: "Host Viewer" }), (0, jsx_runtime_1.jsx)("button", { className: activeView === 'edit' ? 'active' : '', onClick: () => onNavigate('edit'), children: "Add Host" }), (0, jsx_runtime_1.jsx)("button", { className: activeView === 'credentials' ? 'active' : '', onClick: () => onNavigate('credentials'), children: "Credentials" })] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "top-nav", children: [(0, jsx_runtime_1.jsxs)("button", { className: activeView === 'hosts' ? 'active' : '', onClick: () => onNavigate('hosts'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-server" }), "Hosts"] }), (0, jsx_runtime_1.jsxs)("button", { className: activeView === 'addHost' ? 'active' : '', onClick: () => onNavigate('addHost'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-add" }), "Add Host"] }), (0, jsx_runtime_1.jsxs)("button", { className: activeView === 'credentials' ? 'active' : '', onClick: () => onNavigate('credentials'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-key" }), "Credentials"] }), (0, jsx_runtime_1.jsxs)("button", { className: activeView === 'addCredential' ? 'active' : '', onClick: () => onNavigate('addCredential'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-add" }), "Add Credential"] })] }));
 };
 exports["default"] = TopNav;
 
@@ -36323,7 +36499,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 const react_1 = __webpack_require__(/*! react */ "./node_modules/react/index.js");
 const vscode_1 = __importDefault(__webpack_require__(/*! ../utils/vscode */ "./src/webview/utils/vscode.ts"));
-const CredentialsView = ({ credentials }) => {
+const CredentialsView = ({ credentials, onEdit }) => {
     const [isEditing, setIsEditing] = (0, react_1.useState)(false);
     const [editingCred, setEditingCred] = (0, react_1.useState)({});
     const handleAdd = () => {
@@ -36395,18 +36571,19 @@ const TagInput_1 = __webpack_require__(/*! ../components/TagInput */ "./src/webv
 const TunnelList_1 = __webpack_require__(/*! ../components/TunnelList */ "./src/webview/components/TunnelList.tsx");
 const vscode_1 = __importDefault(__webpack_require__(/*! ../utils/vscode */ "./src/webview/utils/vscode.ts"));
 __webpack_require__(/*! ../styles/forms.css */ "./src/webview/styles/forms.css");
-const EditHost = ({ initialHost, agentAvailable, availableShells, onSave, onCancel }) => {
-    const [activeTab, setActiveTab] = (0, react_1.useState)('connection'); // Changed default tab to 'connection'
+const EditHost = ({ initialHost, agentAvailable, availableShells, existingFolders = [], credentials = [], onSave, onCancel }) => {
+    const [activeTab, setActiveTab] = (0, react_1.useState)('connection');
     // Form State
     const [name, setName] = (0, react_1.useState)(initialHost?.name || '');
-    const [group, setGroup] = (0, react_1.useState)(initialHost?.group || '');
+    const [folder, setFolder] = (0, react_1.useState)(initialHost?.folder || '');
     const [protocol, setProtocol] = (0, react_1.useState)(initialHost?.protocol || 'ssh');
     const [host, setHost] = (0, react_1.useState)(initialHost?.host || '');
-    const [port, setPort] = (0, react_1.useState)(initialHost?.port || 22); // Changed to number type
+    const [port, setPort] = (0, react_1.useState)(initialHost?.port || 22);
     const [username, setUsername] = (0, react_1.useState)(initialHost?.username || '');
     const [osIcon, setOsIcon] = (0, react_1.useState)(initialHost?.osIcon || 'linux');
     const [tags, setTags] = (0, react_1.useState)(initialHost?.tags || []);
     const [jumpHostId, setJumpHostId] = (0, react_1.useState)(initialHost?.jumpHostId || '');
+    const [pin, setPin] = (0, react_1.useState)(initialHost?.pin || false);
     const [tunnels, setTunnels] = (0, react_1.useState)(initialHost?.tunnels || []);
     const [notes, setNotes] = (0, react_1.useState)(initialHost?.notes || '');
     const [keepAlive, setKeepAlive] = (0, react_1.useState)(initialHost?.keepAlive || false);
@@ -36433,25 +36610,28 @@ const EditHost = ({ initialHost, agentAvailable, availableShells, onSave, onCanc
         const newHost = {
             id: initialHost?.id || crypto.randomUUID(),
             name,
-            group,
+            folder,
             host,
-            port: port, // Use port directly as it's a number
+            port,
             username,
             osIcon,
             tags,
+            pin,
             jumpHostId: jumpHostId || undefined,
             tunnels: tunnels.length > 0 ? tunnels : undefined,
             notes: notes || undefined,
             keepAlive: keepAlive || undefined,
-            protocol, // Added protocol
-            authType, // Added authType
-            credentialId: authType === 'credential' ? credentialId : undefined, // Conditionally add credentialId
+            protocol,
+            authType,
+            credentialId: authType === 'credential' ? credentialId : undefined,
+            enableTerminal: true,
+            enableFileManager: true,
         };
         onSave(newHost, password || undefined, keyPath || undefined);
     };
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "edit-host-view", children: [(0, jsx_runtime_1.jsx)("h2", { children: initialHost ? 'Edit Host' : 'New Host' }), (0, jsx_runtime_1.jsxs)("div", { className: "tabs", children: [(0, jsx_runtime_1.jsx)("button", { className: `tab ${activeTab === 'general' ? 'active' : ''}`, onClick: () => setActiveTab('general'), children: "General" }), (0, jsx_runtime_1.jsx)("button", { className: `tab ${activeTab === 'connection' ? 'active' : ''}`, onClick: () => setActiveTab('connection'), children: "Connection" }), (0, jsx_runtime_1.jsx)("button", { className: `tab ${activeTab === 'advanced' ? 'active' : ''}`, onClick: () => setActiveTab('advanced'), children: "Advanced" })] }), (0, jsx_runtime_1.jsxs)("form", { onSubmit: handleSubmit, children: [activeTab === 'general' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Label" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: name, onChange: e => setName(e.target.value), required: true }), (0, jsx_runtime_1.jsx)("label", { children: "Group" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: group, onChange: e => setGroup(e.target.value), list: "group-suggestions" }), (0, jsx_runtime_1.jsxs)("datalist", { id: "group-suggestions", children: [(0, jsx_runtime_1.jsx)("option", { value: "Production" }), (0, jsx_runtime_1.jsx)("option", { value: "Staging" }), (0, jsx_runtime_1.jsx)("option", { value: "Development" })] }), (0, jsx_runtime_1.jsx)("label", { children: "Tags" }), (0, jsx_runtime_1.jsx)(TagInput_1.TagInput, { tags: tags, onChange: setTags }), (0, jsx_runtime_1.jsx)("label", { children: "OS Icon" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: osIcon, onChange: e => setOsIcon(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "linux", children: "Linux" }), (0, jsx_runtime_1.jsx)("option", { value: "windows", children: "Windows" }), (0, jsx_runtime_1.jsx)("option", { value: "mac", children: "macOS" }), (0, jsx_runtime_1.jsx)("option", { value: "docker", children: "Docker" }), (0, jsx_runtime_1.jsx)("option", { value: "other", children: "Other" })] })] })), activeTab === 'connection' && ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Protocol" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: protocol, onChange: e => setProtocol(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "ssh", children: "SSH" }), (0, jsx_runtime_1.jsx)("option", { value: "local", children: "Local Shell" }), (0, jsx_runtime_1.jsx)("option", { value: "wsl", children: "WSL" })] })] }), protocol === 'ssh' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Host Address" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "text", value: host, onChange: e => setHost(e.target.value), placeholder: "e.g. 192.168.1.100", required: true })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Port" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "number", value: port, onChange: e => setPort(parseInt(e.target.value)) })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Username" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "text", value: username, onChange: e => setUsername(e.target.value), placeholder: "root", required: true })] }), (0, jsx_runtime_1.jsx)("div", { className: "separator" }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Authentication" }), (0, jsx_runtime_1.jsxs)("div", { className: "segmented-control", children: [(0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'password' ? 'active' : '', onClick: () => setAuthType('password'), children: "Password" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'key' ? 'active' : '', onClick: () => setAuthType('key'), children: "Key File" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'agent' ? 'active' : '', onClick: () => setAuthType('agent'), children: "Agent" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'credential' ? 'active' : '', onClick: () => setAuthType('credential'), children: "Vault" })] })] }), authType === 'password' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Password" }), (0, jsx_runtime_1.jsx)("input", { type: "password", className: "vscode-input", value: password, onChange: e => setPassword(e.target.value), placeholder: initialHost ? "Leave empty to keep unchanged" : "" })] })), authType === 'key' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Private Key Path" }), (0, jsx_runtime_1.jsxs)("div", { style: { display: 'flex', gap: '8px' }, children: [(0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: keyPath, onChange: e => setKeyPath(e.target.value), placeholder: "~/.ssh/id_rsa" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: "vscode-button secondary", onClick: handlePickKey, children: "Browse..." })] })] })), authType === 'agent' && ((0, jsx_runtime_1.jsx)("div", { className: "form-group", children: (0, jsx_runtime_1.jsxs)("div", { className: "info-text", children: ["Using SSH Agent for authentication.", agentAvailable ?
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "edit-host-view", children: [(0, jsx_runtime_1.jsx)("h2", { children: initialHost ? 'Edit Host' : 'New Host' }), (0, jsx_runtime_1.jsxs)("div", { className: "tabs", children: [(0, jsx_runtime_1.jsx)("button", { className: `tab ${activeTab === 'general' ? 'active' : ''}`, onClick: () => setActiveTab('general'), children: "General" }), (0, jsx_runtime_1.jsx)("button", { className: `tab ${activeTab === 'connection' ? 'active' : ''}`, onClick: () => setActiveTab('connection'), children: "Connection" }), (0, jsx_runtime_1.jsx)("button", { className: `tab ${activeTab === 'advanced' ? 'active' : ''}`, onClick: () => setActiveTab('advanced'), children: "Advanced" })] }), (0, jsx_runtime_1.jsxs)("form", { onSubmit: handleSubmit, children: [activeTab === 'general' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Label" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: name, onChange: e => setName(e.target.value), required: true }), (0, jsx_runtime_1.jsx)("label", { children: "Folder" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: folder, onChange: e => setFolder(e.target.value), list: "folder-suggestions" }), (0, jsx_runtime_1.jsxs)("datalist", { id: "folder-suggestions", children: [existingFolders.map(f => ((0, jsx_runtime_1.jsx)("option", { value: f }, f))), (0, jsx_runtime_1.jsx)("option", { value: "Production" }), (0, jsx_runtime_1.jsx)("option", { value: "Staging" }), (0, jsx_runtime_1.jsx)("option", { value: "Development" })] }), (0, jsx_runtime_1.jsxs)("label", { className: "checkbox-label", children: [(0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: pin, onChange: e => setPin(e.target.checked) }), "Pin this host"] }), (0, jsx_runtime_1.jsx)("label", { children: "Tags" }), (0, jsx_runtime_1.jsx)(TagInput_1.TagInput, { tags: tags, onChange: setTags }), (0, jsx_runtime_1.jsx)("label", { children: "OS Icon" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: osIcon, onChange: e => setOsIcon(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "linux", children: "Linux" }), (0, jsx_runtime_1.jsx)("option", { value: "windows", children: "Windows" }), (0, jsx_runtime_1.jsx)("option", { value: "mac", children: "macOS" }), (0, jsx_runtime_1.jsx)("option", { value: "docker", children: "Docker" }), (0, jsx_runtime_1.jsx)("option", { value: "other", children: "Other" })] })] })), activeTab === 'connection' && ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Protocol" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: protocol, onChange: e => setProtocol(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "ssh", children: "SSH" }), (0, jsx_runtime_1.jsx)("option", { value: "local", children: "Local Shell" }), (0, jsx_runtime_1.jsx)("option", { value: "wsl", children: "WSL" })] })] }), protocol === 'ssh' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Host Address" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "text", value: host, onChange: e => setHost(e.target.value), placeholder: "e.g. 192.168.1.100", required: true })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Port" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "number", value: port, onChange: e => setPort(parseInt(e.target.value)) })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Username" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "text", value: username, onChange: e => setUsername(e.target.value), placeholder: "root", required: true })] }), (0, jsx_runtime_1.jsx)("div", { className: "separator" }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Authentication" }), (0, jsx_runtime_1.jsxs)("div", { className: "segmented-control", children: [(0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'password' ? 'active' : '', onClick: () => setAuthType('password'), children: "Password" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'key' ? 'active' : '', onClick: () => setAuthType('key'), children: "Key File" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'agent' ? 'active' : '', onClick: () => setAuthType('agent'), children: "Agent" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'credential' ? 'active' : '', onClick: () => setAuthType('credential'), children: "Vault" })] })] }), authType === 'password' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Password" }), (0, jsx_runtime_1.jsx)("input", { type: "password", className: "vscode-input", value: password, onChange: e => setPassword(e.target.value), placeholder: initialHost ? "Leave empty to keep unchanged" : "" })] })), authType === 'key' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Private Key Path" }), (0, jsx_runtime_1.jsxs)("div", { style: { display: 'flex', gap: '8px' }, children: [(0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: keyPath, onChange: e => setKeyPath(e.target.value), placeholder: "~/.ssh/id_rsa" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: "vscode-button secondary", onClick: handlePickKey, children: "Browse..." })] })] })), authType === 'agent' && ((0, jsx_runtime_1.jsx)("div", { className: "form-group", children: (0, jsx_runtime_1.jsxs)("div", { className: "info-text", children: ["Using SSH Agent for authentication.", agentAvailable ?
                                                     (0, jsx_runtime_1.jsxs)("span", { style: { color: 'var(--vscode-testing-iconPassed)' }, children: [" ", (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-check" }), " Agent Detected"] }) :
-                                                    (0, jsx_runtime_1.jsxs)("span", { style: { color: 'var(--vscode-testing-iconFailed)' }, children: [" ", (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-error" }), " Agent Not Found"] })] }) })), authType === 'credential' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Credential" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: credentialId, onChange: e => setCredentialId(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "", children: "Select a credential..." }), (0, jsx_runtime_1.jsx)("option", { value: "test", children: "Test Cred (Mock)" })] }), (0, jsx_runtime_1.jsx)("small", { children: "Manage credentials in the Credentials tab." })] }))] })) : ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Shell" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: host, onChange: e => setHost(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "", children: "Select a shell..." }), availableShells?.filter(s => protocol === 'local' ? !s.startsWith('WSL:') : s.startsWith('WSL:')).map(s => ((0, jsx_runtime_1.jsx)("option", { value: s, children: s }, s)))] })] }))] })), activeTab === 'advanced' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Tunnels (Port Forwarding)" }), (0, jsx_runtime_1.jsx)(TunnelList_1.TunnelList, { tunnels: tunnels, onChange: setTunnels }), (0, jsx_runtime_1.jsx)("label", { children: "Jump Host (Optional)" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: jumpHostId, onChange: e => setJumpHostId(e.target.value), placeholder: "Host ID" }), (0, jsx_runtime_1.jsx)("label", { children: "Keep Alive" }), (0, jsx_runtime_1.jsxs)("div", { className: "checkbox-wrapper", children: [(0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: keepAlive, onChange: e => setKeepAlive(e.target.checked) }), (0, jsx_runtime_1.jsx)("span", { children: "Enable SSH KeepAlive" })] }), (0, jsx_runtime_1.jsx)("label", { children: "Notes" }), (0, jsx_runtime_1.jsx)("textarea", { className: "vscode-input", value: notes, onChange: e => setNotes(e.target.value), rows: 4 })] })), authType === 'agent' && ((0, jsx_runtime_1.jsx)("div", { className: "form-info", children: agentAvailable ? ((0, jsx_runtime_1.jsxs)("span", { style: { color: 'var(--vscode-testing-iconPassed)' }, children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-check" }), " SSH Agent Active"] })) : ((0, jsx_runtime_1.jsxs)("span", { style: { color: 'var(--vscode-testing-iconFailed)' }, children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-error" }), " Agent Not Found"] })) })), (0, jsx_runtime_1.jsxs)("div", { className: "form-actions", children: [(0, jsx_runtime_1.jsx)("button", { type: "button", onClick: onCancel, className: "vscode-button secondary", children: "Cancel" }), (0, jsx_runtime_1.jsx)("button", { type: "submit", className: "vscode-button", children: "Save" })] })] })] }));
+                                                    (0, jsx_runtime_1.jsxs)("span", { style: { color: 'var(--vscode-testing-iconFailed)' }, children: [" ", (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-error" }), " Agent Not Found"] })] }) })), authType === 'credential' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Credential" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: credentialId, onChange: e => setCredentialId(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "", children: "Select a credential..." }), credentials.map(c => ((0, jsx_runtime_1.jsxs)("option", { value: c.id, children: [c.name, " (", c.username, ")"] }, c.id)))] }), (0, jsx_runtime_1.jsx)("small", { children: "Manage credentials in the Credentials tab." })] }))] })) : ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Shell" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: host, onChange: e => setHost(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "", children: "Select a shell..." }), availableShells?.filter(s => protocol === 'local' ? !s.startsWith('WSL:') : s.startsWith('WSL:')).map(s => ((0, jsx_runtime_1.jsx)("option", { value: s, children: s }, s)))] })] }))] })), activeTab === 'advanced' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Tunnels (Port Forwarding)" }), (0, jsx_runtime_1.jsx)(TunnelList_1.TunnelList, { tunnels: tunnels, onChange: setTunnels }), (0, jsx_runtime_1.jsx)("label", { children: "Jump Host (Optional)" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: jumpHostId, onChange: e => setJumpHostId(e.target.value), placeholder: "Host ID" }), (0, jsx_runtime_1.jsx)("label", { children: "Keep Alive" }), (0, jsx_runtime_1.jsxs)("div", { className: "checkbox-wrapper", children: [(0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: keepAlive, onChange: e => setKeepAlive(e.target.checked) }), (0, jsx_runtime_1.jsx)("span", { children: "Enable SSH KeepAlive" })] }), (0, jsx_runtime_1.jsx)("label", { children: "Notes" }), (0, jsx_runtime_1.jsx)("textarea", { className: "vscode-input", value: notes, onChange: e => setNotes(e.target.value), rows: 4 })] })), authType === 'agent' && ((0, jsx_runtime_1.jsx)("div", { className: "form-info", children: agentAvailable ? ((0, jsx_runtime_1.jsxs)("span", { style: { color: 'var(--vscode-testing-iconPassed)' }, children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-check" }), " SSH Agent Active"] })) : ((0, jsx_runtime_1.jsxs)("span", { style: { color: 'var(--vscode-testing-iconFailed)' }, children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-error" }), " Agent Not Found"] })) })), (0, jsx_runtime_1.jsxs)("div", { className: "form-actions", children: [(0, jsx_runtime_1.jsx)("button", { type: "button", onClick: onCancel, className: "vscode-button secondary", children: "Cancel" }), (0, jsx_runtime_1.jsx)("button", { type: "submit", className: "vscode-button", children: "Save" })] })] })] }));
 };
 exports["default"] = EditHost;
 

@@ -75,7 +75,7 @@ export class ImporterService {
 					port: 22,
 					username: 'root', // Default
 					osIcon: 'linux',
-					group: 'Imported',
+					folder: 'Imported',
 					tags: []
 				};
 			} else if (currentHost) {
