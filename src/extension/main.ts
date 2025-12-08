@@ -10,7 +10,11 @@ import { ShellService } from './system/shellService';
 import { ImporterService } from './importers';
 import { StatusService } from './statusService';
 import { registerCommands } from './commands';
+import { SshConnectionService } from './services/sshConnectionService';
 import { Message, Host, HostStatus } from '../common/types';
+
+// Store service instances for cleanup
+let sshConnectionServiceInstance: SshConnectionService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 	const hostService = new HostService(context);
@@ -21,6 +25,10 @@ export function activate(context: vscode.ExtensionContext) {
 	const importerService = new ImporterService();
 	const hostKeyService = new HostKeyService();
 	const shellService = new ShellService();
+	const sshConnectionService = new SshConnectionService(hostService, credentialService);
+
+	// Store for cleanup
+	sshConnectionServiceInstance = sshConnectionService;
 
 	// Register Commands
 	registerCommands(context, hostService);
@@ -37,7 +45,8 @@ export function activate(context: vscode.ExtensionContext) {
 			sshAgentService,
 			importerService,
 			hostKeyService,
-			shellService
+			shellService,
+			sshConnectionService
 		);
 		context.subscriptions.push(
 			vscode.window.registerWebviewViewProvider('labonair.views.hosts', provider)
@@ -62,7 +71,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		private readonly _sshAgentService: SshAgentService,
 		private readonly _importerService: ImporterService,
 		private readonly _hostKeyService: HostKeyService,
-		private readonly _shellService: ShellService
+		private readonly _shellService: ShellService,
+		private readonly _sshConnectionService: SshConnectionService
 	) { }
 
 	public resolveWebviewView(
@@ -392,24 +402,30 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private async startSession(host: Host) {
-		// TODO: Implement actual SSH connection with pty
-		const term = vscode.window.createTerminal(`SSH: ${host.name || host.host}`);
-		term.show();
-		this._sessionTracker.registerSession(host.id, term);
+		try {
+			// Create SSH terminal session using the connection service
+			const term = await this._sshConnectionService.createSession(host);
+			term.show();
 
-		// If it's a saved host, update last used
-		const isSaved = this._hostService.getHostById(host.id) !== undefined;
-		if (isSaved) {
-			await this._hostService.updateLastUsed(host.id);
-		} else {
-			const selection = await vscode.window.showInformationMessage(`Connected to ${host.host}. Save this connection?`, 'Yes', 'No');
-			if (selection === 'Yes') {
-				await this._hostService.saveHost(host);
-				vscode.window.showInformationMessage("Host saved.");
-				this.broadcastUpdate();
+			// Register session with tracker
+			this._sessionTracker.registerSession(host.id, term);
+
+			// If it's a saved host, update last used
+			const isSaved = this._hostService.getHostById(host.id) !== undefined;
+			if (isSaved) {
+				await this._hostService.updateLastUsed(host.id);
+			} else {
+				const selection = await vscode.window.showInformationMessage(`Connected to ${host.host}. Save this connection?`, 'Yes', 'No');
+				if (selection === 'Yes') {
+					await this._hostService.saveHost(host);
+					vscode.window.showInformationMessage("Host saved.");
+					this.broadcastUpdate();
+				}
 			}
+			this.broadcastUpdate();
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to connect: ${error}`);
 		}
-		this.broadcastUpdate();
 	}
 
 	private async broadcastUpdate() {
@@ -456,5 +472,13 @@ function getNonce() {
 		text += possible.charAt(Math.floor(Math.random() * possible.length));
 	}
 	return text;
+}
+
+export function deactivate() {
+	// Clean up all active SSH sessions
+	if (sshConnectionServiceInstance) {
+		sshConnectionServiceInstance.dispose();
+		sshConnectionServiceInstance = undefined;
+	}
 }
 
