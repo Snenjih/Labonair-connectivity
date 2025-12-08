@@ -1,0 +1,273 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #09090b;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Border Radius */
+  --radius: 0.625rem;
+
+  /* Base shadcn/ui Semantic Colors - Light Mode Defaults */
+  --background: oklch(1 0 0); /* Main app background */
+  --foreground: oklch(0.141 0.005 285.823); /* Main text color */
+  --card: oklch(1 0 0); /* Card/panel backgrounds */
+  --card-foreground: oklch(0.141 0.005 285.823); /* Text on cards/panels */
+  --popover: oklch(1 0 0); /* Dropdown/popover backgrounds */
+  --popover-foreground: oklch(0.141 0.005 285.823); /* Text in dropdowns/popovers */
+
+  /* Interactive Colors - Buttons and component states */
+  --primary: oklch(0.21 0.006 285.885); /* Primary buttons & links */
+  --primary-foreground: oklch(0.985 0 0); /* Text on primary elements */
+  --secondary: oklch(0.967 0.001 286.375); /* Secondary buttons */
+  --secondary-foreground: oklch(0.21 0.006 285.885); /* Text on secondary elements */
+  --muted: oklch(0.967 0.001 286.375); /* Muted/disabled states */
+  --muted-foreground: oklch(0.552 0.016 285.938); /* Subtle text & hints */
+  --accent: oklch(0.967 0.001 286.375); /* Highlighted elements */
+  --accent-foreground: oklch(0.21 0.006 285.885); /* Text on accented elements */
+
+  /* Status Colors */
+  --destructive: oklch(0.577 0.245 27.325); /* Delete/danger buttons */
+  --border: oklch(0.92 0.004 286.32); /* Default borders */
+  --input: oklch(0.92 0.004 286.32); /* Input field backgrounds */
+  --ring: oklch(0.705 0.015 286.067); /* Focus indicators */
+
+  /* Chart Colors */
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+
+  /* Sidebar Colors */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.141 0.005 285.823);
+  --sidebar-primary: oklch(0.21 0.006 285.885);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.967 0.001 286.375);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-ring: oklch(0.705 0.015 286.067);
+}
+
+@theme inline {
+  /* Radius Variants */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* Tailwind CSS 4.x Aliases - Maps shadcn/ui variables to --color-* prefix for Tailwind compatibility */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Custom Background Colors - Application-specific dark theme surfaces */
+  --color-dark-bg: #18181b; /* Main application surface */
+  --color-dark-bg-darker: #0e0e10; /* Sidebar & secondary panels */
+  --color-dark-bg-darkest: #09090b; /* Terminal & code backgrounds */
+  --color-dark-bg-input: #222225; /* Text inputs & form fields */
+  --color-dark-bg-button: #23232a; /* Secondary button backgrounds */
+  --color-dark-bg-active: #1d1d1f; /* Active/selected items */
+  --color-dark-bg-header: #131316; /* Top navbar & headers */
+  --color-dark-bg-light: #141416; /* Light variant surface */
+  --color-dark-bg-very-light: #101014; /* Very light variant surface */
+  --color-dark-bg-panel: #1b1b1e; /* Panel backgrounds */
+  --color-dark-bg-panel-hover: #232327; /* Hovered panel backgrounds */
+
+  /* Custom Border & State Colors - Application-specific borders and interactions */
+  --color-dark-border: #303032; /* Panel & window borders */
+  --color-dark-border-active: #2d2d30; /* Active element borders */
+  --color-dark-border-hover: #434345; /* Hovered element borders */
+  --color-dark-border-light: #5a5a5d; /* Light border variant */
+  --color-dark-border-medium: #373739; /* Medium border variant */
+  --color-dark-border-panel: #222224; /* Panel borders */
+  --color-dark-hover: #2d2d30; /* Element hover backgrounds */
+  --color-dark-hover-alt: #2a2a2d; /* Alternative hover state */
+  --color-dark-active: #2a2a2c; /* Active element backgrounds */
+  --color-dark-pressed: #1a1a1c; /* Pressed/clicked state */
+
+  /* Brand Accent Colors - Links and highlights */
+  --accent-color: #3b82f6; /* Links & brand highlights */
+  --accent-color-hover: #2563eb; /* Hovered brand elements */
+  --accent-color-light: #60a5fa; /* Light accent variant */
+  --accent-color-dark: #1d4ed8; /* Dark accent variant */
+
+  /* File Manager Display Size Variables - Default to Medium */
+  --fm-icon-size: 48px;
+  --fm-text-size: 14px;
+  --fm-grid-gap: 16px;
+  --fm-padding: 12px;
+  --fm-item-width: 120px;
+
+  /* Z-Index Architecture - Standardized layering system */
+  --z-base: 0;
+  --z-sidebar: 40;
+  --z-navbar: 50;
+  --z-dropdown: 60;
+  --z-modal-backdrop: 100;
+  --z-modal-content: 101;
+  --z-popover: 150;
+  --z-tooltip: 200;
+  --z-toast: 300;
+}
+
+/* File Manager Small Display Size */
+.fm-display-small {
+  --fm-icon-size: 32px;
+  --fm-text-size: 12px;
+  --fm-grid-gap: 12px;
+  --fm-padding: 8px;
+  --fm-item-width: 100px;
+}
+
+/* File Manager Large Display Size */
+.fm-display-large {
+  --fm-icon-size: 64px;
+  --fm-text-size: 16px;
+  --fm-grid-gap: 20px;
+  --fm-padding: 16px;
+  --fm-item-width: 140px;
+}
+
+/* Dark Mode Theme Overrides */
+.dark {
+  /* Base Colors - Dark mode inverted */
+  --background: oklch(0.141 0.005 285.823); /* Dark background */
+  --foreground: oklch(0.985 0 0); /* Light text */
+  --card: oklch(0.21 0.006 285.885); /* Dark card background */
+  --card-foreground: oklch(0.985 0 0); /* Light card text */
+  --popover: oklch(0.21 0.006 285.885); /* Dark popover background */
+  --popover-foreground: oklch(0.985 0 0); /* Light popover text */
+
+  /* Interactive Colors - Dark mode adjustments */
+  --primary: oklch(0.92 0.004 286.32); /* Lighter primary for dark mode */
+  --primary-foreground: oklch(0.21 0.006 285.885); /* Dark text on primary */
+  --secondary: oklch(0.274 0.006 286.033); /* Muted secondary */
+  --secondary-foreground: oklch(0.985 0 0); /* Light text on secondary */
+  --muted: oklch(0.274 0.006 286.033); /* Dark muted background */
+  --muted-foreground: oklch(0.705 0.015 286.067); /* Muted gray text */
+  --accent: oklch(0.274 0.006 286.033); /* Dark accent */
+  --accent-foreground: oklch(0.985 0 0); /* Light text on accent */
+
+  /* Status Colors - Dark mode variants */
+  --destructive: oklch(0.704 0.191 22.216); /* Softer red for dark mode */
+  --border: oklch(1 0 0 / 10%); /* Subtle light borders */
+  --input: oklch(1 0 0 / 15%); /* Slightly lighter input backgrounds */
+  --ring: oklch(0.552 0.016 285.938); /* Focus ring color */
+
+  /* Chart Colors - Dark mode palette */
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+
+  /* Sidebar Colors - Dark mode */
+  --sidebar: oklch(0.21 0.006 285.885);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.274 0.006 286.033);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.552 0.016 285.938);
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #303032 transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #303032;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: #18181b;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: #434345;
+  border-radius: 3px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #5a5a5d;
+}
+
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #434345 #18181b;
+}

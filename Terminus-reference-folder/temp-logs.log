@@ -1,0 +1,361 @@
+[vite] connecting... client:733:9
+[vite] connected. client:827:12
+🚀 GET localhost/users/me frontend-logger.ts:173:13
+[AUTH DEBUG] No token for protected endpoint: http://localhost:30001/users/me main-axios.ts:93:15
+🚀 GET localhost/users/me frontend-logger.ts:173:13
+[AUTH DEBUG] No token for protected endpoint: http://localhost:30001/users/me main-axios.ts:93:15
+🚀 GET localhost/settings/terminal_auto_open_local frontend-logger.ts:173:13
+[AUTH DEBUG] No token for protected endpoint: http://localhost:30001/settings/terminal_auto_open_local main-axios.ts:93:15
+XHRGET
+http://localhost:30001/settings/terminal_auto_open_local
+[HTTP/1.1 401 Unauthorized 1ms]
+
+XHRGET
+http://localhost:30001/users/me
+[HTTP/1.1 401 Unauthorized 1ms]
+
+XHRGET
+http://localhost:30001/users/me
+[HTTP/1.1 401 Unauthorized 0ms]
+
+[AUTH] 401 Unauthorized without token - user not logged in 3 main-axios.ts:174:17
+Auto-open local terminal setting not found or error: ApiError: Authentication required. Please log in again.
+    ApiError main-axios.ts:590
+    handleApiError main-axios.ts:629
+    getSetting main-axios.ts:2773
+    autoOpenLocalTerminal TabContext.tsx:262
+    TabProvider TabContext.tsx:280
+    React 19
+    performWorkUntilDeadline scheduler.development.js:45
+    js scheduler.development.js:223
+    js scheduler.development.js:364
+    __require2 chunk-RDKGUBC5.js:17
+    js index.js:6
+    __require2 chunk-RDKGUBC5.js:17
+    React 2
+    __require2 chunk-RDKGUBC5.js:17
+    js React
+    __require2 chunk-RDKGUBC5.js:17
+    <anonymous> react-dom_client.js:20192
+TabContext.tsx:217:25
+[LOGOUT] Cannot logout - user is not logged in main-axios.ts:1391:15
+[LOGOUT] Cannot logout - user is not logged in main-axios.ts:1391:15
+Regelsatz wegen ungültigem Selektor ignoriert. style.css:28:52
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/utils.js". completion_list.html:12:28
+Regelsatz wegen ungültigem Selektor ignoriert. style.css:28:52
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/extensionState.js". completion_list.html:13:37
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/heuristicsRedefinitions.js". completion_list.html:14:46
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/utils.js". completion_list.html:12:28
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/extensionState.js". completion_list.html:13:37
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/heuristicsRedefinitions.js". completion_list.html:14:46
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/utils.js". completion_list.html:12:28
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/extensionState.js". completion_list.html:13:37
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/heuristicsRedefinitions.js". completion_list.html:14:46
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/utils.js". completion_list.html:12:28
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/extensionState.js". completion_list.html:13:37
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/heuristicsRedefinitions.js". completion_list.html:14:46
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/utils.js". completion_list.html:12:28
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/extensionState.js". completion_list.html:13:37
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/heuristicsRedefinitions.js". completion_list.html:14:46
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/utils.js". completion_list.html:12:28
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/extensionState.js". completion_list.html:13:37
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/heuristicsRedefinitions.js". completion_list.html:14:46
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/utils.js". completion_list.html:12:28
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/extensionState.js". completion_list.html:13:37
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/heuristicsRedefinitions.js". completion_list.html:14:46
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/utils.js". completion_list.html:12:28
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/extensionState.js". completion_list.html:13:37
+Laden fehlgeschlagen für das <script> mit der Quelle "moz-extension://309a98da-19e2-449f-928a-7d955cda01ff/heuristicsRedefinitions.js". completion_list.html:14:46
+Fehler beim Verarbeiten des Wertes für 'top'.  Deklaration ignoriert. localhost:5173:1:1
+🚀 GET localhost/settings/hide_close_button frontend-logger.ts:173:13
+🚀 GET localhost/settings/hide_options_button frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_auto_open_local frontend-logger.ts:173:13
+🚀 GET localhost/settings/hide_close_button frontend-logger.ts:173:13
+🚀 GET localhost/settings/hide_options_button frontend-logger.ts:173:13
+Firefox can’t establish a connection to the server at ws://localhost:30003/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2M0NlbGZPbXFoclJsMzFxZThCX2oiLCJpYXQiOjE3NjM4MTc0MDIsImV4cCI6MTc2MzkwMzgwMn0.bqZZBx_JFAUV2gRCfbeBZ6C1cDTDrG5hR__oQWdoqOI. LocalTerminal.tsx:211:16
+Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render. react-dom_client.js:3529:143
+The connection to ws://localhost:30003/?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2M0NlbGZPbXFoclJsMzFxZThCX2oiLCJpYXQiOjE3NjM4MTc0MDIsImV4cCI6MTc2MzkwMzgwMn0.bqZZBx_JFAUV2gRCfbeBZ6C1cDTDrG5hR__oQWdoqOI was interrupted while the page was loading. LocalTerminal.tsx:211:16
+Local terminal WebSocket error: 
+error { target: WebSocket, isTrusted: true, srcElement: WebSocket, currentTarget: WebSocket, eventPhase: 2, bubbles: false, cancelable: false, returnValue: true, defaultPrevented: false, composed: false, … }
+LocalTerminal.tsx:320:15
+Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render. 41 react-dom_client.js:3529:143
+🚀 POST localhost/session frontend-logger.ts:173:13
+Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render. react-dom_client.js:3529:143
+Maximum update depth exceeded. This can happen when a component calls setState inside useEffect, but useEffect either doesn't have a dependency array, or one of the dependencies changes on every render. 114 react-dom_client.js:3529:143
+🚀 GET localhost/settings/terminal_font_size frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_letter_spacing frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_line_height frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_font_family frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_scrollback frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_cursor_style frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_cursor_blink frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_restore_sessions frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_auto_open_local frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_font_size frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_letter_spacing frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_line_height frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_font_family frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_scrollback frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_cursor_style frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_cursor_blink frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_restore_sessions frontend-logger.ts:173:13
+XHRGET
+http://localhost:30001/settings/terminal_scrollback
+[HTTP/1.1 404 Not Found 1ms]
+
+XHRGET
+http://localhost:30001/settings/terminal_scrollback
+[HTTP/1.1 404 Not Found 8ms]
+
+[API] 404 Not Found: GET http://localhost:30001/settings/terminal_scrollback 
+Object { baseURL: "http://localhost:30001", params: undefined }
+main-axios.ts:148:15
+[2:17:16 PM.981] ❌ [ERROR] 🔐 [AUTH] ← ⚠️ 404 Setting not found (request_error, 157ms, status:404, code:ERR_BAD_REQUEST) frontend-logger.ts:73:17
+[2:17:16 PM.982] ⚠️ [WARN] 🌐 [API] Not found: GET /settings/terminal_scrollback (error_handling, status:404) frontend-logger.ts:70:17
+Failed to load scrollback setting: ApiError: Resource not found. The requested item may have been deleted.
+    ApiError main-axios.ts:590
+    handleApiError main-axios.ts:639
+    getSetting main-axios.ts:2773
+    loadScrollbackSetting TerminalSettings.tsx:163
+    TerminalSettings TerminalSettings.tsx:43
+    React 52
+    onClick SettingsSidebar.tsx:64
+    React 13
+    <anonymous> main.tsx:66
+TerminalSettings.tsx:165:21
+[API] 404 Not Found: GET http://localhost:30001/settings/terminal_scrollback 
+Object { baseURL: "http://localhost:30001", params: undefined }
+main-axios.ts:148:15
+[2:17:16 PM.982] ❌ [ERROR] 🔐 [AUTH] ← ⚠️ 404 Setting not found (request_error, 159ms, status:404, code:ERR_BAD_REQUEST) frontend-logger.ts:73:17
+[2:17:16 PM.983] ⚠️ [WARN] 🌐 [API] Not found: GET /settings/terminal_scrollback (error_handling, status:404) frontend-logger.ts:70:17
+Failed to load scrollback setting: ApiError: Resource not found. The requested item may have been deleted.
+    ApiError main-axios.ts:590
+    handleApiError main-axios.ts:639
+    getSetting main-axios.ts:2773
+    loadScrollbackSetting TerminalSettings.tsx:163
+    TerminalSettings TerminalSettings.tsx:43
+    React 39
+    onClick SettingsSidebar.tsx:64
+    React 13
+    <anonymous> main.tsx:66
+TerminalSettings.tsx:165:21
+🚀 GET localhost/themes frontend-logger.ts:173:13
+🚀 GET localhost/themes frontend-logger.ts:173:13
+XHRGET
+http://localhost:30001/themes
+[HTTP/1.1 401 Unauthorized 2ms]
+
+XHRGET
+http://localhost:30001/themes
+[HTTP/1.1 401 Unauthorized 2ms]
+
+[AUTH] 401 on optional endpoint - not forcing logout 2 main-axios.ts:176:17
+🚀 POST localhost/themes frontend-logger.ts:173:13
+XHRPOST
+http://localhost:30001/themes
+[HTTP/1.1 401 Unauthorized 2ms]
+
+[AUTH] 401 on optional endpoint - not forcing logout main-axios.ts:176:17
+🚀 POST localhost/themes frontend-logger.ts:173:13
+XHRPOST
+http://localhost:30001/themes
+[HTTP/1.1 401 Unauthorized 1ms]
+
+[AUTH] 401 on optional endpoint - not forcing logout main-axios.ts:176:17
+🚀 POST localhost/themes frontend-logger.ts:173:13
+XHRPOST
+http://localhost:30001/themes
+[HTTP/1.1 401 Unauthorized 2ms]
+
+[AUTH] 401 on optional endpoint - not forcing logout main-axios.ts:176:17
+🚀 GET localhost/status/1 frontend-logger.ts:173:13
+🚀 GET localhost/metrics/1 frontend-logger.ts:173:13
+🚀 GET localhost/settings/hide_close_button frontend-logger.ts:173:13
+🚀 GET localhost/settings/hide_options_button frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_auto_open_local frontend-logger.ts:173:13
+🚀 GET localhost/status/1 frontend-logger.ts:173:13
+🚀 GET localhost/metrics/1 frontend-logger.ts:173:13
+🚀 GET localhost/settings/hide_close_button frontend-logger.ts:173:13
+🚀 GET localhost/settings/hide_options_button frontend-logger.ts:173:13
+🚀 GET localhost/ssh/db/host frontend-logger.ts:173:13
+🚀 GET localhost/ssh/db/host frontend-logger.ts:173:13
+🚀 GET localhost/status/1 frontend-logger.ts:173:13
+XHROPTIONS
+http://localhost:30005/metrics/1
+CORS Missing Allow Origin
+
+XHROPTIONS
+http://localhost:30005/status/1
+CORS Missing Allow Origin
+
+XHROPTIONS
+http://localhost:30005/metrics/1
+CORS Missing Allow Origin
+
+XHROPTIONS
+http://localhost:30005/status/1
+CORS Missing Allow Origin
+
+XHROPTIONS
+http://localhost:30005/metrics/1
+CORS Missing Allow Origin
+
+XHROPTIONS
+http://localhost:30005/status/1
+CORS Missing Allow Origin
+
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/status/1. (Grund: CORS-Kopfzeile 'Access-Control-Allow-Origin' fehlt). Statuscode: 426.
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/status/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/status/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:13 PM.123] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 89ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:13 PM.123] ❌ [ERROR] 🌐 [API] Request failed: GET /status/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/metrics/1. (Grund: CORS-Kopfzeile 'Access-Control-Allow-Origin' fehlt). Statuscode: 426.
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/status/1. (Grund: CORS-Kopfzeile 'Access-Control-Allow-Origin' fehlt). Statuscode: 426. 2
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/metrics/1. (Grund: CORS-Kopfzeile 'Access-Control-Allow-Origin' fehlt). Statuscode: 426. 2
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/metrics/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/metrics/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:13 PM.125] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 92ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:13 PM.125] ❌ [ERROR] 🌐 [API] Request failed: GET /metrics/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/status/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/status/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:13 PM.126] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 81ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:13 PM.126] ❌ [ERROR] 🌐 [API] Request failed: GET /status/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/status/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/status/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:13 PM.126] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 93ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:13 PM.126] ❌ [ERROR] 🌐 [API] Request failed: GET /status/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/metrics/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/metrics/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:13 PM.126] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 93ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:13 PM.126] ❌ [ERROR] 🌐 [API] Request failed: GET /metrics/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/metrics/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/metrics/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:13 PM.127] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 82ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:13 PM.127] ❌ [ERROR] 🌐 [API] Request failed: GET /metrics/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19
+XHROPTIONS
+http://localhost:30005/metrics/1
+CORS Missing Allow Origin
+
+XHROPTIONS
+http://localhost:30005/status/1
+CORS Missing Allow Origin
+
+XHROPTIONS
+http://localhost:30005/metrics/1
+CORS Missing Allow Origin
+
+XHROPTIONS
+http://localhost:30005/status/1
+CORS Missing Allow Origin
+
+🚀 GET localhost/status/1 frontend-logger.ts:173:13
+🚀 GET localhost/metrics/1 frontend-logger.ts:173:13
+🚀 GET localhost/settings/hide_close_button frontend-logger.ts:173:13
+🚀 GET localhost/settings/hide_options_button frontend-logger.ts:173:13
+🚀 GET localhost/settings/terminal_auto_open_local frontend-logger.ts:173:13
+🚀 GET localhost/status/1 frontend-logger.ts:173:13
+🚀 GET localhost/metrics/1 frontend-logger.ts:173:13
+🚀 GET localhost/settings/hide_close_button frontend-logger.ts:173:13
+🚀 GET localhost/settings/hide_options_button frontend-logger.ts:173:13
+🚀 GET localhost/ssh/db/host frontend-logger.ts:173:13
+🚀 GET localhost/ssh/db/host frontend-logger.ts:173:13
+🚀 GET localhost/status/1 frontend-logger.ts:173:13
+🚀 GET localhost/metrics/1 frontend-logger.ts:173:13
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/status/1. (Grund: CORS-Kopfzeile 'Access-Control-Allow-Origin' fehlt). Statuscode: 426.
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/metrics/1. (Grund: CORS-Kopfzeile 'Access-Control-Allow-Origin' fehlt). Statuscode: 426.
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/status/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/status/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:25 PM.612] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 64ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:25 PM.612] ❌ [ERROR] 🌐 [API] Request failed: GET /status/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/metrics/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/metrics/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:25 PM.612] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 63ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:25 PM.613] ❌ [ERROR] 🌐 [API] Request failed: GET /metrics/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19
+XHROPTIONS
+http://localhost:30005/metrics/1
+CORS Missing Allow Origin
+
+XHROPTIONS
+http://localhost:30005/status/1
+CORS Missing Allow Origin
+
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/status/1. (Grund: CORS-Kopfzeile 'Access-Control-Allow-Origin' fehlt). Statuscode: 426.
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/metrics/1. (Grund: CORS-Kopfzeile 'Access-Control-Allow-Origin' fehlt). Statuscode: 426.
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/status/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/status/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:25 PM.614] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 65ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:25 PM.614] ❌ [ERROR] 🌐 [API] Request failed: GET /status/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/metrics/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/metrics/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:25 PM.615] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 65ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:25 PM.615] ❌ [ERROR] 🌐 [API] Request failed: GET /metrics/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/status/1. (Grund: CORS-Kopfzeile 'Access-Control-Allow-Origin' fehlt). Statuscode: 426.
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/metrics/1. (Grund: CORS-Kopfzeile 'Access-Control-Allow-Origin' fehlt). Statuscode: 426.
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/status/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/status/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:25 PM.616] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 59ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:25 PM.616] ❌ [ERROR] 🌐 [API] Request failed: GET /status/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19
+Quellübergreifende (Cross-Origin) Anfrage blockiert: Die Gleiche-Quelle-Regel verbietet das Lesen der externen Ressource auf http://localhost:30005/metrics/1. (Grund: CORS-Anfrage schlug fehl). Statuscode: (null).
+[API] Network Error: GET http://localhost:30005/metrics/1 
+Object { baseURL: "http://localhost:30005", message: "Network Error" }
+main-axios.ts:153:15
+[2:18:25 PM.617] ❌ [ERROR] 📊 [STATS] 🌐 Network Error: Network Error (request_error, 60ms, code:NETWORK_ERROR) frontend-logger.ts:73:17
+[2:18:25 PM.617] ❌ [ERROR] 🌐 [API] Request failed: GET /metrics/1 - Network Error (error_handling) frontend-logger.ts:73:17
+Error details: 
+Object { message: "Network Error", name: "AxiosError", code: "ERR_NETWORK", config: {…}, request: XMLHttpRequest, event: error, stack: "", … }
+frontend-logger.ts:75:19

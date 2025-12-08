@@ -1,0 +1,253 @@
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  username: text("username").notNull(),
+  password_hash: text("password_hash").notNull(),
+  is_admin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
+
+  is_oidc: integer("is_oidc", { mode: "boolean" }).notNull().default(false),
+  oidc_identifier: text("oidc_identifier"),
+  client_id: text("client_id"),
+  client_secret: text("client_secret"),
+  issuer_url: text("issuer_url"),
+  authorization_url: text("authorization_url"),
+  token_url: text("token_url"),
+  identifier_path: text("identifier_path"),
+  name_path: text("name_path"),
+  scopes: text().default("openid email profile"),
+
+  totp_secret: text("totp_secret"),
+  totp_enabled: integer("totp_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  totp_backup_codes: text("totp_backup_codes"),
+
+  language: text("language").default("en"), // User's preferred language
+});
+
+export const settings = sqliteTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
+export const sshData = sqliteTable("ssh_data", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  name: text("name"),
+  ip: text("ip").notNull(),
+  port: integer("port").notNull(),
+  username: text("username").notNull(),
+  folder: text("folder"),
+  tags: text("tags"),
+  pin: integer("pin", { mode: "boolean" }).notNull().default(false),
+  authType: text("auth_type").notNull(),
+
+  password: text("password"),
+  key: text("key", { length: 8192 }),
+  key_password: text("key_password"),
+  keyType: text("key_type"),
+
+  autostartPassword: text("autostart_password"),
+  autostartKey: text("autostart_key", { length: 8192 }),
+  autostartKeyPassword: text("autostart_key_password"),
+
+  credentialId: integer("credential_id").references(() => sshCredentials.id),
+  enableTerminal: integer("enable_terminal", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  enableTunnel: integer("enable_tunnel", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  tunnelConnections: text("tunnel_connections"),
+  enableFileManager: integer("enable_file_manager", { mode: "boolean" })
+    .notNull()
+    .default(true),
+  defaultPath: text("default_path"),
+
+  // Server Monitoring & Metrics
+  statusMonitoringEnabled: integer("status_monitoring_enabled", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
+  statusCheckInterval: integer("status_check_interval").notNull().default(30),
+  metricsMonitoringEnabled: integer("metrics_monitoring_enabled", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
+  metricsCollectionInterval: integer("metrics_collection_interval")
+    .notNull()
+    .default(60),
+  enabledWidgets: text("enabled_widgets"), // JSON array
+  quickActions: text("quick_actions"), // JSON array
+  status: text("status").notNull().default("unknown"), // "online" | "offline" | "unknown"
+  lastStatusCheck: integer("last_status_check"), // unix timestamp
+
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const fileManagerRecent = sqliteTable("file_manager_recent", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  hostId: integer("host_id")
+    .notNull()
+    .references(() => sshData.id),
+  name: text("name").notNull(),
+  path: text("path").notNull(),
+  lastOpened: text("last_opened")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const fileManagerPinned = sqliteTable("file_manager_pinned", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  hostId: integer("host_id")
+    .notNull()
+    .references(() => sshData.id),
+  name: text("name").notNull(),
+  path: text("path").notNull(),
+  pinnedAt: text("pinned_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const fileManagerShortcuts = sqliteTable("file_manager_shortcuts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  hostId: integer("host_id")
+    .notNull()
+    .references(() => sshData.id),
+  name: text("name").notNull(),
+  path: text("path").notNull(),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const dismissedAlerts = sqliteTable("dismissed_alerts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  alertId: text("alert_id").notNull(),
+  dismissedAt: text("dismissed_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const sshCredentials = sqliteTable("ssh_credentials", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  name: text("name").notNull(),
+  description: text("description"),
+  folder: text("folder"),
+  tags: text("tags"),
+  authType: text("auth_type").notNull(),
+  username: text("username").notNull(),
+  password: text("password"),
+  key: text("key", { length: 16384 }),
+  private_key: text("private_key", { length: 16384 }),
+  public_key: text("public_key", { length: 4096 }),
+  key_password: text("key_password"),
+  keyType: text("key_type"),
+  detectedKeyType: text("detected_key_type"),
+  usageCount: integer("usage_count").notNull().default(0),
+  lastUsed: text("last_used"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const sshCredentialUsage = sqliteTable("ssh_credential_usage", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  credentialId: integer("credential_id")
+    .notNull()
+    .references(() => sshCredentials.id),
+  hostId: integer("host_id")
+    .notNull()
+    .references(() => sshData.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  usedAt: text("used_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const colorThemes = sqliteTable("color_themes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  name: text("name").notNull(),
+  colors: text("colors").notNull(), // JSON string of color variables
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(false),
+  description: text("description"), // Theme description
+  author: text("author"), // Theme creator
+  version: text("version").default("1.0.0"), // Theme version
+  tags: text("tags"), // JSON array of tags
+  isFavorite: integer("is_favorite", { mode: "boolean" }).default(false), // User favorite
+  duplicateCount: integer("duplicate_count").default(0), // Times duplicated
+  lastUsed: text("last_used"), // Last activation
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const sessionState = sqliteTable("session_state", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  sessionData: text("session_data").notNull(), // JSON string of tabs array
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const serverMetrics = sqliteTable("server_metrics", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  hostId: integer("host_id")
+    .notNull()
+    .references(() => sshData.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  timestamp: integer("timestamp").notNull(), // unix timestamp
+  cpuUsage: integer("cpu_usage", { mode: "number" }), // percentage as float
+  memoryUsage: integer("memory_usage", { mode: "number" }), // percentage as float
+  diskUsage: text("disk_usage"), // JSON object with partition data
+  networkData: text("network_data"), // JSON object with interface stats
+  uptime: text("uptime"),
+  processes: text("processes"), // JSON array
+  systemInfo: text("system_info"),
+  sshLogins: text("ssh_logins"), // JSON array
+});

@@ -1,0 +1,8 @@
+{
+  "iv": "fbee80c257d6381774ba22b61cc70840",
+  "tag": "23e2ef95e688272ea6efcb303ccc01aa",
+  "version": "v2",
+  "fingerprint": "termix-v2-systemcrypto",
+  "algorithm": "aes-256-gcm",
+  "keySource": "SystemCrypto"
+}

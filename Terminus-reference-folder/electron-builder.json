@@ -1,0 +1,66 @@
+{
+  "appId": "com.terminus.app",
+  "productName": "Terminus",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist/**/*",
+    "electron/**/*",
+    "public/**/*",
+    "node_modules/**/*",
+    "!**/node_modules/.cache/**/*",
+    "!**/node_modules/**/test/**/*",
+    "!**/node_modules/**/tests/**/*",
+    "!**/node_modules/**/*.md",
+    "!src/**/*",
+    "!*.md",
+    "!tsconfig*.json",
+    "!vite.config.ts",
+    "!eslint.config.js"
+  ],
+  "asarUnpack": ["node_modules/node-fetch/**/*"],
+  "extraMetadata": {
+    "main": "electron/main.cjs"
+  },
+  "buildDependenciesFromSource": false,
+  "nodeGypRebuild": false,
+  "npmRebuild": false,
+  "win": {
+    "target": "nsis",
+    "icon": "public/icon.ico",
+    "executableName": "Terminus"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Terminus",
+    "uninstallDisplayName": "Terminus"
+  },
+  "linux": {
+    "target": [
+      {
+        "target": "AppImage",
+        "arch": ["x64"]
+      },
+      {
+        "target": "tar.gz",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "public/icon.png",
+    "category": "Development",
+    "executableName": "terminus",
+    "desktop": {
+      "entry": {
+        "Name": "Terminus",
+        "Comment": "A web-based server management platform",
+        "Keywords": "terminal;ssh;server;management;",
+        "StartupWMClass": "terminus"
+      }
+    }
+  }
+}

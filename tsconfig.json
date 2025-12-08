@@ -1,0 +1,26 @@
+{
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "es2021",
+		"outDir": "out",
+		"lib": [
+			"dom",
+			"es2021"
+		],
+		"sourceMap": true,
+		"rootDir": "src",
+		"strict": true,
+		"moduleResolution": "node",
+		"jsx": "react-jsx",
+		"baseUrl": ".",
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true
+	},
+	"include": [
+		"src/**/*"
+	],
+	"exclude": [
+		"node_modules",
+		".vscode-test"
+	]
+}
