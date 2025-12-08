@@ -13,6 +13,7 @@ import { registerCommands } from './commands';
 import { SshConnectionService } from './services/sshConnectionService';
 import { SftpService } from './services/sftpService';
 import { SftpPanel } from './panels/sftpPanel';
+import { TerminalPanel } from './panels/TerminalPanel';
 import { Message, Host, HostStatus } from '../common/types';
 
 // Store service instances for cleanup
@@ -307,7 +308,35 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 						return;
 					}
 
-					this.startSession(hostToConnect);
+					// Open Terminal Panel instead of using Pseudoterminal
+					TerminalPanel.createOrShow(
+						this._extensionUri,
+						hostToConnect.id,
+						hostToConnect,
+						this._hostService,
+						this._credentialService
+					);
+
+					// Note: Session tracking is now handled by TerminalPanel lifecycle
+					// No need to register with sessionTracker as the panel manages its own disposal
+
+					// Update last used
+					const isSaved = this._hostService.getHostById(hostToConnect.id) !== undefined;
+					if (isSaved) {
+						await this._hostService.updateLastUsed(hostToConnect.id);
+					} else {
+						const selection = await vscode.window.showInformationMessage(
+							`Connected to ${hostToConnect.host}. Save this connection?`,
+							'Yes',
+							'No'
+						);
+						if (selection === 'Yes') {
+							await this._hostService.saveHost(hostToConnect);
+							vscode.window.showInformationMessage("Host saved.");
+							this.broadcastUpdate();
+						}
+					}
+					this.broadcastUpdate();
 					break;
 				}
 
@@ -350,7 +379,18 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 					}
 					const existingHost = this._hostService.getHostById(message.payload.host);
 					if (existingHost) {
-						this.startSession(existingHost);
+						// Open Terminal Panel
+						TerminalPanel.createOrShow(
+							this._extensionUri,
+							existingHost.id,
+							existingHost,
+							this._hostService,
+							this._credentialService
+						);
+
+						// Update last used
+						await this._hostService.updateLastUsed(existingHost.id);
+						this.broadcastUpdate();
 					} else {
 						vscode.window.showInformationMessage("Host key accepted. Please click connect again.");
 					}
@@ -425,6 +465,11 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		});
 	}
 
+	// NOTE: This method is deprecated in favor of TerminalPanel (Phase 3.3)
+	// The old Pseudoterminal-based approach has been replaced with a WebviewPanel-based
+	// terminal using xterm.js to support custom UI features (HUD, paste protection, etc.)
+	// Keeping this here for reference in case we need to support both approaches
+	/*
 	private async startSession(host: Host) {
 		try {
 			// Create SSH terminal session using the connection service
@@ -451,6 +496,7 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 			vscode.window.showErrorMessage(`Failed to connect: ${error}`);
 		}
 	}
+	*/
 
 	private async broadcastUpdate() {
 		if (this._view) {

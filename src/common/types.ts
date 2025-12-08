@@ -84,7 +84,7 @@ export interface TransferStatus {
 	type: 'upload' | 'download';
 }
 
-export type ViewType = 'hosts' | 'addHost' | 'credentials' | 'addCredential' | 'fileManager';
+export type ViewType = 'hosts' | 'addHost' | 'credentials' | 'addCredential' | 'fileManager' | 'terminal';
 
 export interface WebviewState {
 	view: ViewType;
@@ -185,7 +185,16 @@ export type Message =
 	| { command: 'SFTP_RM'; payload: { hostId: string; path: string } }
 	| { command: 'SFTP_MKDIR'; payload: { hostId: string; path: string } }
 	| { command: 'SFTP_TRANSFER_PROGRESS'; payload: TransferStatus }
-	| { command: 'SFTP_ERROR'; payload: { message: string } };
+	| { command: 'SFTP_ERROR'; payload: { message: string } }
+
+	// SSH Terminal
+	| { command: 'TERM_DATA'; payload: { data: string } }
+	| { command: 'TERM_INPUT'; payload: { data: string } }
+	| { command: 'TERM_RESIZE'; payload: { cols: number; rows: number } }
+	| { command: 'TERM_STATUS'; payload: { status: 'connecting' | 'connected' | 'disconnected' | 'error'; message?: string } }
+	| { command: 'TERM_RECONNECT'; payload: { hostId: string } }
+	| { command: 'CHECK_FILE'; payload: { path: string; hostId: string } }
+	| { command: 'OPEN_REMOTE_FILE'; payload: { hostId: string; remotePath: string; content: string } };
 
 // ============================================================================
 // UTILITY TYPES

@@ -8,6 +8,7 @@ import HostCard from './components/HostCard';
 import EditHost from './views/EditHost';
 import CredentialsView from './views/CredentialsView';
 import { FileManager } from './views/FileManager';
+import TerminalView from './views/TerminalView';
 import HostKeyDialog from './dialogs/HostKeyDialog';
 import ScriptList from './components/ScriptList';
 import SearchBar from './components/SearchBar';
@@ -435,6 +436,13 @@ const App: React.FC = () => {
 				<FileManager
 					hostId={state.hostId}
 					initialPath={state.currentPath}
+				/>
+			)}
+
+			{state.view === 'terminal' && state.hostId && (
+				<TerminalView
+					hostId={state.hostId}
+					host={state.hosts.find(h => h.id === state.hostId)}
 				/>
 			)}
 

@@ -1,0 +1,394 @@
+/* ============================================================================
+   TERMINAL VIEW - MAIN CONTAINER
+   ============================================================================ */
+
+.terminal-container {
+	position: relative;
+	width: 100%;
+	height: 100vh;
+	background-color: var(--vscode-editor-background);
+	overflow: hidden;
+}
+
+.terminal-wrapper {
+	width: 100%;
+	height: 100%;
+	padding: 8px;
+	box-sizing: border-box;
+}
+
+/* ============================================================================
+   TERMINAL HUD - FLOATING OVERLAY
+   ============================================================================ */
+
+.terminal-hud {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	z-index: 1000;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.terminal-hud-main {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 12px;
+	background-color: var(--vscode-editor-background);
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 6px;
+	backdrop-filter: blur(10px);
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Status Indicator */
+.terminal-status {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.terminal-status-indicator {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	transition: background-color 0.3s ease;
+}
+
+.terminal-status-indicator.pulse {
+	animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+.terminal-status-text {
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+	font-weight: 500;
+}
+
+/* Host Name */
+.terminal-host-name {
+	font-size: 13px;
+	color: var(--vscode-foreground);
+	font-weight: 600;
+	padding: 0 8px;
+	border-left: 1px solid var(--vscode-panel-border);
+}
+
+/* Actions */
+.terminal-actions {
+	display: flex;
+	gap: 4px;
+	padding-left: 8px;
+	border-left: 1px solid var(--vscode-panel-border);
+}
+
+.terminal-action-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	background-color: transparent;
+	border: none;
+	border-radius: 4px;
+	color: var(--vscode-foreground);
+	cursor: pointer;
+	transition: background-color 0.2s ease;
+}
+
+.terminal-action-button:hover {
+	background-color: var(--vscode-list-hoverBackground);
+}
+
+.terminal-action-button:active {
+	background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+/* Quick Settings */
+.terminal-quick-settings {
+	padding: 12px;
+	background-color: var(--vscode-editor-background);
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 6px;
+	backdrop-filter: blur(10px);
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	min-width: 200px;
+}
+
+.terminal-setting {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.terminal-setting label {
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+	font-weight: 500;
+}
+
+.terminal-font-size-control {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.terminal-font-size-button {
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: var(--vscode-button-secondaryBackground);
+	color: var(--vscode-button-secondaryForeground);
+	border: none;
+	border-radius: 4px;
+	font-size: 14px;
+	font-weight: bold;
+	cursor: pointer;
+	transition: background-color 0.2s ease;
+}
+
+.terminal-font-size-button:hover {
+	background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.terminal-font-size-value {
+	flex: 1;
+	text-align: center;
+	font-size: 13px;
+	color: var(--vscode-foreground);
+	font-weight: 500;
+}
+
+/* ============================================================================
+   PASTE MODAL
+   ============================================================================ */
+
+.paste-modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.5);
+	backdrop-filter: blur(4px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 2000;
+}
+
+.paste-modal {
+	background-color: var(--vscode-editor-background);
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 8px;
+	box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+	max-width: 600px;
+	width: 90%;
+	overflow: hidden;
+}
+
+.paste-modal-header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 16px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.paste-modal-header h3 {
+	margin: 0;
+	font-size: 16px;
+	color: var(--vscode-foreground);
+	font-weight: 600;
+}
+
+.paste-modal-body {
+	padding: 16px;
+}
+
+.paste-modal-body p {
+	margin: 0 0 16px 0;
+	font-size: 13px;
+	color: var(--vscode-foreground);
+	line-height: 1.5;
+}
+
+.paste-modal-body p strong {
+	color: var(--vscode-textLink-foreground);
+	font-weight: 600;
+}
+
+.paste-modal-preview {
+	background-color: var(--vscode-textCodeBlock-background);
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.paste-modal-preview-header {
+	padding: 8px 12px;
+	background-color: var(--vscode-sideBar-background);
+	border-bottom: 1px solid var(--vscode-panel-border);
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	font-weight: 500;
+	text-transform: uppercase;
+}
+
+.paste-modal-preview-content {
+	margin: 0;
+	padding: 12px;
+	font-family: var(--vscode-editor-font-family, monospace);
+	font-size: 12px;
+	color: var(--vscode-editor-foreground);
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	max-height: 200px;
+	overflow-y: auto;
+}
+
+.paste-modal-actions {
+	display: flex;
+	gap: 8px;
+	padding: 16px;
+	border-top: 1px solid var(--vscode-panel-border);
+	justify-content: flex-end;
+}
+
+.paste-modal-button {
+	padding: 8px 16px;
+	border: none;
+	border-radius: 4px;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background-color 0.2s ease;
+}
+
+.paste-modal-button-cancel {
+	background-color: var(--vscode-button-secondaryBackground);
+	color: var(--vscode-button-secondaryForeground);
+}
+
+.paste-modal-button-cancel:hover {
+	background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.paste-modal-button-confirm {
+	background-color: var(--vscode-button-background);
+	color: var(--vscode-button-foreground);
+}
+
+.paste-modal-button-confirm:hover {
+	background-color: var(--vscode-button-hoverBackground);
+}
+
+/* ============================================================================
+   ERROR OVERLAY
+   ============================================================================ */
+
+.terminal-error-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.7);
+	backdrop-filter: blur(4px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1500;
+}
+
+.terminal-error-message {
+	background-color: var(--vscode-editor-background);
+	border: 1px solid var(--vscode-inputValidation-errorBorder);
+	border-radius: 8px;
+	padding: 24px;
+	max-width: 400px;
+	text-align: center;
+	box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.terminal-error-message h3 {
+	margin: 0 0 12px 0;
+	font-size: 18px;
+	color: var(--vscode-errorForeground);
+	font-weight: 600;
+}
+
+.terminal-error-message p {
+	margin: 0 0 16px 0;
+	font-size: 13px;
+	color: var(--vscode-foreground);
+	line-height: 1.5;
+}
+
+.terminal-error-message button {
+	padding: 8px 24px;
+	background-color: var(--vscode-button-background);
+	color: var(--vscode-button-foreground);
+	border: none;
+	border-radius: 4px;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background-color 0.2s ease;
+}
+
+.terminal-error-message button:hover {
+	background-color: var(--vscode-button-hoverBackground);
+}
+
+/* ============================================================================
+   XTERM.JS OVERRIDES
+   ============================================================================ */
+
+.xterm {
+	padding: 8px;
+	height: 100% !important;
+}
+
+.xterm-viewport {
+	background-color: transparent !important;
+}
+
+.xterm-screen {
+	cursor: text;
+}
+
+/* Custom scrollbar for xterm */
+.xterm .xterm-viewport::-webkit-scrollbar {
+	width: 10px;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-track {
+	background: var(--vscode-scrollbarSlider-background);
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb {
+	background: var(--vscode-scrollbarSlider-background);
+	border-radius: 5px;
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+	background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+
+.xterm .xterm-viewport::-webkit-scrollbar-thumb:active {
+	background: var(--vscode-scrollbarSlider-activeBackground);
+}
