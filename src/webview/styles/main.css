@@ -645,15 +645,20 @@
 .options-wrapper {
     position: relative;
     flex-shrink: 0;
+    margin-left: auto;
 }
 
 .options-btn {
     width: 28px;
     height: 28px;
+    background-color: var(--terminus-bg-button);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-sm);
 }
 
 .options-btn:hover {
     background-color: var(--terminus-hover);
+    border-color: var(--terminus-border-hover);
 }
 
 .options-menu {
