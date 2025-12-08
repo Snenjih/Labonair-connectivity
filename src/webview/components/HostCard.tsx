@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Host, HostStatus } from '../../common/types';
 
 interface HostCardProps {
@@ -13,7 +13,8 @@ interface HostCardProps {
 	onTogglePin?: () => void;
 	onToggleSelect?: () => void;
 	onOpenSftp?: () => void;
-	onOpenStats?: () => void;
+	onClone?: () => void;
+	onExport?: () => void;
 	onMoveToFolder?: (hostId: string, folder: string) => void;
 }
 
@@ -29,9 +30,22 @@ const HostCard: React.FC<HostCardProps> = ({
 	onTogglePin,
 	onToggleSelect,
 	onOpenSftp,
-	onOpenStats,
+	onClone,
+	onExport,
 	onMoveToFolder
 }) => {
+	const [showOptions, setShowOptions] = useState(false);
+
+	const handleDragStart = (e: React.DragEvent) => {
+		e.dataTransfer.setData('application/labonair-host', host.id);
+		e.dataTransfer.effectAllowed = 'move';
+		e.currentTarget.classList.add('dragging');
+	};
+
+	const handleDragEnd = (e: React.DragEvent) => {
+		e.currentTarget.classList.remove('dragging');
+	};
+
 	const handleDragOver = (e: React.DragEvent) => {
 		if (e.dataTransfer.types.includes('application/labonair-script')) {
 			e.preventDefault();
@@ -54,17 +68,42 @@ const HostCard: React.FC<HostCardProps> = ({
 		}
 	};
 
+	const handleOptionsClick = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setShowOptions(!showOptions);
+	};
+
+	const handleOptionAction = (action: () => void) => {
+		return (e: React.MouseEvent) => {
+			e.stopPropagation();
+			setShowOptions(false);
+			action();
+		};
+	};
+
+	// Close options menu when clicking outside
+	React.useEffect(() => {
+		const handleClickOutside = () => setShowOptions(false);
+		if (showOptions) {
+			document.addEventListener('click', handleClickOutside);
+			return () => document.removeEventListener('click', handleClickOutside);
+		}
+	}, [showOptions]);
+
 	const statusClass = status === 'online' ? 'status-online' :
 		status === 'offline' ? 'status-offline' : 'status-unknown';
 
 	return (
 		<div
 			className={`host-card ${isActive ? 'active-session' : ''} ${isSelected ? 'selected' : ''}`}
-			onDoubleClick={onConnect}
+			draggable
+			onDragStart={handleDragStart}
+			onDragEnd={handleDragEnd}
 			onDragOver={handleDragOver}
 			onDragLeave={handleDragLeave}
 			onDrop={handleDrop}
 		>
+			{/* Top Row: Checkbox, Host Info, Options */}
 			<div className="card-top">
 				{onToggleSelect && (
 					<input
@@ -74,63 +113,101 @@ const HostCard: React.FC<HostCardProps> = ({
 						onClick={e => e.stopPropagation()}
 					/>
 				)}
-				<div className={`status-indicator ${statusClass}`} title={`Status: ${status}`}></div>
-				{isActive && <div className="active-indicator" title="Active Session"></div>}
-				<div className="host-info">
+				<div className="host-info" onClick={onEdit}>
 					<div className="host-name">
 						{host.pin && <i className="codicon codicon-pinned pin-icon" title="Pinned"></i>}
-						<i className={`codicon codicon-${host.osIcon === 'windows' ? 'window' : 'terminal-linux'}`}></i>
-						{host.name}
+						<span>{host.name || `${host.username}@${host.host}`}</span>
 					</div>
-					<div className="host-address">
-						{host.username}@{host.host}:{host.port}
-					</div>
+					<div className="host-address">{host.host}:{host.port}</div>
+					<div className="host-address">{host.username}</div>
 				</div>
-				{onTogglePin && (
-					<button className="icon-button" onClick={onTogglePin} title={host.pin ? 'Unpin' : 'Pin'}>
-						<i className={`codicon codicon-${host.pin ? 'pinned' : 'pin'}`}></i>
+				{/* Options Button */}
+				<div className="options-wrapper">
+					<button className="icon-button options-btn" onClick={handleOptionsClick} title="Options">
+						<i className="codicon codicon-ellipsis"></i>
 					</button>
-				)}
+					{showOptions && (
+						<div className="options-menu" onClick={e => e.stopPropagation()}>
+							<button className="option-item" onClick={handleOptionAction(onEdit)}>
+								<i className="codicon codicon-edit"></i>
+								Edit Host
+							</button>
+							{onClone && (
+								<button className="option-item" onClick={handleOptionAction(onClone)}>
+									<i className="codicon codicon-copy"></i>
+									Clone Host
+								</button>
+							)}
+							{onExport && (
+								<button className="option-item" onClick={handleOptionAction(onExport)}>
+									<i className="codicon codicon-cloud-download"></i>
+									Export Host
+								</button>
+							)}
+							<div className="option-divider"></div>
+							<button className="option-item danger" onClick={handleOptionAction(onDelete)}>
+								<i className="codicon codicon-trash"></i>
+								Delete Host
+							</button>
+						</div>
+					)}
+				</div>
 			</div>
 
+			{/* Middle: Tags */}
+			{host.tags && host.tags.length > 0 && (
+				<div className="card-middle">
+					{host.tags.slice(0, 4).map((tag, index) => (
+						<span key={index} className="tag-pill">
+							<i className="codicon codicon-tag"></i>
+							{tag}
+						</span>
+					))}
+					{host.tags.length > 4 && (
+						<span className="tag-pill">+{host.tags.length - 4}</span>
+					)}
+				</div>
+			)}
+
+			{/* Feature Badges */}
 			<div className="card-middle">
-				{host.tags.map((tag, index) => (
-					<span key={index} className="tag-pill">{tag}</span>
-				))}
-				{host.notes && (
-					<span className="notes-icon" title={host.notes}>
-						<i className="codicon codicon-note"></i>
+				{host.enableTerminal !== false && (
+					<span className="feature-badge">
+						<i className="codicon codicon-terminal"></i>
+						Terminal
+					</span>
+				)}
+				{host.tunnels && host.tunnels.length > 0 && (
+					<span className="feature-badge">
+						<i className="codicon codicon-plug"></i>
+						Tunnel ({host.tunnels.length})
+					</span>
+				)}
+				{host.enableFileManager !== false && (
+					<span className="feature-badge">
+						<i className="codicon codicon-files"></i>
+						SFTP
 					</span>
 				)}
 			</div>
 
+			{/* Bottom: Primary Action Buttons - SSH and SFTP only */}
 			<div className="card-bottom">
-				{onOpenStats && (
-					<button className="action-btn secondary" title="Stats" onClick={onOpenStats}>
-						<i className="codicon codicon-graph"></i>
+				{host.enableTerminal !== false && (
+					<button className="action-btn" onClick={(e) => { e.stopPropagation(); onConnect(); }} title="SSH Terminal">
+						<i className="codicon codicon-terminal"></i>
+						SSH
 					</button>
 				)}
-				<button className="action-btn" title="SSH" onClick={onConnect}>
-					<i className="codicon codicon-remote"></i>
-				</button>
-				{onOpenSftp && (
-					<button className="action-btn" title="SFTP" onClick={onOpenSftp}>
-						<i className="codicon codicon-file-symlink-directory"></i>
+				{host.enableFileManager !== false && onOpenSftp && (
+					<button className="action-btn" onClick={(e) => { e.stopPropagation(); onOpenSftp(); }} title="SFTP File Manager">
+						<i className="codicon codicon-files"></i>
+						SFTP
 					</button>
 				)}
-				<button className="action-btn secondary" onClick={onManageTunnels} title="Tunnels">
-					<i className="codicon codicon-plug"></i>
-				</button>
-				<button className="action-btn secondary" onClick={onEdit} title="Edit">
-					<i className="codicon codicon-edit"></i>
-				</button>
-				<button className="action-btn secondary" onClick={onDelete} title="Delete">
-					<i className="codicon codicon-trash"></i>
-				</button>
 			</div>
 		</div>
 	);
 };
 
 export default HostCard;
-

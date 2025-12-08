@@ -140,308 +140,1568 @@ __webpack_require__.r(__webpack_exports__);
 
 var ___CSS_LOADER_EXPORT___ = _node_modules_css_loader_dist_runtime_api_js__WEBPACK_IMPORTED_MODULE_1___default()((_node_modules_css_loader_dist_runtime_sourceMaps_js__WEBPACK_IMPORTED_MODULE_0___default()));
 // Module
-___CSS_LOADER_EXPORT___.push([module.id, `:root {
-    --container-padding: 20px;
-    --input-padding-vertical: 6px;
-    --input-padding-horizontal: 8px;
-    --input-margin-vertical: 9px;
-    --foreground: var(--vscode-foreground);
-    --background: var(--vscode-editor-background);
-    --focus-border: var(--vscode-focusBorder);
-    --button-bg: var(--vscode-button-background);
-    --button-fg: var(--vscode-button-foreground);
-    --button-hover-bg: var(--vscode-button-hoverBackground);
+___CSS_LOADER_EXPORT___.push([module.id, `/* =============================================================================
+   TERMINUS-STYLE VS CODE EXTENSION THEME
+   Replicates the dark theme from Terminus Host Manager
+   ============================================================================= */
+
+/* CSS Variables - Terminus Dark Theme */
+:root {
+    /* Base Colors */
+    --terminus-bg: #18181b;
+    --terminus-bg-darker: #0e0e10;
+    --terminus-bg-darkest: #09090b;
+    --terminus-bg-input: #222225;
+    --terminus-bg-button: #23232a;
+    --terminus-bg-active: #1d1d1f;
+    --terminus-bg-header: #131316;
+    --terminus-bg-panel: #1b1b1e;
+    --terminus-bg-panel-hover: #232327;
+
+    /* Border Colors */
+    --terminus-border: #303032;
+    --terminus-border-active: #2d2d30;
+    --terminus-border-hover: #434345;
+    --terminus-border-light: #5a5a5d;
+    --terminus-border-medium: #373739;
+    --terminus-border-panel: #222224;
+
+    /* Interaction States */
+    --terminus-hover: #2d2d30;
+    --terminus-hover-alt: #2a2a2d;
+    --terminus-active: #2a2a2c;
+    --terminus-pressed: #1a1a1c;
+
+    /* Accent Colors */
+    --terminus-accent: #3b82f6;
+    --terminus-accent-hover: #2563eb;
+    --terminus-accent-light: #60a5fa;
+
+    /* Status Colors */
+    --terminus-success: #22c55e;
+    --terminus-warning: #f59e0b;
+    --terminus-error: #ef4444;
+    --terminus-muted: #71717a;
+
+    /* Text Colors */
+    --terminus-text: #fafafa;
+    --terminus-text-muted: #a1a1aa;
+    --terminus-text-subtle: #71717a;
+
+    /* Radius */
+    --terminus-radius-sm: 4px;
+    --terminus-radius-md: 6px;
+    --terminus-radius-lg: 8px;
 }
 
-body {
-    padding: 0;
-    margin: 0;
-    color: var(--foreground);
-    font-family: var(--vscode-font-family);
-    font-size: var(--vscode-font-size);
-}
-
+/* =============================================================================
+   APP CONTAINER
+   ============================================================================= */
 .app-container {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    background-color: var(--terminus-bg);
+    color: var(--terminus-text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    overflow: hidden;
 }
 
-/* Top Nav (Segmented Control) */
+/* =============================================================================
+   TOP NAVIGATION - Tab Bar
+   ============================================================================= */
 .top-nav {
     display: flex;
-    border-bottom: 1px solid var(--vscode-panel-border);
+    background-color: var(--terminus-bg-header);
+    border-bottom: 1px solid var(--terminus-border-panel);
+    padding: 0;
+    gap: 0;
+    flex-shrink: 0;
 }
 
 .top-nav button {
-    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
     background: transparent;
+    color: var(--terminus-text-muted);
     border: none;
-    color: var(--vscode-descriptionForeground);
-    padding: 10px;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
+    transition: all 0.2s ease;
     border-bottom: 2px solid transparent;
 }
 
-.top-nav button.active {
-    color: var(--foreground);
-    border-bottom-color: var(--focus-border);
-}
-
 .top-nav button:hover {
-    color: var(--foreground);
+    background-color: var(--terminus-hover);
+    color: var(--terminus-text);
 }
 
-/* Toolbar */
+.top-nav button.active {
+    color: var(--terminus-text);
+    border-bottom-color: var(--terminus-accent);
+    background-color: var(--terminus-bg-active);
+}
+
+.top-nav button i.codicon {
+    font-size: 14px;
+}
+
+/* =============================================================================
+   TOOLBAR
+   ============================================================================= */
 .toolbar {
     display: flex;
-    padding: 8px;
+    align-items: center;
     gap: 8px;
-    border-bottom: 1px solid var(--vscode-panel-border);
-    justify-content: flex-end;
+    padding: 12px 16px;
+    background-color: var(--terminus-bg);
+    border-bottom: 1px solid var(--terminus-border-panel);
+    flex-wrap: wrap;
+    flex-shrink: 0;
 }
 
 .toolbar button {
-    background: transparent;
-    border: none;
-    color: var(--foreground);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: var(--terminus-bg-button);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
-    padding: 4px;
-    border-radius: 3px;
+    transition: all 0.15s ease;
 }
 
 .toolbar button:hover {
-    background: var(--vscode-toolbar-hoverBackground);
+    background-color: var(--terminus-hover);
+    border-color: var(--terminus-border-hover);
 }
 
-/* Host List */
+.toolbar button.danger {
+    color: var(--terminus-error);
+}
+
+.toolbar button.danger:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: var(--terminus-error);
+}
+
+.toolbar-separator {
+    width: 1px;
+    height: 24px;
+    background-color: var(--terminus-border);
+    margin: 0 4px;
+}
+
+/* Quick Connect */
+.quick-connect {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.quick-connect input {
+    padding: 6px 10px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    min-width: 160px;
+}
+
+.quick-connect input:focus {
+    outline: none;
+    border-color: var(--terminus-accent);
+}
+
+/* Bulk Actions */
+.bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.selected-count {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--terminus-accent);
+    padding: 4px 8px;
+    background-color: rgba(59, 130, 246, 0.1);
+    border-radius: var(--terminus-radius-sm);
+}
+
+/* Dropdown */
+.dropdown-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dropdown-icon {
+    color: var(--terminus-text-muted);
+    font-size: 14px;
+}
+
+.toolbar-select {
+    padding: 6px 8px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* =============================================================================
+   SEARCH BAR
+   ============================================================================= */
+.search-bar {
+    position: relative;
+    padding: 0 16px 12px;
+    background-color: var(--terminus-bg);
+    flex-shrink: 0;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+}
+
+.search-bar input:focus {
+    outline: none;
+    border-color: var(--terminus-accent);
+}
+
+.search-bar input::placeholder {
+    color: var(--terminus-text-subtle);
+}
+
+.search-bar .search-icon {
+    position: absolute;
+    left: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--terminus-text-muted);
+    font-size: 14px;
+    pointer-events: none;
+}
+
+/* =============================================================================
+   HOST LIST (Scrollable Area)
+   ============================================================================= */
 .host-list {
     flex: 1;
     overflow-y: auto;
-    padding: 10px;
+    padding: 0 16px 80px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--terminus-border-hover) var(--terminus-bg);
 }
 
-/* Host Group */
+.host-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.host-list::-webkit-scrollbar-track {
+    background: var(--terminus-bg);
+}
+
+.host-list::-webkit-scrollbar-thumb {
+    background: var(--terminus-border-hover);
+    border-radius: 3px;
+}
+
+.host-list::-webkit-scrollbar-thumb:hover {
+    background: var(--terminus-border-light);
+}
+
+/* =============================================================================
+   HOST GROUP (Folder Accordion)
+   ============================================================================= */
 .host-group {
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-lg);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.host-group.drag-over {
+    border-color: var(--terminus-accent);
+    background-color: rgba(59, 130, 246, 0.05);
 }
 
 .group-header {
     display: flex;
     align-items: center;
-    padding: 5px;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--terminus-border-panel);
     cursor: pointer;
-    font-weight: bold;
     user-select: none;
 }
 
 .group-header:hover {
-    background: var(--vscode-list-hoverBackground);
+    background-color: var(--terminus-hover);
 }
 
-.group-icon {
-    margin-right: 5px;
-    color: var(--vscode-symbolIcon-folderForeground);
-}
-
-.group-count {
-    margin-left: auto;
-    opacity: 0.7;
-    font-size: 0.9em;
-}
-
-/* Host Card */
-.host-card {
-    background: var(--vscode-list-hoverBackground);
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: 5px;
-    margin: 5px 0 10px 15px;
-    /* Indent from group */
-    padding: 10px;
+.group-title {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.group-title .codicon {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+    flex-shrink: 0;
+}
+
+.group-title span {
+    font-weight: 500;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.group-title span:hover {
+    color: var(--terminus-accent-light);
+}
+
+.group-checkbox {
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    background-color: var(--terminus-bg-button);
+    color: var(--terminus-text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 9999px;
+    flex-shrink: 0;
+}
+
+.group-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.group-header:hover .group-actions {
+    opacity: 1;
+}
+
+.rename-input {
+    padding: 2px 8px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-accent);
+    border-radius: var(--terminus-radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    width: 150px;
+}
+
+.group-content {
+    padding: 8px;
+    background-color: var(--terminus-bg);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 8px;
 }
 
-.host-card:hover {
-    border-color: var(--focus-border);
+/* =============================================================================
+   HOST CARD - Terminus Style
+   ============================================================================= */
+.host-card {
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-lg);
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
 }
 
+.host-card:hover {
+    background-color: var(--terminus-hover-alt);
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.host-card.selected {
+    border-color: var(--terminus-accent);
+    background-color: rgba(59, 130, 246, 0.08);
+}
+
+.host-card.active-session {
+    border-color: var(--terminus-success);
+}
+
+.host-card.drag-over {
+    border-color: var(--terminus-accent);
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+/* Card Top - Checkbox, Status, Host Info, Pin */
 .card-top {
     display: flex;
-    gap: 10px;
     align-items: flex-start;
+    gap: 8px;
+}
+
+.card-top input[type="checkbox"] {
+    margin-top: 2px;
+    flex-shrink: 0;
+    accent-color: var(--terminus-accent);
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+.status-online {
+    background-color: var(--terminus-success);
+    box-shadow: 0 0 6px var(--terminus-success);
+}
+
+.status-offline {
+    background-color: var(--terminus-error);
+}
+
+.status-unknown {
+    background-color: var(--terminus-muted);
+}
+
+.active-indicator {
+    width: 8px;
+    height: 8px;
+    background-color: var(--terminus-success);
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .host-info {
     flex: 1;
+    min-width: 0;
 }
 
 .host-name {
-    font-weight: bold;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--terminus-text);
+    margin-bottom: 2px;
+}
+
+.host-name .codicon {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+}
+
+.host-name .pin-icon {
+    color: #eab308;
+    font-size: 11px;
 }
 
 .host-address {
-    font-size: 0.9em;
-    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+    color: var(--terminus-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
+/* Card Top-Right Actions */
+.card-actions-top {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.host-card:hover .card-actions-top {
+    opacity: 1;
+}
+
+/* Card Middle - Tags */
 .card-middle {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 4px;
+    margin-top: 8px;
+    min-height: 20px;
 }
 
 .tag-pill {
-    background: var(--vscode-badge-background);
-    color: var(--vscode-badge-foreground);
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
     padding: 2px 6px;
-    border-radius: 10px;
-    font-size: 0.8em;
+    background-color: transparent;
+    border: 1px solid var(--terminus-border);
+    color: var(--terminus-text-muted);
+    font-size: 10px;
+    border-radius: var(--terminus-radius-sm);
 }
 
+.tag-pill .codicon {
+    font-size: 9px;
+}
+
+.feature-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 6px;
+    background-color: transparent;
+    border: 1px solid var(--terminus-border);
+    color: var(--terminus-text-muted);
+    font-size: 10px;
+    border-radius: var(--terminus-radius-sm);
+}
+
+.feature-badge .codicon {
+    font-size: 9px;
+}
+
+.notes-icon {
+    color: var(--terminus-text-subtle);
+    cursor: help;
+}
+
+/* Card Bottom - Action Buttons */
 .card-bottom {
     display: flex;
-    gap: 5px;
-    margin-top: 5px;
+    gap: 4px;
+    margin-top: 10px;
 }
 
 .action-btn {
     flex: 1;
-    background: var(--button-bg);
-    color: var(--button-fg);
-    border: none;
-    padding: 5px;
-    border-radius: 3px;
-    cursor: pointer;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 8px;
+    background-color: var(--terminus-bg-button);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
 }
 
 .action-btn:hover {
-    background: var(--button-hover-bg);
+    background-color: var(--terminus-hover);
+    border-color: var(--terminus-border-hover);
 }
 
 .action-btn.secondary {
-    background: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
-    flex: 0;
-    min-width: 30px;
+    background-color: transparent;
+    flex: none;
+    width: 28px;
+    padding: 6px;
 }
 
 .action-btn.secondary:hover {
-    background: var(--vscode-button-secondaryHoverBackground);
+    background-color: var(--terminus-hover);
 }
 
-/* Search Bar */
-.search-bar {
+.action-btn .codicon {
+    font-size: 12px;
+}
+
+/* Icon Button (used in headers, etc.) */
+.icon-button {
     display: flex;
     align-items: center;
-    padding: 5px 10px;
-    background: var(--vscode-input-background);
-    border: 1px solid var(--vscode-input-border);
-    margin: 10px;
-    border-radius: 2px;
-}
-
-.search-bar input {
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
     background: transparent;
+    color: var(--terminus-text-muted);
     border: none;
-    color: var(--foreground);
-    flex: 1;
-    margin-left: 5px;
-    outline: none;
+    border-radius: var(--terminus-radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
 }
 
-/* Edit View & Forms */
+.icon-button:hover {
+    background-color: var(--terminus-hover);
+    color: var(--terminus-text);
+}
+
+.icon-button .codicon {
+    font-size: 12px;
+}
+
+/* Options Dropdown Menu */
+.options-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.options-btn {
+    width: 28px;
+    height: 28px;
+}
+
+.options-btn:hover {
+    background-color: var(--terminus-hover);
+}
+
+.options-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    min-width: 160px;
+    background-color: var(--terminus-bg-panel);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    padding: 4px;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    animation: optionsSlideIn 0.15s ease;
+}
+
+@keyframes optionsSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.option-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    color: var(--terminus-text);
+    border: none;
+    border-radius: var(--terminus-radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.1s;
+}
+
+.option-item:hover {
+    background-color: var(--terminus-hover);
+}
+
+.option-item .codicon {
+    font-size: 14px;
+    color: var(--terminus-text-muted);
+}
+
+.option-item.danger {
+    color: var(--terminus-error);
+}
+
+.option-item.danger .codicon {
+    color: var(--terminus-error);
+}
+
+.option-item.danger:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+}
+
+.option-divider {
+    height: 1px;
+    background-color: var(--terminus-border);
+    margin: 4px 0;
+}
+
+
+/* =============================================================================
+   EDIT HOST VIEW
+   ============================================================================= */
 .edit-host-view {
-    padding: 20px;
+    flex: 1;
     overflow-y: auto;
+    padding: 16px;
+    background-color: var(--terminus-bg);
+}
+
+.edit-host-view h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--terminus-text);
 }
 
 .tabs {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid var(--vscode-panel-border);
+    gap: 0;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--terminus-border);
 }
 
 .tab {
-    background: none;
+    padding: 8px 16px;
+    background: transparent;
+    color: var(--terminus-text-muted);
     border: none;
-    color: var(--vscode-descriptionForeground);
-    padding: 8px 15px;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
     border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.tab:hover {
+    color: var(--terminus-text);
 }
 
 .tab.active {
-    color: var(--foreground);
-    border-bottom-color: var(--focus-border);
+    color: var(--terminus-text);
+    border-bottom-color: var(--terminus-accent);
 }
 
+/* Form Groups */
 .form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--terminus-text-muted);
+    margin-bottom: 6px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px 12px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--terminus-accent);
+}
+
+.form-group small {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--terminus-text-subtle);
+}
+
+.checkbox-label {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--terminus-text);
+    cursor: pointer;
 }
 
-label {
-    font-weight: 600;
-}
-
-input,
-select {
-    background: var(--vscode-input-background);
-    color: var(--foreground);
-    border: 1px solid var(--vscode-input-border);
-    padding: 6px;
-    border-radius: 2px;
-}
-
-input:focus,
-select:focus {
-    outline: 1px solid var(--focus-border);
-    border-color: var(--focus-border);
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    accent-color: var(--terminus-accent);
 }
 
 .form-actions {
     display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
+    gap: 8px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--terminus-border);
 }
 
-.btn-primary {
-    background: var(--button-bg);
-    color: var(--button-fg);
-    border: none;
+.primary-button,
+.vscode-button {
     padding: 8px 16px;
-    border-radius: 2px;
+    background-color: var(--terminus-accent);
+    color: white;
+    border: none;
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.primary-button:hover,
+.vscode-button:hover {
+    background-color: var(--terminus-accent-hover);
+}
+
+.secondary-button,
+.vscode-button.secondary {
+    padding: 8px 16px;
+    background-color: var(--terminus-bg-button);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
 }
 
-.btn-primary:hover {
-    background: var(--button-hover-bg);
+.secondary-button:hover,
+.vscode-button.secondary:hover {
+    background-color: var(--terminus-hover);
 }
 
-.btn-secondary {
-    background: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
+/* =============================================================================
+   CREDENTIALS VIEW
+   ============================================================================= */
+.credentials-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.credentials-view .toolbar {
+    padding: 12px 16px;
+}
+
+.list-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 16px;
+}
+
+.credential-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-lg);
+    margin-bottom: 8px;
+    transition: all 0.15s;
+}
+
+.credential-item:hover {
+    background-color: var(--terminus-hover-alt);
+    border-color: var(--terminus-border-hover);
+}
+
+.cred-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background-color: var(--terminus-bg-button);
+    border-radius: var(--terminus-radius-md);
+    color: var(--terminus-accent);
+}
+
+.cred-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.cred-name {
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--terminus-text);
+}
+
+.cred-user {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+}
+
+.cred-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.cred-actions button {
+    padding: 6px;
+    background: transparent;
+    color: var(--terminus-text-muted);
     border: none;
-    padding: 8px 16px;
-    border-radius: 2px;
+    border-radius: var(--terminus-radius-sm);
     cursor: pointer;
 }
 
-.btn-secondary:hover {
-    background: var(--vscode-button-secondaryHoverBackground);
+.cred-actions button:hover {
+    background-color: var(--terminus-hover);
+    color: var(--terminus-text);
 }
-`, "",{"version":3,"sources":["webpack://./src/webview/styles/main.css"],"names":[],"mappings":"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","sourceRoot":""}]);
+
+/* =============================================================================
+   EMPTY STATE
+   ============================================================================= */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--terminus-text-muted);
+}
+
+.empty-state .codicon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    color: var(--terminus-text-subtle);
+}
+
+.empty-state h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--terminus-text);
+}
+
+.empty-state p {
+    font-size: 13px;
+    max-width: 300px;
+}
+
+/* =============================================================================
+   MODAL / DIALOG
+   ============================================================================= */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.modal-content {
+    background-color: var(--terminus-bg-panel);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-lg);
+    padding: 24px;
+    min-width: 320px;
+    max-width: 480px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.modal-content h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--terminus-text);
+}
+
+/* =============================================================================
+   SCRIPT LIST
+   ============================================================================= */
+.script-list {
+    padding: 16px;
+    border-top: 1px solid var(--terminus-border);
+    background-color: var(--terminus-bg-darker);
+}
+
+.script-list h4 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--terminus-text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.script-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-sm);
+    margin-bottom: 4px;
+    cursor: grab;
+    font-size: 12px;
+}
+
+.script-item:active {
+    cursor: grabbing;
+}
+
+/* =============================================================================
+   HOST KEY DIALOG
+   ============================================================================= */
+.host-key-dialog {
+    text-align: center;
+}
+
+.host-key-dialog .fingerprint {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    background-color: var(--terminus-bg-input);
+    padding: 12px;
+    border-radius: var(--terminus-radius-md);
+    font-size: 11px;
+    word-break: break-all;
+    margin: 16px 0;
+}
+
+.host-key-dialog .warning {
+    color: var(--terminus-warning);
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+
+/* =============================================================================
+   TUNNEL DIALOG
+   ============================================================================= */
+.tunnel-list {
+    margin-bottom: 16px;
+}
+
+.tunnel-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    margin-bottom: 8px;
+}
+
+/* =============================================================================
+   VSCODE INPUT (compatibility class)
+   ============================================================================= */
+.vscode-input {
+    padding: 8px 12px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+}
+
+.vscode-input:focus {
+    outline: none;
+    border-color: var(--terminus-accent);
+}
+
+/* =============================================================================
+   INFO TEXT
+   ============================================================================= */
+.info-text {
+    padding: 8px 12px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+}
+
+/* =============================================================================
+   SEGMENTED CONTROLS - Styled Auth Buttons
+   ============================================================================= */
+.segmented-control {
+    display: flex;
+    gap: 0;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    padding: 4px;
+    overflow: hidden;
+}
+
+.segmented-control button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 12px;
+    background: transparent;
+    color: var(--terminus-text-muted);
+    border: none;
+    border-radius: var(--terminus-radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.segmented-control button:hover {
+    background-color: var(--terminus-hover);
+    color: var(--terminus-text);
+}
+
+.segmented-control button.active {
+    background-color: var(--terminus-accent);
+    color: white;
+}
+
+.segmented-control button .codicon {
+    font-size: 16px;
+}
+
+.segmented-control button .option-desc {
+    font-size: 10px;
+    font-weight: 400;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+/* Cursor Preview in Terminal Settings */
+.cursor-preview {
+    font-family: monospace;
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+/* =============================================================================
+   FORM SECTIONS
+   ============================================================================= */
+.form-section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--terminus-border-panel);
+}
+
+.form-section:last-child {
+    border-bottom: none;
+}
+
+.form-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--terminus-text);
+    margin-bottom: 4px;
+}
+
+.section-description {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+    margin-bottom: 16px;
+}
+
+/* Form Rows */
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-row .form-group.flex-1 {
+    flex: 1;
+}
+
+.form-row .form-group.flex-2 {
+    flex: 2;
+}
+
+/* Input with Button */
+.input-with-button {
+    display: flex;
+    gap: 8px;
+}
+
+.input-with-button .vscode-input {
+    flex: 1;
+}
+
+/* Info Box */
+.info-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+}
+
+.info-box .codicon {
+    font-size: 14px;
+    color: var(--terminus-accent-light);
+}
+
+.status-success {
+    color: var(--terminus-success);
+    margin-left: auto;
+}
+
+.status-error {
+    color: var(--terminus-error);
+    margin-left: auto;
+}
+
+/* Separator */
+.separator {
+    height: 1px;
+    background-color: var(--terminus-border-panel);
+    margin: 16px 0;
+}
+
+/* =============================================================================
+   CREDENTIALS PAGE
+   ============================================================================= */
+.credentials-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid var(--terminus-border-panel);
+}
+
+.credentials-title h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--terminus-text);
+}
+
+.credentials-title .subtitle {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+    margin-top: 4px;
+}
+
+.add-credential-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background-color: var(--terminus-accent);
+    color: white;
+    border: none;
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.add-credential-btn:hover {
+    background-color: var(--terminus-accent-hover);
+}
+
+.add-credential-btn .codicon {
+    font-size: 14px;
+}
+
+/* Credentials Grid */
+.credentials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    padding: 16px;
+}
+
+.credential-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-lg);
+    transition: all 0.15s ease;
+    position: relative;
+}
+
+.credential-card:hover {
+    background-color: var(--terminus-hover-alt);
+    border-color: var(--terminus-border-hover);
+}
+
+.credential-card .cred-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--terminus-accent) 0%, var(--terminus-accent-hover) 100%);
+    border-radius: var(--terminus-radius-md);
+    color: white;
+    flex-shrink: 0;
+}
+
+.credential-card .cred-icon .codicon {
+    font-size: 20px;
+}
+
+.credential-card .cred-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.credential-card .cred-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--terminus-text);
+    margin-bottom: 2px;
+}
+
+.credential-card .cred-user {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+}
+
+.credential-card .cred-folder {
+    font-size: 11px;
+    color: var(--terminus-text-subtle);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.credential-card .cred-folder .codicon {
+    font-size: 11px;
+}
+
+.cred-type-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 2px 8px;
+    background-color: var(--terminus-bg-button);
+    border: 1px solid var(--terminus-border);
+    border-radius: 9999px;
+    font-size: 10px;
+    color: var(--terminus-text-muted);
+}
+
+.credential-card .cred-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.credential-card:hover .cred-actions {
+    opacity: 1;
+}
+
+.credential-card .cred-actions button {
+    padding: 6px;
+    background: transparent;
+    color: var(--terminus-text-muted);
+    border: none;
+    border-radius: var(--terminus-radius-sm);
+    cursor: pointer;
+}
+
+.credential-card .cred-actions button:hover {
+    background-color: var(--terminus-hover);
+    color: var(--terminus-text);
+}
+
+.credential-card .cred-actions button.danger:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--terminus-error);
+}
+
+/* Tabs with icons */
+.tabs button .codicon {
+    margin-right: 6px;
+}
+
+/* =============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================= */
+
+/* Very small widths (sidebar mode) */
+@media (max-width: 400px) {
+    .toolbar {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 10px;
+    }
+
+    .toolbar button {
+        padding: 5px 8px;
+        font-size: 11px;
+    }
+
+    .toolbar button .codicon {
+        font-size: 12px;
+    }
+
+    /* Hide text on small screens, show only icons */
+    .toolbar button:not(.selected-count) {
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .quick-connect {
+        width: 100%;
+        order: 10;
+    }
+
+    .quick-connect input {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .toolbar-separator {
+        display: none;
+    }
+
+    .dropdown-wrapper {
+        flex: 1;
+    }
+
+    .host-card {
+        padding: 10px;
+    }
+
+    .card-bottom {
+        flex-direction: column;
+    }
+
+    .action-btn {
+        width: 100%;
+    }
+
+    .tabs {
+        flex-wrap: wrap;
+    }
+
+    .tab {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .credentials-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .add-credential-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .credentials-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Small widths */
+@media (max-width: 600px) {
+    .group-content {
+        grid-template-columns: 1fr;
+    }
+
+    .toolbar button {
+        padding: 6px 10px;
+    }
+
+    .search-bar {
+        padding: 0 10px 10px;
+    }
+
+    .host-list {
+        padding: 0 10px 60px;
+    }
+}
+
+/* Medium widths */
+@media (min-width: 601px) and (max-width: 900px) {
+    .group-content {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    }
+}
+
+/* Large widths */
+@media (min-width: 901px) {
+    .group-content {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+}
+
+/* Ensure smooth transitions */
+.app-container,
+.toolbar,
+.host-card,
+.group-content,
+.form-row,
+.tabs {
+    transition: all 0.2s ease;
+}`, "",{"version":3,"sources":["webpack://./src/webview/styles/main.css"],"names":[],"mappings":"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","sourceRoot":""}]);
 // Exports
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (___CSS_LOADER_EXPORT___);
 
@@ -35799,6 +37059,9 @@ const App = () => {
             vscode_1.default.postMessage({ command: 'EXPORT_HOSTS', payload: { ids: state.selectedHostIds } });
         }
     }, [state.selectedHostIds]);
+    const handleExportHost = (0, react_1.useCallback)((hostId) => {
+        vscode_1.default.postMessage({ command: 'EXPORT_HOSTS', payload: { ids: [hostId] } });
+    }, []);
     const handleRefresh = (0, react_1.useCallback)(() => {
         vscode_1.default.postMessage({ command: 'FETCH_DATA' });
     }, []);
@@ -35924,7 +37187,7 @@ const App = () => {
     // ============================================================
     // RENDER
     // ============================================================
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "app-container", children: [hostKeyRequest && ((0, jsx_runtime_1.jsx)(HostKeyDialog_1.default, { host: hostKeyRequest.host, port: hostKeyRequest.port, fingerprint: hostKeyRequest.fingerprint, status: hostKeyRequest.status, onAccept: handleHostKeyAccept, onDeny: handleHostKeyDeny })), (0, jsx_runtime_1.jsx)(TopNav_1.default, { activeView: state.view, onNavigate: handleNavigate }), state.view === 'hosts' && ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(Toolbar_1.default, { onRefresh: handleRefresh, onImport: handleImport, onExport: handleExport, onSort: setSortCriteria, sortCriteria: sortCriteria, onQuickConnect: handleQuickConnect, selectedCount: state.selectedHostIds?.length || 0, onBulkDelete: handleBulkDelete, onBulkExport: handleExportSelected }), (0, jsx_runtime_1.jsx)(SearchBar_1.default, { value: filterText, onChange: setFilterText }), (0, jsx_runtime_1.jsx)("div", { className: "host-list", children: state.hosts.length === 0 ? ((0, jsx_runtime_1.jsx)(EmptyState_1.default, {})) : (Object.entries(groupedHosts).map(([folder, hosts]) => ((0, jsx_runtime_1.jsx)(HostGroup_1.default, { name: folder, count: hosts.length, credentials: state.credentials, selectedHostIds: state.selectedHostIds || [], onSelectAll: (selected) => {
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "app-container", children: [hostKeyRequest && ((0, jsx_runtime_1.jsx)(HostKeyDialog_1.default, { host: hostKeyRequest.host, port: hostKeyRequest.port, fingerprint: hostKeyRequest.fingerprint, status: hostKeyRequest.status, onAccept: handleHostKeyAccept, onDeny: handleHostKeyDeny })), (0, jsx_runtime_1.jsx)(TopNav_1.default, { activeView: state.view, onNavigate: handleNavigate }), state.view === 'hosts' && ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)(Toolbar_1.default, { onImport: handleImport, onSort: setSortCriteria, sortCriteria: sortCriteria, onQuickConnect: handleQuickConnect, selectedCount: state.selectedHostIds?.length || 0, onBulkDelete: handleBulkDelete }), (0, jsx_runtime_1.jsx)(SearchBar_1.default, { value: filterText, onChange: setFilterText }), (0, jsx_runtime_1.jsx)("div", { className: "host-list", children: state.hosts.length === 0 ? ((0, jsx_runtime_1.jsx)(EmptyState_1.default, {})) : (Object.entries(groupedHosts).map(([folder, hosts]) => ((0, jsx_runtime_1.jsx)(HostGroup_1.default, { name: folder, count: hosts.length, credentials: state.credentials, selectedHostIds: state.selectedHostIds || [], onSelectAll: (selected) => {
                                 if (selected) {
                                     handleSelectAll([...(state.selectedHostIds || []), ...hosts.map(h => h.id)]);
                                 }
@@ -35935,7 +37198,7 @@ const App = () => {
                                         selectedHostIds: (prev.selectedHostIds || []).filter(id => !hostIds.has(id))
                                     }));
                                 }
-                            }, onRenameFolder: handleRenameFolder, children: hosts.map(host => ((0, jsx_runtime_1.jsx)(HostCard_1.default, { host: host, isActive: state.activeSessionHostIds?.includes(host.id), isSelected: state.selectedHostIds?.includes(host.id) || false, status: state.hostStatuses?.[host.id] || 'unknown', onConnect: () => handleConnect(host.id), onDelete: () => handleDeleteHost(host.id), onManageTunnels: () => setTunnelDialogHost(host), onEdit: () => handleEditHost(host), onTogglePin: () => handleTogglePin(host.id), onToggleSelect: () => handleToggleSelection(host.id), onOpenSftp: () => handleOpenSftp(host.id), onOpenStats: () => handleOpenStats(host.id), onMoveToFolder: handleMoveHostToFolder }, host.id))) }, folder)))) }), (0, jsx_runtime_1.jsx)(ScriptList_1.default, { scripts: state.scripts || [] })] })), state.view === 'addHost' && ((0, jsx_runtime_1.jsx)(EditHost_1.default, { initialHost: state.selectedHost, agentAvailable: state.sshAgentAvailable, availableShells: state.availableShells || [], existingFolders: existingFolders, credentials: state.credentials || [], onSave: handleSaveHost, onCancel: () => handleNavigate('hosts') })), state.view === 'credentials' && ((0, jsx_runtime_1.jsx)(CredentialsView_1.default, { credentials: state.credentials || [], onEdit: (credential) => setState(prev => ({ ...prev, view: 'addCredential', editingCredential: credential })) })), state.view === 'addCredential' && ((0, jsx_runtime_1.jsxs)("div", { className: "edit-host-view", children: [(0, jsx_runtime_1.jsx)("h2", { children: state.editingCredential ? 'Edit Credential' : 'New Credential' }), (0, jsx_runtime_1.jsx)("p", { children: "Credential editor coming soon..." }), (0, jsx_runtime_1.jsx)("div", { className: "form-actions", children: (0, jsx_runtime_1.jsx)("button", { className: "vscode-button secondary", onClick: () => handleNavigate('credentials'), children: "Cancel" }) })] })), tunnelDialogHost && ((0, jsx_runtime_1.jsx)(TunnelDialog_1.default, { host: tunnelDialogHost, onSave: (updatedHost) => handleSaveHost(updatedHost), onClose: () => setTunnelDialogHost(null) }))] }));
+                            }, onRenameFolder: handleRenameFolder, children: hosts.map(host => ((0, jsx_runtime_1.jsx)(HostCard_1.default, { host: host, isActive: state.activeSessionHostIds?.includes(host.id), isSelected: state.selectedHostIds?.includes(host.id) || false, status: state.hostStatuses?.[host.id] || 'unknown', onConnect: () => handleConnect(host.id), onDelete: () => handleDeleteHost(host.id), onManageTunnels: () => setTunnelDialogHost(host), onEdit: () => handleEditHost(host), onTogglePin: () => handleTogglePin(host.id), onToggleSelect: () => handleToggleSelection(host.id), onOpenSftp: () => handleOpenSftp(host.id), onClone: () => handleCloneHost(host.id), onExport: () => handleExportHost(host.id), onMoveToFolder: handleMoveHostToFolder }, host.id))) }, folder)))) }), (0, jsx_runtime_1.jsx)(ScriptList_1.default, { scripts: state.scripts || [] })] })), state.view === 'addHost' && ((0, jsx_runtime_1.jsx)(EditHost_1.default, { initialHost: state.selectedHost, agentAvailable: state.sshAgentAvailable, availableShells: state.availableShells || [], existingFolders: existingFolders, credentials: state.credentials || [], onSave: handleSaveHost, onCancel: () => handleNavigate('hosts') })), state.view === 'credentials' && ((0, jsx_runtime_1.jsx)(CredentialsView_1.default, { credentials: state.credentials || [] })), tunnelDialogHost && ((0, jsx_runtime_1.jsx)(TunnelDialog_1.default, { host: tunnelDialogHost, onSave: (updatedHost) => handleSaveHost(updatedHost), onClose: () => setTunnelDialogHost(null) }))] }));
 };
 exports["default"] = App;
 
@@ -35971,12 +37234,55 @@ exports["default"] = EmptyState;
 /*!*********************************************!*\
   !*** ./src/webview/components/HostCard.tsx ***!
   \*********************************************/
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
-const HostCard = ({ host, isActive, isSelected, status = 'unknown', onConnect, onEdit, onDelete, onManageTunnels, onTogglePin, onToggleSelect, onOpenSftp, onOpenStats, onMoveToFolder }) => {
+const react_1 = __importStar(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
+const HostCard = ({ host, isActive, isSelected, status = 'unknown', onConnect, onEdit, onDelete, onManageTunnels, onTogglePin, onToggleSelect, onOpenSftp, onClone, onExport, onMoveToFolder }) => {
+    const [showOptions, setShowOptions] = (0, react_1.useState)(false);
+    const handleDragStart = (e) => {
+        e.dataTransfer.setData('application/labonair-host', host.id);
+        e.dataTransfer.effectAllowed = 'move';
+        e.currentTarget.classList.add('dragging');
+    };
+    const handleDragEnd = (e) => {
+        e.currentTarget.classList.remove('dragging');
+    };
     const handleDragOver = (e) => {
         if (e.dataTransfer.types.includes('application/labonair-script')) {
             e.preventDefault();
@@ -35996,9 +37302,28 @@ const HostCard = ({ host, isActive, isSelected, status = 'unknown', onConnect, o
             vscode.postMessage({ command: 'RUN_SCRIPT', payload: { scriptId, hostId: host.id } });
         }
     };
+    const handleOptionsClick = (e) => {
+        e.stopPropagation();
+        setShowOptions(!showOptions);
+    };
+    const handleOptionAction = (action) => {
+        return (e) => {
+            e.stopPropagation();
+            setShowOptions(false);
+            action();
+        };
+    };
+    // Close options menu when clicking outside
+    react_1.default.useEffect(() => {
+        const handleClickOutside = () => setShowOptions(false);
+        if (showOptions) {
+            document.addEventListener('click', handleClickOutside);
+            return () => document.removeEventListener('click', handleClickOutside);
+        }
+    }, [showOptions]);
     const statusClass = status === 'online' ? 'status-online' :
         status === 'offline' ? 'status-offline' : 'status-unknown';
-    return ((0, jsx_runtime_1.jsxs)("div", { className: `host-card ${isActive ? 'active-session' : ''} ${isSelected ? 'selected' : ''}`, onDoubleClick: onConnect, onDragOver: handleDragOver, onDragLeave: handleDragLeave, onDrop: handleDrop, children: [(0, jsx_runtime_1.jsxs)("div", { className: "card-top", children: [onToggleSelect && ((0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: isSelected, onChange: onToggleSelect, onClick: e => e.stopPropagation() })), (0, jsx_runtime_1.jsx)("div", { className: `status-indicator ${statusClass}`, title: `Status: ${status}` }), isActive && (0, jsx_runtime_1.jsx)("div", { className: "active-indicator", title: "Active Session" }), (0, jsx_runtime_1.jsxs)("div", { className: "host-info", children: [(0, jsx_runtime_1.jsxs)("div", { className: "host-name", children: [host.pin && (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-pinned pin-icon", title: "Pinned" }), (0, jsx_runtime_1.jsx)("i", { className: `codicon codicon-${host.osIcon === 'windows' ? 'window' : 'terminal-linux'}` }), host.name] }), (0, jsx_runtime_1.jsxs)("div", { className: "host-address", children: [host.username, "@", host.host, ":", host.port] })] }), onTogglePin && ((0, jsx_runtime_1.jsx)("button", { className: "icon-button", onClick: onTogglePin, title: host.pin ? 'Unpin' : 'Pin', children: (0, jsx_runtime_1.jsx)("i", { className: `codicon codicon-${host.pin ? 'pinned' : 'pin'}` }) }))] }), (0, jsx_runtime_1.jsxs)("div", { className: "card-middle", children: [host.tags.map((tag, index) => ((0, jsx_runtime_1.jsx)("span", { className: "tag-pill", children: tag }, index))), host.notes && ((0, jsx_runtime_1.jsx)("span", { className: "notes-icon", title: host.notes, children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-note" }) }))] }), (0, jsx_runtime_1.jsxs)("div", { className: "card-bottom", children: [onOpenStats && ((0, jsx_runtime_1.jsx)("button", { className: "action-btn secondary", title: "Stats", onClick: onOpenStats, children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-graph" }) })), (0, jsx_runtime_1.jsx)("button", { className: "action-btn", title: "SSH", onClick: onConnect, children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-remote" }) }), onOpenSftp && ((0, jsx_runtime_1.jsx)("button", { className: "action-btn", title: "SFTP", onClick: onOpenSftp, children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-file-symlink-directory" }) })), (0, jsx_runtime_1.jsx)("button", { className: "action-btn secondary", onClick: onManageTunnels, title: "Tunnels", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-plug" }) }), (0, jsx_runtime_1.jsx)("button", { className: "action-btn secondary", onClick: onEdit, title: "Edit", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-edit" }) }), (0, jsx_runtime_1.jsx)("button", { className: "action-btn secondary", onClick: onDelete, title: "Delete", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-trash" }) })] })] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: `host-card ${isActive ? 'active-session' : ''} ${isSelected ? 'selected' : ''}`, draggable: true, onDragStart: handleDragStart, onDragEnd: handleDragEnd, onDragOver: handleDragOver, onDragLeave: handleDragLeave, onDrop: handleDrop, children: [(0, jsx_runtime_1.jsxs)("div", { className: "card-top", children: [onToggleSelect && ((0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: isSelected, onChange: onToggleSelect, onClick: e => e.stopPropagation() })), (0, jsx_runtime_1.jsxs)("div", { className: "host-info", onClick: onEdit, children: [(0, jsx_runtime_1.jsxs)("div", { className: "host-name", children: [host.pin && (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-pinned pin-icon", title: "Pinned" }), (0, jsx_runtime_1.jsx)("span", { children: host.name || `${host.username}@${host.host}` })] }), (0, jsx_runtime_1.jsxs)("div", { className: "host-address", children: [host.host, ":", host.port] }), (0, jsx_runtime_1.jsx)("div", { className: "host-address", children: host.username })] }), (0, jsx_runtime_1.jsxs)("div", { className: "options-wrapper", children: [(0, jsx_runtime_1.jsx)("button", { className: "icon-button options-btn", onClick: handleOptionsClick, title: "Options", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-ellipsis" }) }), showOptions && ((0, jsx_runtime_1.jsxs)("div", { className: "options-menu", onClick: e => e.stopPropagation(), children: [(0, jsx_runtime_1.jsxs)("button", { className: "option-item", onClick: handleOptionAction(onEdit), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-edit" }), "Edit Host"] }), onClone && ((0, jsx_runtime_1.jsxs)("button", { className: "option-item", onClick: handleOptionAction(onClone), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-copy" }), "Clone Host"] })), onExport && ((0, jsx_runtime_1.jsxs)("button", { className: "option-item", onClick: handleOptionAction(onExport), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-cloud-download" }), "Export Host"] })), (0, jsx_runtime_1.jsx)("div", { className: "option-divider" }), (0, jsx_runtime_1.jsxs)("button", { className: "option-item danger", onClick: handleOptionAction(onDelete), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-trash" }), "Delete Host"] })] }))] })] }), host.tags && host.tags.length > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "card-middle", children: [host.tags.slice(0, 4).map((tag, index) => ((0, jsx_runtime_1.jsxs)("span", { className: "tag-pill", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-tag" }), tag] }, index))), host.tags.length > 4 && ((0, jsx_runtime_1.jsxs)("span", { className: "tag-pill", children: ["+", host.tags.length - 4] }))] })), (0, jsx_runtime_1.jsxs)("div", { className: "card-middle", children: [host.enableTerminal !== false && ((0, jsx_runtime_1.jsxs)("span", { className: "feature-badge", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-terminal" }), "Terminal"] })), host.tunnels && host.tunnels.length > 0 && ((0, jsx_runtime_1.jsxs)("span", { className: "feature-badge", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-plug" }), "Tunnel (", host.tunnels.length, ")"] })), host.enableFileManager !== false && ((0, jsx_runtime_1.jsxs)("span", { className: "feature-badge", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-files" }), "SFTP"] }))] }), (0, jsx_runtime_1.jsxs)("div", { className: "card-bottom", children: [host.enableTerminal !== false && ((0, jsx_runtime_1.jsxs)("button", { className: "action-btn", onClick: (e) => { e.stopPropagation(); onConnect(); }, title: "SSH Terminal", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-terminal" }), "SSH"] })), host.enableFileManager !== false && onOpenSftp && ((0, jsx_runtime_1.jsxs)("button", { className: "action-btn", onClick: (e) => { e.stopPropagation(); onOpenSftp(); }, title: "SFTP File Manager", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-files" }), "SFTP"] }))] })] }));
 };
 exports["default"] = HostCard;
 
@@ -36151,7 +37476,7 @@ exports["default"] = ScriptList;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 const SearchBar = ({ value, onChange }) => {
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "search-bar", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-search" }), (0, jsx_runtime_1.jsx)("input", { type: "text", placeholder: "Search hosts...", value: value, onChange: e => onChange(e.target.value) })] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "search-bar", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-search search-icon" }), (0, jsx_runtime_1.jsx)("input", { type: "text", placeholder: "Search hosts by name, IP, username, or tags...", value: value, onChange: e => onChange(e.target.value) })] }));
 };
 exports["default"] = SearchBar;
 
@@ -36207,10 +37532,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 const react_1 = __importDefault(__webpack_require__(/*! react */ "./node_modules/react/index.js"));
-const Toolbar = ({ onRefresh, onImport, onExport, onSort, sortCriteria, onQuickConnect, selectedCount = 0, onBulkDelete, onBulkExport }) => {
-    const handleImportClick = () => {
-        onImport('ssh-config');
-    };
+const Toolbar = ({ onImport, onSort, sortCriteria, onQuickConnect, selectedCount = 0, onBulkDelete, onLocalTerminal }) => {
     const [quickConnect, setQuickConnect] = react_1.default.useState('');
     const handleConnectClick = () => {
         if (quickConnect) {
@@ -36223,7 +37545,7 @@ const Toolbar = ({ onRefresh, onImport, onExport, onSort, sortCriteria, onQuickC
             handleConnectClick();
         }
     };
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "toolbar", children: [selectedCount > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "bulk-actions", children: [(0, jsx_runtime_1.jsxs)("span", { className: "selected-count", children: [selectedCount, " selected"] }), onBulkExport && ((0, jsx_runtime_1.jsx)("button", { onClick: onBulkExport, title: "Export Selected", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-cloud-download" }) })), onBulkDelete && ((0, jsx_runtime_1.jsx)("button", { onClick: onBulkDelete, title: "Delete Selected", className: "danger", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-trash" }) })), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" })] })), (0, jsx_runtime_1.jsxs)("div", { className: "quick-connect", children: [(0, jsx_runtime_1.jsx)("input", { type: "text", className: "vscode-input", placeholder: "user@host:port", value: quickConnect, onChange: e => setQuickConnect(e.target.value), onKeyDown: handleKeyDown }), (0, jsx_runtime_1.jsx)("button", { onClick: handleConnectClick, title: "Quick Connect", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-plug" }) })] }), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsx)("button", { onClick: onRefresh, title: "Refresh", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-refresh" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: handleImportClick, title: "Import SSH Config", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-cloud-upload" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: onExport, title: "Export JSON", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-cloud-download" }) }), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsxs)("div", { className: "dropdown-wrapper", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-sort-precedence dropdown-icon" }), (0, jsx_runtime_1.jsxs)("select", { className: "toolbar-select", onChange: (e) => onSort(e.target.value), value: sortCriteria || 'name', children: [(0, jsx_runtime_1.jsx)("option", { value: "name", children: "Name" }), (0, jsx_runtime_1.jsx)("option", { value: "lastUsed", children: "Last Used" }), (0, jsx_runtime_1.jsx)("option", { value: "group", children: "Folder" })] })] }), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsx)("button", { title: "Local Terminal", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-terminal" }) })] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "toolbar", children: [selectedCount > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "bulk-actions", children: [(0, jsx_runtime_1.jsxs)("span", { className: "selected-count", children: [selectedCount, " selected"] }), onBulkDelete && ((0, jsx_runtime_1.jsxs)("button", { onClick: onBulkDelete, className: "danger", title: "Delete Selected", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-trash" }), "Delete"] })), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" })] })), (0, jsx_runtime_1.jsxs)("div", { className: "quick-connect", children: [(0, jsx_runtime_1.jsx)("input", { type: "text", className: "vscode-input", placeholder: "user@host:port", value: quickConnect, onChange: e => setQuickConnect(e.target.value), onKeyDown: handleKeyDown }), (0, jsx_runtime_1.jsxs)("button", { onClick: handleConnectClick, title: "Quick Connect", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-plug" }), "Connect"] })] }), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsxs)("button", { onClick: () => onImport('json'), title: "Import hosts from JSON file", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-cloud-upload" }), "Import"] }), (0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsxs)("div", { className: "dropdown-wrapper", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-sort-precedence dropdown-icon" }), (0, jsx_runtime_1.jsxs)("select", { className: "toolbar-select", onChange: (e) => onSort(e.target.value), value: sortCriteria || 'name', children: [(0, jsx_runtime_1.jsx)("option", { value: "name", children: "Sort: Name" }), (0, jsx_runtime_1.jsx)("option", { value: "lastUsed", children: "Sort: Last Used" }), (0, jsx_runtime_1.jsx)("option", { value: "group", children: "Sort: Folder" })] })] }), onLocalTerminal && ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsx)("div", { className: "toolbar-separator" }), (0, jsx_runtime_1.jsxs)("button", { onClick: onLocalTerminal, title: "Open a local terminal", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-terminal" }), "Terminal"] })] }))] }));
 };
 exports["default"] = Toolbar;
 
@@ -36240,7 +37562,7 @@ exports["default"] = Toolbar;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const jsx_runtime_1 = __webpack_require__(/*! react/jsx-runtime */ "./node_modules/react/jsx-runtime.js");
 const TopNav = ({ activeView, onNavigate }) => {
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "top-nav", children: [(0, jsx_runtime_1.jsxs)("button", { className: activeView === 'hosts' ? 'active' : '', onClick: () => onNavigate('hosts'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-server" }), "Hosts"] }), (0, jsx_runtime_1.jsxs)("button", { className: activeView === 'addHost' ? 'active' : '', onClick: () => onNavigate('addHost'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-add" }), "Add Host"] }), (0, jsx_runtime_1.jsxs)("button", { className: activeView === 'credentials' ? 'active' : '', onClick: () => onNavigate('credentials'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-key" }), "Credentials"] }), (0, jsx_runtime_1.jsxs)("button", { className: activeView === 'addCredential' ? 'active' : '', onClick: () => onNavigate('addCredential'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-add" }), "Add Credential"] })] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "top-nav", children: [(0, jsx_runtime_1.jsxs)("button", { className: activeView === 'hosts' ? 'active' : '', onClick: () => onNavigate('hosts'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-server" }), "Hosts"] }), (0, jsx_runtime_1.jsxs)("button", { className: activeView === 'addHost' ? 'active' : '', onClick: () => onNavigate('addHost'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-add" }), "Add Host"] }), (0, jsx_runtime_1.jsxs)("button", { className: activeView === 'credentials' ? 'active' : '', onClick: () => onNavigate('credentials'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-key" }), "Credentials"] })] }));
 };
 exports["default"] = TopNav;
 
@@ -36502,12 +37824,13 @@ const vscode_1 = __importDefault(__webpack_require__(/*! ../utils/vscode */ "./s
 const CredentialsView = ({ credentials, onEdit }) => {
     const [isEditing, setIsEditing] = (0, react_1.useState)(false);
     const [editingCred, setEditingCred] = (0, react_1.useState)({});
+    const [searchQuery, setSearchQuery] = (0, react_1.useState)('');
     const handleAdd = () => {
         setEditingCred({ id: crypto.randomUUID(), type: 'password' });
         setIsEditing(true);
     };
     const handleEdit = (cred) => {
-        setEditingCred({ ...cred, secret: '' }); // Don't fetch secret, user must re-enter if changing or just update metadata
+        setEditingCred({ ...cred, secret: '' });
         setIsEditing(true);
     };
     const handleDelete = (id) => {
@@ -36517,7 +37840,7 @@ const CredentialsView = ({ credentials, onEdit }) => {
     };
     const handleSave = () => {
         if (!editingCred.name || !editingCred.username) {
-            return; // Validation loop
+            return;
         }
         const newCred = {
             id: editingCred.id || crypto.randomUUID(),
@@ -36526,15 +37849,6 @@ const CredentialsView = ({ credentials, onEdit }) => {
             type: editingCred.type || 'password',
             folder: editingCred.folder
         };
-        // Secret is required for new credentials, optional for updates if not changed?
-        // For simplicity, we might require it or handle it separately.
-        // Let's assume if secret is provided, update it. If new, it's required.
-        // But type 'key' might not have a secret if it's just a path?
-        // Spec says "Identity" has type password/key.
-        // If key, secret might be the passphrase or the key content? Usually key path is better for agent?
-        // Re-reading spec: "Identity (Credential)... type (password/key)".
-        // If key, maybe we store the key path in 'folder' or specific field?
-        // Actually, let's treat 'secret' as the password or the passphrase/key content.
         vscode_1.default.postMessage({
             command: 'SAVE_CREDENTIAL',
             payload: {
@@ -36544,10 +37858,20 @@ const CredentialsView = ({ credentials, onEdit }) => {
         });
         setIsEditing(false);
     };
+    const filteredCredentials = credentials.filter(cred => {
+        if (!searchQuery)
+            return true;
+        const query = searchQuery.toLowerCase();
+        return (cred.name.toLowerCase().includes(query) ||
+            cred.username.toLowerCase().includes(query) ||
+            (cred.folder?.toLowerCase().includes(query)));
+    });
+    // Editing form
     if (isEditing) {
-        return ((0, jsx_runtime_1.jsxs)("div", { className: "edit-host-container", children: [(0, jsx_runtime_1.jsx)("h2", { children: editingCred.id ? 'Edit Credential' : 'New Credential' }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Name" }), (0, jsx_runtime_1.jsx)("input", { type: "text", value: editingCred.name || '', onChange: e => setEditingCred(p => ({ ...p, name: e.target.value })), placeholder: "e.g. Production Server" })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Username" }), (0, jsx_runtime_1.jsx)("input", { type: "text", value: editingCred.username || '', onChange: e => setEditingCred(p => ({ ...p, username: e.target.value })), placeholder: "root" })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Type" }), (0, jsx_runtime_1.jsxs)("select", { value: editingCred.type || 'password', onChange: e => setEditingCred(p => ({ ...p, type: e.target.value })), children: [(0, jsx_runtime_1.jsx)("option", { value: "password", children: "Password" }), (0, jsx_runtime_1.jsx)("option", { value: "key", children: "Key File" })] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: editingCred.type === 'key' ? 'Key Passphrase (Optional)' : 'Password' }), (0, jsx_runtime_1.jsx)("input", { type: "password", value: editingCred.secret || '', onChange: e => setEditingCred(p => ({ ...p, secret: e.target.value })), placeholder: editingCred.type === 'key' ? 'Leave empty if no passphrase' : 'Password' })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Folder (Optional)" }), (0, jsx_runtime_1.jsx)("input", { type: "text", value: editingCred.folder || '', onChange: e => setEditingCred(p => ({ ...p, folder: e.target.value })), placeholder: "Folder name" })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-actions", children: [(0, jsx_runtime_1.jsx)("button", { className: "primary-button", onClick: handleSave, children: "Save" }), (0, jsx_runtime_1.jsx)("button", { className: "secondary-button", onClick: () => setIsEditing(false), children: "Cancel" })] })] }));
+        return ((0, jsx_runtime_1.jsxs)("div", { className: "edit-host-view", children: [(0, jsx_runtime_1.jsx)("h2", { children: editingCred.id && credentials.find(c => c.id === editingCred.id) ? 'Edit Credential' : 'New Credential' }), (0, jsx_runtime_1.jsxs)("div", { className: "form-section", children: [(0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Name" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "text", value: editingCred.name || '', onChange: e => setEditingCred(p => ({ ...p, name: e.target.value })), placeholder: "e.g. Production Server Root" })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Username" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "text", value: editingCred.username || '', onChange: e => setEditingCred(p => ({ ...p, username: e.target.value })), placeholder: "root" })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Type" }), (0, jsx_runtime_1.jsxs)("div", { className: "segmented-control", children: [(0, jsx_runtime_1.jsxs)("button", { type: "button", className: editingCred.type === 'password' ? 'active' : '', onClick: () => setEditingCred(p => ({ ...p, type: 'password' })), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-lock" }), "Password"] }), (0, jsx_runtime_1.jsxs)("button", { type: "button", className: editingCred.type === 'key' ? 'active' : '', onClick: () => setEditingCred(p => ({ ...p, type: 'key' })), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-key" }), "Key File"] })] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: editingCred.type === 'key' ? 'Key Passphrase (Optional)' : 'Password' }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "password", value: editingCred.secret || '', onChange: e => setEditingCred(p => ({ ...p, secret: e.target.value })), placeholder: editingCred.type === 'key' ? 'Leave empty if no passphrase' : 'Password' })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Folder (Optional)" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "text", value: editingCred.folder || '', onChange: e => setEditingCred(p => ({ ...p, folder: e.target.value })), placeholder: "e.g. Production" })] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-actions", children: [(0, jsx_runtime_1.jsx)("button", { className: "secondary-button", onClick: () => setIsEditing(false), children: "Cancel" }), (0, jsx_runtime_1.jsxs)("button", { className: "primary-button", onClick: handleSave, children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-save" }), "Save Credential"] })] })] }));
     }
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "credentials-view", children: [(0, jsx_runtime_1.jsx)("div", { className: "toolbar", children: (0, jsx_runtime_1.jsxs)("button", { onClick: handleAdd, title: "Add Credential", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-add" }), " Add Credential"] }) }), (0, jsx_runtime_1.jsx)("div", { className: "list-container", children: credentials.length === 0 ? ((0, jsx_runtime_1.jsx)("div", { className: "empty-state", children: "No credentials found." })) : (credentials.map(cred => ((0, jsx_runtime_1.jsxs)("div", { className: "credential-item", children: [(0, jsx_runtime_1.jsx)("div", { className: "cred-icon", children: (0, jsx_runtime_1.jsx)("i", { className: `codicon codicon-${cred.type === 'key' ? 'key' : 'lock'}` }) }), (0, jsx_runtime_1.jsxs)("div", { className: "cred-details", children: [(0, jsx_runtime_1.jsx)("div", { className: "cred-name", children: cred.name }), (0, jsx_runtime_1.jsx)("div", { className: "cred-user", children: cred.username })] }), (0, jsx_runtime_1.jsxs)("div", { className: "cred-actions", children: [(0, jsx_runtime_1.jsx)("button", { onClick: () => handleEdit(cred), title: "Edit", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-edit" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: () => handleDelete(cred.id), title: "Delete", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-trash" }) })] })] }, cred.id)))) })] }));
+    // List view
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "credentials-view", children: [(0, jsx_runtime_1.jsxs)("div", { className: "credentials-header", children: [(0, jsx_runtime_1.jsxs)("div", { className: "credentials-title", children: [(0, jsx_runtime_1.jsx)("h2", { children: "Credentials Vault" }), (0, jsx_runtime_1.jsxs)("p", { className: "subtitle", children: [credentials.length, " credential", credentials.length !== 1 ? 's' : '', " stored securely"] })] }), (0, jsx_runtime_1.jsxs)("button", { className: "add-credential-btn", onClick: handleAdd, children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-add" }), "Add Credential"] })] }), credentials.length > 0 && ((0, jsx_runtime_1.jsxs)("div", { className: "search-bar", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-search search-icon" }), (0, jsx_runtime_1.jsx)("input", { type: "text", placeholder: "Search credentials...", value: searchQuery, onChange: e => setSearchQuery(e.target.value) })] })), (0, jsx_runtime_1.jsx)("div", { className: "list-container", children: credentials.length === 0 ? ((0, jsx_runtime_1.jsxs)("div", { className: "empty-state", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-key" }), (0, jsx_runtime_1.jsx)("h3", { children: "No Credentials Yet" }), (0, jsx_runtime_1.jsx)("p", { children: "Add your first credential to securely store passwords and SSH keys." }), (0, jsx_runtime_1.jsxs)("button", { className: "primary-button", onClick: handleAdd, children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-add" }), "Add Your First Credential"] })] })) : filteredCredentials.length === 0 ? ((0, jsx_runtime_1.jsxs)("div", { className: "empty-state", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-search" }), (0, jsx_runtime_1.jsx)("h3", { children: "No Results" }), (0, jsx_runtime_1.jsx)("p", { children: "No credentials match your search query." })] })) : ((0, jsx_runtime_1.jsx)("div", { className: "credentials-grid", children: filteredCredentials.map(cred => ((0, jsx_runtime_1.jsxs)("div", { className: "credential-card", children: [(0, jsx_runtime_1.jsx)("div", { className: "cred-icon", children: (0, jsx_runtime_1.jsx)("i", { className: `codicon codicon-${cred.type === 'key' ? 'key' : 'lock'}` }) }), (0, jsx_runtime_1.jsxs)("div", { className: "cred-details", children: [(0, jsx_runtime_1.jsx)("div", { className: "cred-name", children: cred.name }), (0, jsx_runtime_1.jsx)("div", { className: "cred-user", children: cred.username }), cred.folder && (0, jsx_runtime_1.jsxs)("div", { className: "cred-folder", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-folder" }), " ", cred.folder] })] }), (0, jsx_runtime_1.jsx)("div", { className: "cred-type-badge", children: cred.type === 'key' ? 'SSH Key' : 'Password' }), (0, jsx_runtime_1.jsxs)("div", { className: "cred-actions", children: [(0, jsx_runtime_1.jsx)("button", { onClick: () => handleEdit(cred), title: "Edit", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-edit" }) }), (0, jsx_runtime_1.jsx)("button", { onClick: () => handleDelete(cred.id), title: "Delete", className: "danger", children: (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-trash" }) })] })] }, cred.id))) })) })] }));
 };
 exports["default"] = CredentialsView;
 
@@ -36572,8 +37896,8 @@ const TunnelList_1 = __webpack_require__(/*! ../components/TunnelList */ "./src/
 const vscode_1 = __importDefault(__webpack_require__(/*! ../utils/vscode */ "./src/webview/utils/vscode.ts"));
 __webpack_require__(/*! ../styles/forms.css */ "./src/webview/styles/forms.css");
 const EditHost = ({ initialHost, agentAvailable, availableShells, existingFolders = [], credentials = [], onSave, onCancel }) => {
-    const [activeTab, setActiveTab] = (0, react_1.useState)('connection');
-    // Form State
+    const [activeTab, setActiveTab] = (0, react_1.useState)('general');
+    // Form State - General
     const [name, setName] = (0, react_1.useState)(initialHost?.name || '');
     const [folder, setFolder] = (0, react_1.useState)(initialHost?.folder || '');
     const [protocol, setProtocol] = (0, react_1.useState)(initialHost?.protocol || 'ssh');
@@ -36584,14 +37908,23 @@ const EditHost = ({ initialHost, agentAvailable, availableShells, existingFolder
     const [tags, setTags] = (0, react_1.useState)(initialHost?.tags || []);
     const [jumpHostId, setJumpHostId] = (0, react_1.useState)(initialHost?.jumpHostId || '');
     const [pin, setPin] = (0, react_1.useState)(initialHost?.pin || false);
+    // Auth State
+    const [authType, setAuthType] = (0, react_1.useState)(initialHost?.authType || 'key');
+    const [password, setPassword] = (0, react_1.useState)('');
+    const [keyPath, setKeyPath] = (0, react_1.useState)('');
+    const [credentialId, setCredentialId] = (0, react_1.useState)(initialHost?.credentialId || '');
+    // Terminal Settings
+    const [cursorStyle, setCursorStyle] = (0, react_1.useState)(initialHost?.terminalCursorStyle || 'block');
+    const [cursorBlink, setCursorBlink] = (0, react_1.useState)(initialHost?.terminalCursorBlink ?? true);
+    // File Manager Settings
+    const [fileManagerLayout, setFileManagerLayout] = (0, react_1.useState)(initialHost?.fileManagerLayout || 'explorer');
+    const [defaultView, setDefaultView] = (0, react_1.useState)(initialHost?.fileManagerDefaultView || 'list');
+    const [localPath, setLocalPath] = (0, react_1.useState)(initialHost?.fileManagerLocalPath || '');
+    const [remotePath, setRemotePath] = (0, react_1.useState)(initialHost?.defaultPath || '');
+    // Advanced
     const [tunnels, setTunnels] = (0, react_1.useState)(initialHost?.tunnels || []);
     const [notes, setNotes] = (0, react_1.useState)(initialHost?.notes || '');
     const [keepAlive, setKeepAlive] = (0, react_1.useState)(initialHost?.keepAlive || false);
-    // Auth State
-    const [authType, setAuthType] = (0, react_1.useState)(initialHost?.authType || 'key'); // Added 'credential'
-    const [password, setPassword] = (0, react_1.useState)('');
-    const [keyPath, setKeyPath] = (0, react_1.useState)('');
-    const [credentialId, setCredentialId] = (0, react_1.useState)(initialHost?.credentialId || ''); // New state for credential ID
     (0, react_1.useEffect)(() => {
         const handleMessage = (event) => {
             const message = event.data;
@@ -36626,12 +37959,20 @@ const EditHost = ({ initialHost, agentAvailable, availableShells, existingFolder
             credentialId: authType === 'credential' ? credentialId : undefined,
             enableTerminal: true,
             enableFileManager: true,
+            // Terminal settings
+            terminalCursorStyle: cursorStyle,
+            terminalCursorBlink: cursorBlink,
+            // File Manager settings
+            fileManagerLayout,
+            fileManagerDefaultView: defaultView,
+            fileManagerLocalPath: localPath || undefined,
+            defaultPath: remotePath || undefined,
         };
         onSave(newHost, password || undefined, keyPath || undefined);
     };
-    return ((0, jsx_runtime_1.jsxs)("div", { className: "edit-host-view", children: [(0, jsx_runtime_1.jsx)("h2", { children: initialHost ? 'Edit Host' : 'New Host' }), (0, jsx_runtime_1.jsxs)("div", { className: "tabs", children: [(0, jsx_runtime_1.jsx)("button", { className: `tab ${activeTab === 'general' ? 'active' : ''}`, onClick: () => setActiveTab('general'), children: "General" }), (0, jsx_runtime_1.jsx)("button", { className: `tab ${activeTab === 'connection' ? 'active' : ''}`, onClick: () => setActiveTab('connection'), children: "Connection" }), (0, jsx_runtime_1.jsx)("button", { className: `tab ${activeTab === 'advanced' ? 'active' : ''}`, onClick: () => setActiveTab('advanced'), children: "Advanced" })] }), (0, jsx_runtime_1.jsxs)("form", { onSubmit: handleSubmit, children: [activeTab === 'general' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Label" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: name, onChange: e => setName(e.target.value), required: true }), (0, jsx_runtime_1.jsx)("label", { children: "Folder" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: folder, onChange: e => setFolder(e.target.value), list: "folder-suggestions" }), (0, jsx_runtime_1.jsxs)("datalist", { id: "folder-suggestions", children: [existingFolders.map(f => ((0, jsx_runtime_1.jsx)("option", { value: f }, f))), (0, jsx_runtime_1.jsx)("option", { value: "Production" }), (0, jsx_runtime_1.jsx)("option", { value: "Staging" }), (0, jsx_runtime_1.jsx)("option", { value: "Development" })] }), (0, jsx_runtime_1.jsxs)("label", { className: "checkbox-label", children: [(0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: pin, onChange: e => setPin(e.target.checked) }), "Pin this host"] }), (0, jsx_runtime_1.jsx)("label", { children: "Tags" }), (0, jsx_runtime_1.jsx)(TagInput_1.TagInput, { tags: tags, onChange: setTags }), (0, jsx_runtime_1.jsx)("label", { children: "OS Icon" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: osIcon, onChange: e => setOsIcon(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "linux", children: "Linux" }), (0, jsx_runtime_1.jsx)("option", { value: "windows", children: "Windows" }), (0, jsx_runtime_1.jsx)("option", { value: "mac", children: "macOS" }), (0, jsx_runtime_1.jsx)("option", { value: "docker", children: "Docker" }), (0, jsx_runtime_1.jsx)("option", { value: "other", children: "Other" })] })] })), activeTab === 'connection' && ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Protocol" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: protocol, onChange: e => setProtocol(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "ssh", children: "SSH" }), (0, jsx_runtime_1.jsx)("option", { value: "local", children: "Local Shell" }), (0, jsx_runtime_1.jsx)("option", { value: "wsl", children: "WSL" })] })] }), protocol === 'ssh' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Host Address" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "text", value: host, onChange: e => setHost(e.target.value), placeholder: "e.g. 192.168.1.100", required: true })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Port" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "number", value: port, onChange: e => setPort(parseInt(e.target.value)) })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Username" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "text", value: username, onChange: e => setUsername(e.target.value), placeholder: "root", required: true })] }), (0, jsx_runtime_1.jsx)("div", { className: "separator" }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Authentication" }), (0, jsx_runtime_1.jsxs)("div", { className: "segmented-control", children: [(0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'password' ? 'active' : '', onClick: () => setAuthType('password'), children: "Password" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'key' ? 'active' : '', onClick: () => setAuthType('key'), children: "Key File" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'agent' ? 'active' : '', onClick: () => setAuthType('agent'), children: "Agent" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: authType === 'credential' ? 'active' : '', onClick: () => setAuthType('credential'), children: "Vault" })] })] }), authType === 'password' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Password" }), (0, jsx_runtime_1.jsx)("input", { type: "password", className: "vscode-input", value: password, onChange: e => setPassword(e.target.value), placeholder: initialHost ? "Leave empty to keep unchanged" : "" })] })), authType === 'key' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Private Key Path" }), (0, jsx_runtime_1.jsxs)("div", { style: { display: 'flex', gap: '8px' }, children: [(0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: keyPath, onChange: e => setKeyPath(e.target.value), placeholder: "~/.ssh/id_rsa" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: "vscode-button secondary", onClick: handlePickKey, children: "Browse..." })] })] })), authType === 'agent' && ((0, jsx_runtime_1.jsx)("div", { className: "form-group", children: (0, jsx_runtime_1.jsxs)("div", { className: "info-text", children: ["Using SSH Agent for authentication.", agentAvailable ?
-                                                    (0, jsx_runtime_1.jsxs)("span", { style: { color: 'var(--vscode-testing-iconPassed)' }, children: [" ", (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-check" }), " Agent Detected"] }) :
-                                                    (0, jsx_runtime_1.jsxs)("span", { style: { color: 'var(--vscode-testing-iconFailed)' }, children: [" ", (0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-error" }), " Agent Not Found"] })] }) })), authType === 'credential' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Credential" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: credentialId, onChange: e => setCredentialId(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "", children: "Select a credential..." }), credentials.map(c => ((0, jsx_runtime_1.jsxs)("option", { value: c.id, children: [c.name, " (", c.username, ")"] }, c.id)))] }), (0, jsx_runtime_1.jsx)("small", { children: "Manage credentials in the Credentials tab." })] }))] })) : ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Shell" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: host, onChange: e => setHost(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "", children: "Select a shell..." }), availableShells?.filter(s => protocol === 'local' ? !s.startsWith('WSL:') : s.startsWith('WSL:')).map(s => ((0, jsx_runtime_1.jsx)("option", { value: s, children: s }, s)))] })] }))] })), activeTab === 'advanced' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Tunnels (Port Forwarding)" }), (0, jsx_runtime_1.jsx)(TunnelList_1.TunnelList, { tunnels: tunnels, onChange: setTunnels }), (0, jsx_runtime_1.jsx)("label", { children: "Jump Host (Optional)" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: jumpHostId, onChange: e => setJumpHostId(e.target.value), placeholder: "Host ID" }), (0, jsx_runtime_1.jsx)("label", { children: "Keep Alive" }), (0, jsx_runtime_1.jsxs)("div", { className: "checkbox-wrapper", children: [(0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: keepAlive, onChange: e => setKeepAlive(e.target.checked) }), (0, jsx_runtime_1.jsx)("span", { children: "Enable SSH KeepAlive" })] }), (0, jsx_runtime_1.jsx)("label", { children: "Notes" }), (0, jsx_runtime_1.jsx)("textarea", { className: "vscode-input", value: notes, onChange: e => setNotes(e.target.value), rows: 4 })] })), authType === 'agent' && ((0, jsx_runtime_1.jsx)("div", { className: "form-info", children: agentAvailable ? ((0, jsx_runtime_1.jsxs)("span", { style: { color: 'var(--vscode-testing-iconPassed)' }, children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-check" }), " SSH Agent Active"] })) : ((0, jsx_runtime_1.jsxs)("span", { style: { color: 'var(--vscode-testing-iconFailed)' }, children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-error" }), " Agent Not Found"] })) })), (0, jsx_runtime_1.jsxs)("div", { className: "form-actions", children: [(0, jsx_runtime_1.jsx)("button", { type: "button", onClick: onCancel, className: "vscode-button secondary", children: "Cancel" }), (0, jsx_runtime_1.jsx)("button", { type: "submit", className: "vscode-button", children: "Save" })] })] })] }));
+    return ((0, jsx_runtime_1.jsxs)("div", { className: "edit-host-view", children: [(0, jsx_runtime_1.jsx)("h2", { children: initialHost ? 'Edit Host' : 'New Host' }), (0, jsx_runtime_1.jsxs)("div", { className: "tabs", children: [(0, jsx_runtime_1.jsxs)("button", { className: `tab ${activeTab === 'general' ? 'active' : ''}`, onClick: () => setActiveTab('general'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-settings-gear" }), "General"] }), (0, jsx_runtime_1.jsxs)("button", { className: `tab ${activeTab === 'terminal' ? 'active' : ''}`, onClick: () => setActiveTab('terminal'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-terminal" }), "Terminal"] }), (0, jsx_runtime_1.jsxs)("button", { className: `tab ${activeTab === 'filemanager' ? 'active' : ''}`, onClick: () => setActiveTab('filemanager'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-files" }), "File Manager"] }), (0, jsx_runtime_1.jsxs)("button", { className: `tab ${activeTab === 'advanced' ? 'active' : ''}`, onClick: () => setActiveTab('advanced'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-gear" }), "Advanced"] })] }), (0, jsx_runtime_1.jsxs)("form", { onSubmit: handleSubmit, children: [activeTab === 'general' && ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsxs)("div", { className: "form-section", children: [(0, jsx_runtime_1.jsx)("h3", { children: "Host Information" }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Label" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: name, onChange: e => setName(e.target.value), placeholder: "My Server" })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-row", children: [(0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Folder" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: folder, onChange: e => setFolder(e.target.value), list: "folder-suggestions", placeholder: "Production" }), (0, jsx_runtime_1.jsxs)("datalist", { id: "folder-suggestions", children: [existingFolders.map(f => ((0, jsx_runtime_1.jsx)("option", { value: f }, f))), (0, jsx_runtime_1.jsx)("option", { value: "Production" }), (0, jsx_runtime_1.jsx)("option", { value: "Staging" }), (0, jsx_runtime_1.jsx)("option", { value: "Development" })] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "OS Icon" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: osIcon, onChange: e => setOsIcon(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "linux", children: "Linux" }), (0, jsx_runtime_1.jsx)("option", { value: "windows", children: "Windows" }), (0, jsx_runtime_1.jsx)("option", { value: "mac", children: "macOS" }), (0, jsx_runtime_1.jsx)("option", { value: "docker", children: "Docker" }), (0, jsx_runtime_1.jsx)("option", { value: "other", children: "Other" })] })] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Tags" }), (0, jsx_runtime_1.jsx)(TagInput_1.TagInput, { tags: tags, onChange: setTags })] }), (0, jsx_runtime_1.jsxs)("label", { className: "checkbox-label", children: [(0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: pin, onChange: e => setPin(e.target.checked) }), "Pin this host"] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-section", children: [(0, jsx_runtime_1.jsx)("h3", { children: "Connection" }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Protocol" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: protocol, onChange: e => setProtocol(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "ssh", children: "SSH" }), (0, jsx_runtime_1.jsx)("option", { value: "local", children: "Local Shell" }), (0, jsx_runtime_1.jsx)("option", { value: "wsl", children: "WSL" })] })] }), protocol === 'ssh' ? ((0, jsx_runtime_1.jsxs)(jsx_runtime_1.Fragment, { children: [(0, jsx_runtime_1.jsxs)("div", { className: "form-row", children: [(0, jsx_runtime_1.jsxs)("div", { className: "form-group flex-2", children: [(0, jsx_runtime_1.jsx)("label", { children: "Host Address" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "text", value: host, onChange: e => setHost(e.target.value), placeholder: "192.168.1.100", required: true })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group flex-1", children: [(0, jsx_runtime_1.jsx)("label", { children: "Port" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "number", value: port, onChange: e => setPort(parseInt(e.target.value)) })] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Username" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", type: "text", value: username, onChange: e => setUsername(e.target.value), placeholder: "root", required: true })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Authentication" }), (0, jsx_runtime_1.jsxs)("div", { className: "segmented-control", children: [(0, jsx_runtime_1.jsxs)("button", { type: "button", className: authType === 'password' ? 'active' : '', onClick: () => setAuthType('password'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-lock" }), "Password"] }), (0, jsx_runtime_1.jsxs)("button", { type: "button", className: authType === 'key' ? 'active' : '', onClick: () => setAuthType('key'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-key" }), "Key File"] }), (0, jsx_runtime_1.jsxs)("button", { type: "button", className: authType === 'agent' ? 'active' : '', onClick: () => setAuthType('agent'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-server-process" }), "Agent"] }), (0, jsx_runtime_1.jsxs)("button", { type: "button", className: authType === 'credential' ? 'active' : '', onClick: () => setAuthType('credential'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-shield" }), "Vault"] })] })] }), authType === 'password' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Password" }), (0, jsx_runtime_1.jsx)("input", { type: "password", className: "vscode-input", value: password, onChange: e => setPassword(e.target.value), placeholder: initialHost ? "Leave empty to keep unchanged" : "Enter password" })] })), authType === 'key' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Private Key Path" }), (0, jsx_runtime_1.jsxs)("div", { className: "input-with-button", children: [(0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: keyPath, onChange: e => setKeyPath(e.target.value), placeholder: "~/.ssh/id_rsa" }), (0, jsx_runtime_1.jsx)("button", { type: "button", className: "secondary-button", onClick: handlePickKey, children: "Browse..." })] })] })), authType === 'agent' && ((0, jsx_runtime_1.jsx)("div", { className: "form-group", children: (0, jsx_runtime_1.jsxs)("div", { className: "info-box", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-info" }), (0, jsx_runtime_1.jsx)("span", { children: "Using SSH Agent for authentication." }), agentAvailable ?
+                                                            (0, jsx_runtime_1.jsxs)("span", { className: "status-success", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-check" }), " Agent Detected"] }) :
+                                                            (0, jsx_runtime_1.jsxs)("span", { className: "status-error", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-error" }), " Agent Not Found"] })] }) })), authType === 'credential' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Credential" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: credentialId, onChange: e => setCredentialId(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "", children: "Select a credential..." }), credentials.map(c => ((0, jsx_runtime_1.jsxs)("option", { value: c.id, children: [c.name, " (", c.username, ")"] }, c.id)))] }), (0, jsx_runtime_1.jsx)("small", { children: "Manage credentials in the Credentials tab." })] }))] })) : ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Shell" }), (0, jsx_runtime_1.jsxs)("select", { className: "vscode-input", value: host, onChange: e => setHost(e.target.value), children: [(0, jsx_runtime_1.jsx)("option", { value: "", children: "Select a shell..." }), availableShells?.filter(s => protocol === 'local' ? !s.startsWith('WSL:') : s.startsWith('WSL:')).map(s => ((0, jsx_runtime_1.jsx)("option", { value: s, children: s }, s)))] })] }))] })] })), activeTab === 'terminal' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-section", children: [(0, jsx_runtime_1.jsx)("h3", { children: "Terminal Settings" }), (0, jsx_runtime_1.jsx)("p", { className: "section-description", children: "Configure the SSH terminal appearance for this host." }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Cursor Style" }), (0, jsx_runtime_1.jsxs)("div", { className: "segmented-control", children: [(0, jsx_runtime_1.jsxs)("button", { type: "button", className: cursorStyle === 'bar' ? 'active' : '', onClick: () => setCursorStyle('bar'), children: [(0, jsx_runtime_1.jsx)("span", { className: "cursor-preview cursor-bar", children: "|" }), "Bar"] }), (0, jsx_runtime_1.jsxs)("button", { type: "button", className: cursorStyle === 'block' ? 'active' : '', onClick: () => setCursorStyle('block'), children: [(0, jsx_runtime_1.jsx)("span", { className: "cursor-preview cursor-block", children: "\u2588" }), "Block"] }), (0, jsx_runtime_1.jsxs)("button", { type: "button", className: cursorStyle === 'underline' ? 'active' : '', onClick: () => setCursorStyle('underline'), children: [(0, jsx_runtime_1.jsx)("span", { className: "cursor-preview cursor-underline", children: "_" }), "Underline"] })] })] }), (0, jsx_runtime_1.jsx)("div", { className: "form-group", children: (0, jsx_runtime_1.jsxs)("label", { className: "checkbox-label", children: [(0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: cursorBlink, onChange: e => setCursorBlink(e.target.checked) }), "Enable cursor blinking"] }) })] })), activeTab === 'filemanager' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-section", children: [(0, jsx_runtime_1.jsx)("h3", { children: "File Manager Settings" }), (0, jsx_runtime_1.jsx)("p", { className: "section-description", children: "Configure the SFTP file manager for this host." }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "File Manager Layout" }), (0, jsx_runtime_1.jsxs)("div", { className: "segmented-control", children: [(0, jsx_runtime_1.jsxs)("button", { type: "button", className: fileManagerLayout === 'explorer' ? 'active' : '', onClick: () => setFileManagerLayout('explorer'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-file-directory" }), "Explorer", (0, jsx_runtime_1.jsx)("span", { className: "option-desc", children: "Single panel, remote files only" })] }), (0, jsx_runtime_1.jsxs)("button", { type: "button", className: fileManagerLayout === 'commander' ? 'active' : '', onClick: () => setFileManagerLayout('commander'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-split-horizontal" }), "Commander", (0, jsx_runtime_1.jsx)("span", { className: "option-desc", children: "Dual panel, local + remote" })] })] })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Default View" }), (0, jsx_runtime_1.jsxs)("div", { className: "segmented-control", children: [(0, jsx_runtime_1.jsxs)("button", { type: "button", className: defaultView === 'grid' ? 'active' : '', onClick: () => setDefaultView('grid'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-symbol-array" }), "Grid View"] }), (0, jsx_runtime_1.jsxs)("button", { type: "button", className: defaultView === 'list' ? 'active' : '', onClick: () => setDefaultView('list'), children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-list-unordered" }), "List View"] })] })] }), fileManagerLayout === 'commander' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Default Local Path" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: localPath, onChange: e => setLocalPath(e.target.value), placeholder: "C:\\Users\\username or /home/user" }), (0, jsx_runtime_1.jsx)("small", { children: "The local directory to open by default in Commander mode." })] })), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Default Remote Path" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: remotePath, onChange: e => setRemotePath(e.target.value), placeholder: "/home/user or /var/www" }), (0, jsx_runtime_1.jsx)("small", { children: "The remote directory to open by default when connecting." })] })] })), activeTab === 'advanced' && ((0, jsx_runtime_1.jsxs)("div", { className: "form-section", children: [(0, jsx_runtime_1.jsx)("h3", { children: "Advanced Settings" }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Port Forwarding (Tunnels)" }), (0, jsx_runtime_1.jsx)(TunnelList_1.TunnelList, { tunnels: tunnels, onChange: setTunnels })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Jump Host (Optional)" }), (0, jsx_runtime_1.jsx)("input", { className: "vscode-input", value: jumpHostId, onChange: e => setJumpHostId(e.target.value), placeholder: "Host ID for proxy jump" }), (0, jsx_runtime_1.jsx)("small", { children: "Connect through another host as a jump/proxy server." })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsxs)("label", { className: "checkbox-label", children: [(0, jsx_runtime_1.jsx)("input", { type: "checkbox", checked: keepAlive, onChange: e => setKeepAlive(e.target.checked) }), "Enable SSH KeepAlive"] }), (0, jsx_runtime_1.jsx)("small", { children: "Send periodic keep-alive messages to prevent connection timeout." })] }), (0, jsx_runtime_1.jsxs)("div", { className: "form-group", children: [(0, jsx_runtime_1.jsx)("label", { children: "Notes" }), (0, jsx_runtime_1.jsx)("textarea", { className: "vscode-input", value: notes, onChange: e => setNotes(e.target.value), rows: 4, placeholder: "Add notes about this host..." })] })] })), (0, jsx_runtime_1.jsxs)("div", { className: "form-actions", children: [(0, jsx_runtime_1.jsx)("button", { type: "button", onClick: onCancel, className: "secondary-button", children: "Cancel" }), (0, jsx_runtime_1.jsxs)("button", { type: "submit", className: "primary-button", children: [(0, jsx_runtime_1.jsx)("i", { className: "codicon codicon-save" }), "Save Host"] })] })] })] }));
 };
 exports["default"] = EditHost;
 

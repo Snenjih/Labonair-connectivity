@@ -195,6 +195,10 @@ const App: React.FC = () => {
 		}
 	}, [state.selectedHostIds]);
 
+	const handleExportHost = useCallback((hostId: string) => {
+		vscode.postMessage({ command: 'EXPORT_HOSTS', payload: { ids: [hostId] } });
+	}, []);
+
 	const handleRefresh = useCallback(() => {
 		vscode.postMessage({ command: 'FETCH_DATA' });
 	}, []);
@@ -346,15 +350,12 @@ const App: React.FC = () => {
 			{state.view === 'hosts' && (
 				<>
 					<Toolbar
-						onRefresh={handleRefresh}
 						onImport={handleImport}
-						onExport={handleExport}
 						onSort={setSortCriteria}
 						sortCriteria={sortCriteria}
 						onQuickConnect={handleQuickConnect}
 						selectedCount={state.selectedHostIds?.length || 0}
 						onBulkDelete={handleBulkDelete}
-						onBulkExport={handleExportSelected}
 					/>
 					<SearchBar value={filterText} onChange={setFilterText} />
 					<div className="host-list">
@@ -395,7 +396,8 @@ const App: React.FC = () => {
 											onTogglePin={() => handleTogglePin(host.id)}
 											onToggleSelect={() => handleToggleSelection(host.id)}
 											onOpenSftp={() => handleOpenSftp(host.id)}
-											onOpenStats={() => handleOpenStats(host.id)}
+											onClone={() => handleCloneHost(host.id)}
+											onExport={() => handleExportHost(host.id)}
 											onMoveToFolder={handleMoveHostToFolder}
 										/>
 									))}
@@ -422,19 +424,7 @@ const App: React.FC = () => {
 			{state.view === 'credentials' && (
 				<CredentialsView
 					credentials={state.credentials || []}
-					onEdit={(credential) => setState(prev => ({ ...prev, view: 'addCredential', editingCredential: credential }))}
 				/>
-			)}
-
-			{state.view === 'addCredential' && (
-				<div className="edit-host-view">
-					<h2>{state.editingCredential ? 'Edit Credential' : 'New Credential'}</h2>
-					{/* TODO: Implement EditCredential component */}
-					<p>Credential editor coming soon...</p>
-					<div className="form-actions">
-						<button className="vscode-button secondary" onClick={() => handleNavigate('credentials')}>Cancel</button>
-					</div>
-				</div>
 			)}
 
 			{tunnelDialogHost && (

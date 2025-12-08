@@ -36,7 +36,15 @@ export interface Host {
 	status?: 'online' | 'offline' | 'unknown';  // Connection status
 	createdAt?: string;
 	updatedAt?: string;
+	// Terminal settings
+	terminalCursorStyle?: 'bar' | 'block' | 'underline';
+	terminalCursorBlink?: boolean;
+	// File Manager settings
+	fileManagerLayout?: 'explorer' | 'commander';
+	fileManagerDefaultView?: 'grid' | 'list';
+	fileManagerLocalPath?: string;
 }
+
 
 export interface Credential {
 	id: string;

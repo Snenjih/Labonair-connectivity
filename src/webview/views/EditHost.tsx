@@ -24,9 +24,9 @@ const EditHost: React.FC<EditHostProps> = ({
 	onSave,
 	onCancel
 }) => {
-	const [activeTab, setActiveTab] = useState<'general' | 'connection' | 'advanced'>('connection');
+	const [activeTab, setActiveTab] = useState<'general' | 'terminal' | 'filemanager' | 'advanced'>('general');
 
-	// Form State
+	// Form State - General
 	const [name, setName] = useState(initialHost?.name || '');
 	const [folder, setFolder] = useState(initialHost?.folder || '');
 	const [protocol, setProtocol] = useState<'ssh' | 'local' | 'wsl'>(initialHost?.protocol || 'ssh');
@@ -38,16 +38,26 @@ const EditHost: React.FC<EditHostProps> = ({
 	const [jumpHostId, setJumpHostId] = useState(initialHost?.jumpHostId || '');
 	const [pin, setPin] = useState(initialHost?.pin || false);
 
+	// Auth State
+	const [authType, setAuthType] = useState<'password' | 'key' | 'agent' | 'credential'>(initialHost?.authType || 'key');
+	const [password, setPassword] = useState('');
+	const [keyPath, setKeyPath] = useState('');
+	const [credentialId, setCredentialId] = useState(initialHost?.credentialId || '');
 
+	// Terminal Settings
+	const [cursorStyle, setCursorStyle] = useState<'bar' | 'block' | 'underline'>(initialHost?.terminalCursorStyle || 'block');
+	const [cursorBlink, setCursorBlink] = useState(initialHost?.terminalCursorBlink ?? true);
+
+	// File Manager Settings
+	const [fileManagerLayout, setFileManagerLayout] = useState<'explorer' | 'commander'>(initialHost?.fileManagerLayout || 'explorer');
+	const [defaultView, setDefaultView] = useState<'grid' | 'list'>(initialHost?.fileManagerDefaultView || 'list');
+	const [localPath, setLocalPath] = useState(initialHost?.fileManagerLocalPath || '');
+	const [remotePath, setRemotePath] = useState(initialHost?.defaultPath || '');
+
+	// Advanced
 	const [tunnels, setTunnels] = useState<Tunnel[]>(initialHost?.tunnels || []);
 	const [notes, setNotes] = useState(initialHost?.notes || '');
 	const [keepAlive, setKeepAlive] = useState(initialHost?.keepAlive || false);
-
-	// Auth State
-	const [authType, setAuthType] = useState<'password' | 'key' | 'agent' | 'credential'>(initialHost?.authType || 'key'); // Added 'credential'
-	const [password, setPassword] = useState('');
-	const [keyPath, setKeyPath] = useState('');
-	const [credentialId, setCredentialId] = useState(initialHost?.credentialId || ''); // New state for credential ID
 
 	useEffect(() => {
 		const handleMessage = (event: MessageEvent) => {
@@ -86,6 +96,14 @@ const EditHost: React.FC<EditHostProps> = ({
 			credentialId: authType === 'credential' ? credentialId : undefined,
 			enableTerminal: true,
 			enableFileManager: true,
+			// Terminal settings
+			terminalCursorStyle: cursorStyle,
+			terminalCursorBlink: cursorBlink,
+			// File Manager settings
+			fileManagerLayout,
+			fileManagerDefaultView: defaultView,
+			fileManagerLocalPath: localPath || undefined,
+			defaultPath: remotePath || undefined,
 		};
 
 		onSave(newHost, password || undefined, keyPath || undefined);
@@ -100,189 +118,309 @@ const EditHost: React.FC<EditHostProps> = ({
 					className={`tab ${activeTab === 'general' ? 'active' : ''}`}
 					onClick={() => setActiveTab('general')}
 				>
+					<i className="codicon codicon-settings-gear"></i>
 					General
 				</button>
 				<button
-					className={`tab ${activeTab === 'connection' ? 'active' : ''}`}
-					onClick={() => setActiveTab('connection')}
+					className={`tab ${activeTab === 'terminal' ? 'active' : ''}`}
+					onClick={() => setActiveTab('terminal')}
 				>
-					Connection
+					<i className="codicon codicon-terminal"></i>
+					Terminal
+				</button>
+				<button
+					className={`tab ${activeTab === 'filemanager' ? 'active' : ''}`}
+					onClick={() => setActiveTab('filemanager')}
+				>
+					<i className="codicon codicon-files"></i>
+					File Manager
 				</button>
 				<button
 					className={`tab ${activeTab === 'advanced' ? 'active' : ''}`}
 					onClick={() => setActiveTab('advanced')}
 				>
+					<i className="codicon codicon-gear"></i>
 					Advanced
 				</button>
 			</div>
 
 			<form onSubmit={handleSubmit}>
+				{/* ============ GENERAL TAB ============ */}
 				{activeTab === 'general' && (
-					<div className="form-group">
-						<label>Label</label>
-						<input className="vscode-input" value={name} onChange={e => setName(e.target.value)} required />
-
-						<label>Folder</label>
-						<input className="vscode-input" value={folder} onChange={e => setFolder(e.target.value)} list="folder-suggestions" />
-						<datalist id="folder-suggestions">
-							{existingFolders.map(f => (
-								<option key={f} value={f} />
-							))}
-							<option value="Production" />
-							<option value="Staging" />
-							<option value="Development" />
-						</datalist>
-
-						<label className="checkbox-label">
-							<input type="checkbox" checked={pin} onChange={e => setPin(e.target.checked)} />
-							Pin this host
-						</label>
-
-						<label>Tags</label>
-						<TagInput tags={tags} onChange={setTags} />
-
-						<label>OS Icon</label>
-						<select className="vscode-input" value={osIcon} onChange={e => setOsIcon(e.target.value as any)}>
-							<option value="linux">Linux</option>
-							<option value="windows">Windows</option>
-							<option value="mac">macOS</option>
-							<option value="docker">Docker</option>
-							<option value="other">Other</option>
-						</select>
-					</div>
-				)}
-
-				{activeTab === 'connection' && (
 					<>
-						<div className="form-group">
-							<label>Protocol</label>
-							<select className="vscode-input" value={protocol} onChange={e => setProtocol(e.target.value as any)}>
-								<option value="ssh">SSH</option>
-								<option value="local">Local Shell</option>
-								<option value="wsl">WSL</option>
-							</select>
+						<div className="form-section">
+							<h3>Host Information</h3>
+							<div className="form-group">
+								<label>Label</label>
+								<input className="vscode-input" value={name} onChange={e => setName(e.target.value)} placeholder="My Server" />
+							</div>
+
+							<div className="form-row">
+								<div className="form-group">
+									<label>Folder</label>
+									<input className="vscode-input" value={folder} onChange={e => setFolder(e.target.value)} list="folder-suggestions" placeholder="Production" />
+									<datalist id="folder-suggestions">
+										{existingFolders.map(f => (
+											<option key={f} value={f} />
+										))}
+										<option value="Production" />
+										<option value="Staging" />
+										<option value="Development" />
+									</datalist>
+								</div>
+								<div className="form-group">
+									<label>OS Icon</label>
+									<select className="vscode-input" value={osIcon} onChange={e => setOsIcon(e.target.value as any)}>
+										<option value="linux">Linux</option>
+										<option value="windows">Windows</option>
+										<option value="mac">macOS</option>
+										<option value="docker">Docker</option>
+										<option value="other">Other</option>
+									</select>
+								</div>
+							</div>
+
+							<div className="form-group">
+								<label>Tags</label>
+								<TagInput tags={tags} onChange={setTags} />
+							</div>
+
+							<label className="checkbox-label">
+								<input type="checkbox" checked={pin} onChange={e => setPin(e.target.checked)} />
+								Pin this host
+							</label>
 						</div>
 
-						{protocol === 'ssh' ? (
-							<>
-								<div className="form-group">
-									<label>Host Address</label>
-									<input className="vscode-input" type="text" value={host} onChange={e => setHost(e.target.value)} placeholder="e.g. 192.168.1.100" required />
-								</div>
-								<div className="form-group">
-									<label>Port</label>
-									<input className="vscode-input" type="number" value={port} onChange={e => setPort(parseInt(e.target.value))} />
-								</div>
-								<div className="form-group">
-									<label>Username</label>
-									<input className="vscode-input" type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="root" required />
-								</div>
-
-								<div className="separator"></div>
-
-								<div className="form-group">
-									<label>Authentication</label>
-									<div className="segmented-control">
-										<button type="button" className={authType === 'password' ? 'active' : ''} onClick={() => setAuthType('password')}>Password</button>
-										<button type="button" className={authType === 'key' ? 'active' : ''} onClick={() => setAuthType('key')}>Key File</button>
-										<button type="button" className={authType === 'agent' ? 'active' : ''} onClick={() => setAuthType('agent')}>Agent</button>
-										<button type="button" className={authType === 'credential' ? 'active' : ''} onClick={() => setAuthType('credential')}>Vault</button>
-									</div>
-								</div>
-
-								{authType === 'password' && (
-									<div className="form-group">
-										<label>Password</label>
-										<input type="password" className="vscode-input" value={password} onChange={e => setPassword(e.target.value)} placeholder={initialHost ? "Leave empty to keep unchanged" : ""} />
-									</div>
-								)}
-
-								{authType === 'key' && (
-									<div className="form-group">
-										<label>Private Key Path</label>
-										<div style={{ display: 'flex', gap: '8px' }}>
-											<input className="vscode-input" value={keyPath} onChange={e => setKeyPath(e.target.value)} placeholder="~/.ssh/id_rsa" />
-											<button type="button" className="vscode-button secondary" onClick={handlePickKey}>Browse...</button>
-										</div>
-									</div>
-								)}
-
-								{authType === 'agent' && (
-									<div className="form-group">
-										<div className="info-text">
-											Using SSH Agent for authentication.
-											{agentAvailable ?
-												<span style={{ color: 'var(--vscode-testing-iconPassed)' }}> <i className="codicon codicon-check"></i> Agent Detected</span> :
-												<span style={{ color: 'var(--vscode-testing-iconFailed)' }}> <i className="codicon codicon-error"></i> Agent Not Found</span>
-											}
-										</div>
-									</div>
-								)}
-
-								{authType === 'credential' && (
-									<div className="form-group">
-										<label>Credential</label>
-										<select className="vscode-input" value={credentialId} onChange={e => setCredentialId(e.target.value)}>
-											<option value="">Select a credential...</option>
-											{credentials.map(c => (
-												<option key={c.id} value={c.id}>{c.name} ({c.username})</option>
-											))}
-										</select>
-										<small>Manage credentials in the Credentials tab.</small>
-									</div>
-								)}
-
-							</>
-						) : (
+						<div className="form-section">
+							<h3>Connection</h3>
 							<div className="form-group">
-								<label>Shell</label>
-								<select className="vscode-input" value={host} onChange={e => setHost(e.target.value)}>
-									<option value="">Select a shell...</option>
-									{availableShells?.filter(s => protocol === 'local' ? !s.startsWith('WSL:') : s.startsWith('WSL:')).map(s => (
-										<option key={s} value={s}>{s}</option>
-									))}
+								<label>Protocol</label>
+								<select className="vscode-input" value={protocol} onChange={e => setProtocol(e.target.value as any)}>
+									<option value="ssh">SSH</option>
+									<option value="local">Local Shell</option>
+									<option value="wsl">WSL</option>
 								</select>
 							</div>
-						)}
+
+							{protocol === 'ssh' ? (
+								<>
+									<div className="form-row">
+										<div className="form-group flex-2">
+											<label>Host Address</label>
+											<input className="vscode-input" type="text" value={host} onChange={e => setHost(e.target.value)} placeholder="192.168.1.100" required />
+										</div>
+										<div className="form-group flex-1">
+											<label>Port</label>
+											<input className="vscode-input" type="number" value={port} onChange={e => setPort(parseInt(e.target.value))} />
+										</div>
+									</div>
+									<div className="form-group">
+										<label>Username</label>
+										<input className="vscode-input" type="text" value={username} onChange={e => setUsername(e.target.value)} placeholder="root" required />
+									</div>
+
+									<div className="form-group">
+										<label>Authentication</label>
+										<div className="segmented-control">
+											<button type="button" className={authType === 'password' ? 'active' : ''} onClick={() => setAuthType('password')}>
+												<i className="codicon codicon-lock"></i>
+												Password
+											</button>
+											<button type="button" className={authType === 'key' ? 'active' : ''} onClick={() => setAuthType('key')}>
+												<i className="codicon codicon-key"></i>
+												Key File
+											</button>
+											<button type="button" className={authType === 'agent' ? 'active' : ''} onClick={() => setAuthType('agent')}>
+												<i className="codicon codicon-server-process"></i>
+												Agent
+											</button>
+											<button type="button" className={authType === 'credential' ? 'active' : ''} onClick={() => setAuthType('credential')}>
+												<i className="codicon codicon-shield"></i>
+												Vault
+											</button>
+										</div>
+									</div>
+
+									{authType === 'password' && (
+										<div className="form-group">
+											<label>Password</label>
+											<input type="password" className="vscode-input" value={password} onChange={e => setPassword(e.target.value)} placeholder={initialHost ? "Leave empty to keep unchanged" : "Enter password"} />
+										</div>
+									)}
+
+									{authType === 'key' && (
+										<div className="form-group">
+											<label>Private Key Path</label>
+											<div className="input-with-button">
+												<input className="vscode-input" value={keyPath} onChange={e => setKeyPath(e.target.value)} placeholder="~/.ssh/id_rsa" />
+												<button type="button" className="secondary-button" onClick={handlePickKey}>Browse...</button>
+											</div>
+										</div>
+									)}
+
+									{authType === 'agent' && (
+										<div className="form-group">
+											<div className="info-box">
+												<i className="codicon codicon-info"></i>
+												<span>Using SSH Agent for authentication.</span>
+												{agentAvailable ?
+													<span className="status-success"><i className="codicon codicon-check"></i> Agent Detected</span> :
+													<span className="status-error"><i className="codicon codicon-error"></i> Agent Not Found</span>
+												}
+											</div>
+										</div>
+									)}
+
+									{authType === 'credential' && (
+										<div className="form-group">
+											<label>Credential</label>
+											<select className="vscode-input" value={credentialId} onChange={e => setCredentialId(e.target.value)}>
+												<option value="">Select a credential...</option>
+												{credentials.map(c => (
+													<option key={c.id} value={c.id}>{c.name} ({c.username})</option>
+												))}
+											</select>
+											<small>Manage credentials in the Credentials tab.</small>
+										</div>
+									)}
+								</>
+							) : (
+								<div className="form-group">
+									<label>Shell</label>
+									<select className="vscode-input" value={host} onChange={e => setHost(e.target.value)}>
+										<option value="">Select a shell...</option>
+										{availableShells?.filter(s => protocol === 'local' ? !s.startsWith('WSL:') : s.startsWith('WSL:')).map(s => (
+											<option key={s} value={s}>{s}</option>
+										))}
+									</select>
+								</div>
+							)}
+						</div>
 					</>
 				)}
 
-				{activeTab === 'advanced' && (
-					<div className="form-group">
-						<label>Tunnels (Port Forwarding)</label>
-						<TunnelList tunnels={tunnels} onChange={setTunnels} />
+				{/* ============ TERMINAL TAB ============ */}
+				{activeTab === 'terminal' && (
+					<div className="form-section">
+						<h3>Terminal Settings</h3>
+						<p className="section-description">Configure the SSH terminal appearance for this host.</p>
 
-						<label>Jump Host (Optional)</label>
-						<input className="vscode-input" value={jumpHostId} onChange={e => setJumpHostId(e.target.value)} placeholder="Host ID" />
-
-						<label>Keep Alive</label>
-						<div className="checkbox-wrapper">
-							<input type="checkbox" checked={keepAlive} onChange={e => setKeepAlive(e.target.checked)} />
-							<span>Enable SSH KeepAlive</span>
+						<div className="form-group">
+							<label>Cursor Style</label>
+							<div className="segmented-control">
+								<button type="button" className={cursorStyle === 'bar' ? 'active' : ''} onClick={() => setCursorStyle('bar')}>
+									<span className="cursor-preview cursor-bar">|</span>
+									Bar
+								</button>
+								<button type="button" className={cursorStyle === 'block' ? 'active' : ''} onClick={() => setCursorStyle('block')}>
+									<span className="cursor-preview cursor-block">█</span>
+									Block
+								</button>
+								<button type="button" className={cursorStyle === 'underline' ? 'active' : ''} onClick={() => setCursorStyle('underline')}>
+									<span className="cursor-preview cursor-underline">_</span>
+									Underline
+								</button>
+							</div>
 						</div>
 
-						<label>Notes</label>
-						<textarea className="vscode-input" value={notes} onChange={e => setNotes(e.target.value)} rows={4} />
+						<div className="form-group">
+							<label className="checkbox-label">
+								<input type="checkbox" checked={cursorBlink} onChange={e => setCursorBlink(e.target.checked)} />
+								Enable cursor blinking
+							</label>
+						</div>
 					</div>
 				)}
 
-				{authType === 'agent' && (
-					<div className="form-info">
-						{agentAvailable ? (
-							<span style={{ color: 'var(--vscode-testing-iconPassed)' }}>
-								<i className="codicon codicon-check"></i> SSH Agent Active
-							</span>
-						) : (
-							<span style={{ color: 'var(--vscode-testing-iconFailed)' }}>
-								<i className="codicon codicon-error"></i> Agent Not Found
-							</span>
+				{/* ============ FILE MANAGER TAB ============ */}
+				{activeTab === 'filemanager' && (
+					<div className="form-section">
+						<h3>File Manager Settings</h3>
+						<p className="section-description">Configure the SFTP file manager for this host.</p>
+
+						<div className="form-group">
+							<label>File Manager Layout</label>
+							<div className="segmented-control">
+								<button type="button" className={fileManagerLayout === 'explorer' ? 'active' : ''} onClick={() => setFileManagerLayout('explorer')}>
+									<i className="codicon codicon-file-directory"></i>
+									Explorer
+									<span className="option-desc">Single panel, remote files only</span>
+								</button>
+								<button type="button" className={fileManagerLayout === 'commander' ? 'active' : ''} onClick={() => setFileManagerLayout('commander')}>
+									<i className="codicon codicon-split-horizontal"></i>
+									Commander
+									<span className="option-desc">Dual panel, local + remote</span>
+								</button>
+							</div>
+						</div>
+
+						<div className="form-group">
+							<label>Default View</label>
+							<div className="segmented-control">
+								<button type="button" className={defaultView === 'grid' ? 'active' : ''} onClick={() => setDefaultView('grid')}>
+									<i className="codicon codicon-symbol-array"></i>
+									Grid View
+								</button>
+								<button type="button" className={defaultView === 'list' ? 'active' : ''} onClick={() => setDefaultView('list')}>
+									<i className="codicon codicon-list-unordered"></i>
+									List View
+								</button>
+							</div>
+						</div>
+
+						{fileManagerLayout === 'commander' && (
+							<div className="form-group">
+								<label>Default Local Path</label>
+								<input className="vscode-input" value={localPath} onChange={e => setLocalPath(e.target.value)} placeholder="C:\Users\username or /home/user" />
+								<small>The local directory to open by default in Commander mode.</small>
+							</div>
 						)}
+
+						<div className="form-group">
+							<label>Default Remote Path</label>
+							<input className="vscode-input" value={remotePath} onChange={e => setRemotePath(e.target.value)} placeholder="/home/user or /var/www" />
+							<small>The remote directory to open by default when connecting.</small>
+						</div>
+					</div>
+				)}
+
+				{/* ============ ADVANCED TAB ============ */}
+				{activeTab === 'advanced' && (
+					<div className="form-section">
+						<h3>Advanced Settings</h3>
+
+						<div className="form-group">
+							<label>Port Forwarding (Tunnels)</label>
+							<TunnelList tunnels={tunnels} onChange={setTunnels} />
+						</div>
+
+						<div className="form-group">
+							<label>Jump Host (Optional)</label>
+							<input className="vscode-input" value={jumpHostId} onChange={e => setJumpHostId(e.target.value)} placeholder="Host ID for proxy jump" />
+							<small>Connect through another host as a jump/proxy server.</small>
+						</div>
+
+						<div className="form-group">
+							<label className="checkbox-label">
+								<input type="checkbox" checked={keepAlive} onChange={e => setKeepAlive(e.target.checked)} />
+								Enable SSH KeepAlive
+							</label>
+							<small>Send periodic keep-alive messages to prevent connection timeout.</small>
+						</div>
+
+						<div className="form-group">
+							<label>Notes</label>
+							<textarea className="vscode-input" value={notes} onChange={e => setNotes(e.target.value)} rows={4} placeholder="Add notes about this host..." />
+						</div>
 					</div>
 				)}
 
 				<div className="form-actions">
-					<button type="button" onClick={onCancel} className="vscode-button secondary">Cancel</button>
-					<button type="submit" className="vscode-button">Save</button>
+					<button type="button" onClick={onCancel} className="secondary-button">Cancel</button>
+					<button type="submit" className="primary-button">
+						<i className="codicon codicon-save"></i>
+						Save Host
+					</button>
 				</div>
 			</form>
 		</div>

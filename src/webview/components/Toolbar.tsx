@@ -1,32 +1,24 @@
 import React from 'react';
 
 interface ToolbarProps {
-	onRefresh: () => void;
 	onImport: (format: 'json' | 'ssh-config') => void;
-	onExport: () => void;
 	onSort: (criteria: 'name' | 'lastUsed' | 'group') => void;
 	sortCriteria?: 'name' | 'lastUsed' | 'group';
 	onQuickConnect: (connectionString: string) => void;
 	selectedCount?: number;
 	onBulkDelete?: () => void;
-	onBulkExport?: () => void;
+	onLocalTerminal?: () => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
-	onRefresh,
 	onImport,
-	onExport,
 	onSort,
 	sortCriteria,
 	onQuickConnect,
 	selectedCount = 0,
 	onBulkDelete,
-	onBulkExport
+	onLocalTerminal
 }) => {
-	const handleImportClick = () => {
-		onImport('ssh-config');
-	};
-
 	const [quickConnect, setQuickConnect] = React.useState('');
 
 	const handleConnectClick = () => {
@@ -48,14 +40,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
 			{selectedCount > 0 && (
 				<div className="bulk-actions">
 					<span className="selected-count">{selectedCount} selected</span>
-					{onBulkExport && (
-						<button onClick={onBulkExport} title="Export Selected">
-							<i className="codicon codicon-cloud-download"></i>
-						</button>
-					)}
 					{onBulkDelete && (
-						<button onClick={onBulkDelete} title="Delete Selected" className="danger">
+						<button onClick={onBulkDelete} className="danger" title="Delete Selected">
 							<i className="codicon codicon-trash"></i>
+							Delete
 						</button>
 					)}
 					<div className="toolbar-separator"></div>
@@ -74,19 +62,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
 				/>
 				<button onClick={handleConnectClick} title="Quick Connect">
 					<i className="codicon codicon-plug"></i>
+					Connect
 				</button>
 			</div>
 
 			<div className="toolbar-separator"></div>
 
-			<button onClick={onRefresh} title="Refresh">
-				<i className="codicon codicon-refresh"></i>
-			</button>
-			<button onClick={handleImportClick} title="Import SSH Config">
+			<button onClick={() => onImport('json')} title="Import hosts from JSON file">
 				<i className="codicon codicon-cloud-upload"></i>
-			</button>
-			<button onClick={onExport} title="Export JSON">
-				<i className="codicon codicon-cloud-download"></i>
+				Import
 			</button>
 
 			<div className="toolbar-separator"></div>
@@ -98,20 +82,23 @@ const Toolbar: React.FC<ToolbarProps> = ({
 					onChange={(e) => onSort(e.target.value as 'name' | 'lastUsed' | 'group')}
 					value={sortCriteria || 'name'}
 				>
-					<option value="name">Name</option>
-					<option value="lastUsed">Last Used</option>
-					<option value="group">Folder</option>
+					<option value="name">Sort: Name</option>
+					<option value="lastUsed">Sort: Last Used</option>
+					<option value="group">Sort: Folder</option>
 				</select>
 			</div>
 
-			<div className="toolbar-separator"></div>
-
-			<button title="Local Terminal">
-				<i className="codicon codicon-terminal"></i>
-			</button>
+			{onLocalTerminal && (
+				<>
+					<div className="toolbar-separator"></div>
+					<button onClick={onLocalTerminal} title="Open a local terminal">
+						<i className="codicon codicon-terminal"></i>
+						Terminal
+					</button>
+				</>
+			)}
 		</div>
 	);
 };
 
 export default Toolbar;
-

@@ -30,16 +30,8 @@ const TopNav: React.FC<TopNavProps> = ({ activeView, onNavigate }) => {
 				<i className="codicon codicon-key"></i>
 				Credentials
 			</button>
-			<button
-				className={activeView === 'addCredential' ? 'active' : ''}
-				onClick={() => onNavigate('addCredential')}
-			>
-				<i className="codicon codicon-add"></i>
-				Add Credential
-			</button>
 		</div>
 	);
 };
 
 export default TopNav;
-

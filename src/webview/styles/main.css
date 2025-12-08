@@ -1,301 +1,1562 @@
+/* =============================================================================
+   TERMINUS-STYLE VS CODE EXTENSION THEME
+   Replicates the dark theme from Terminus Host Manager
+   ============================================================================= */
+
+/* CSS Variables - Terminus Dark Theme */
 :root {
-    --container-padding: 20px;
-    --input-padding-vertical: 6px;
-    --input-padding-horizontal: 8px;
-    --input-margin-vertical: 9px;
-    --foreground: var(--vscode-foreground);
-    --background: var(--vscode-editor-background);
-    --focus-border: var(--vscode-focusBorder);
-    --button-bg: var(--vscode-button-background);
-    --button-fg: var(--vscode-button-foreground);
-    --button-hover-bg: var(--vscode-button-hoverBackground);
+    /* Base Colors */
+    --terminus-bg: #18181b;
+    --terminus-bg-darker: #0e0e10;
+    --terminus-bg-darkest: #09090b;
+    --terminus-bg-input: #222225;
+    --terminus-bg-button: #23232a;
+    --terminus-bg-active: #1d1d1f;
+    --terminus-bg-header: #131316;
+    --terminus-bg-panel: #1b1b1e;
+    --terminus-bg-panel-hover: #232327;
+
+    /* Border Colors */
+    --terminus-border: #303032;
+    --terminus-border-active: #2d2d30;
+    --terminus-border-hover: #434345;
+    --terminus-border-light: #5a5a5d;
+    --terminus-border-medium: #373739;
+    --terminus-border-panel: #222224;
+
+    /* Interaction States */
+    --terminus-hover: #2d2d30;
+    --terminus-hover-alt: #2a2a2d;
+    --terminus-active: #2a2a2c;
+    --terminus-pressed: #1a1a1c;
+
+    /* Accent Colors */
+    --terminus-accent: #3b82f6;
+    --terminus-accent-hover: #2563eb;
+    --terminus-accent-light: #60a5fa;
+
+    /* Status Colors */
+    --terminus-success: #22c55e;
+    --terminus-warning: #f59e0b;
+    --terminus-error: #ef4444;
+    --terminus-muted: #71717a;
+
+    /* Text Colors */
+    --terminus-text: #fafafa;
+    --terminus-text-muted: #a1a1aa;
+    --terminus-text-subtle: #71717a;
+
+    /* Radius */
+    --terminus-radius-sm: 4px;
+    --terminus-radius-md: 6px;
+    --terminus-radius-lg: 8px;
 }
 
-body {
-    padding: 0;
-    margin: 0;
-    color: var(--foreground);
-    font-family: var(--vscode-font-family);
-    font-size: var(--vscode-font-size);
-}
-
+/* =============================================================================
+   APP CONTAINER
+   ============================================================================= */
 .app-container {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    background-color: var(--terminus-bg);
+    color: var(--terminus-text);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    overflow: hidden;
 }
 
-/* Top Nav (Segmented Control) */
+/* =============================================================================
+   TOP NAVIGATION - Tab Bar
+   ============================================================================= */
 .top-nav {
     display: flex;
-    border-bottom: 1px solid var(--vscode-panel-border);
+    background-color: var(--terminus-bg-header);
+    border-bottom: 1px solid var(--terminus-border-panel);
+    padding: 0;
+    gap: 0;
+    flex-shrink: 0;
 }
 
 .top-nav button {
-    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
     background: transparent;
+    color: var(--terminus-text-muted);
     border: none;
-    color: var(--vscode-descriptionForeground);
-    padding: 10px;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
+    transition: all 0.2s ease;
     border-bottom: 2px solid transparent;
 }
 
-.top-nav button.active {
-    color: var(--foreground);
-    border-bottom-color: var(--focus-border);
-}
-
 .top-nav button:hover {
-    color: var(--foreground);
+    background-color: var(--terminus-hover);
+    color: var(--terminus-text);
 }
 
-/* Toolbar */
+.top-nav button.active {
+    color: var(--terminus-text);
+    border-bottom-color: var(--terminus-accent);
+    background-color: var(--terminus-bg-active);
+}
+
+.top-nav button i.codicon {
+    font-size: 14px;
+}
+
+/* =============================================================================
+   TOOLBAR
+   ============================================================================= */
 .toolbar {
     display: flex;
-    padding: 8px;
+    align-items: center;
     gap: 8px;
-    border-bottom: 1px solid var(--vscode-panel-border);
-    justify-content: flex-end;
+    padding: 12px 16px;
+    background-color: var(--terminus-bg);
+    border-bottom: 1px solid var(--terminus-border-panel);
+    flex-wrap: wrap;
+    flex-shrink: 0;
 }
 
 .toolbar button {
-    background: transparent;
-    border: none;
-    color: var(--foreground);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: var(--terminus-bg-button);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
-    padding: 4px;
-    border-radius: 3px;
+    transition: all 0.15s ease;
 }
 
 .toolbar button:hover {
-    background: var(--vscode-toolbar-hoverBackground);
+    background-color: var(--terminus-hover);
+    border-color: var(--terminus-border-hover);
 }
 
-/* Host List */
+.toolbar button.danger {
+    color: var(--terminus-error);
+}
+
+.toolbar button.danger:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: var(--terminus-error);
+}
+
+.toolbar-separator {
+    width: 1px;
+    height: 24px;
+    background-color: var(--terminus-border);
+    margin: 0 4px;
+}
+
+/* Quick Connect */
+.quick-connect {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.quick-connect input {
+    padding: 6px 10px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    min-width: 160px;
+}
+
+.quick-connect input:focus {
+    outline: none;
+    border-color: var(--terminus-accent);
+}
+
+/* Bulk Actions */
+.bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.selected-count {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--terminus-accent);
+    padding: 4px 8px;
+    background-color: rgba(59, 130, 246, 0.1);
+    border-radius: var(--terminus-radius-sm);
+}
+
+/* Dropdown */
+.dropdown-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dropdown-icon {
+    color: var(--terminus-text-muted);
+    font-size: 14px;
+}
+
+.toolbar-select {
+    padding: 6px 8px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* =============================================================================
+   SEARCH BAR
+   ============================================================================= */
+.search-bar {
+    position: relative;
+    padding: 0 16px 12px;
+    background-color: var(--terminus-bg);
+    flex-shrink: 0;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 8px 12px 8px 36px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+}
+
+.search-bar input:focus {
+    outline: none;
+    border-color: var(--terminus-accent);
+}
+
+.search-bar input::placeholder {
+    color: var(--terminus-text-subtle);
+}
+
+.search-bar .search-icon {
+    position: absolute;
+    left: 28px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--terminus-text-muted);
+    font-size: 14px;
+    pointer-events: none;
+}
+
+/* =============================================================================
+   HOST LIST (Scrollable Area)
+   ============================================================================= */
 .host-list {
     flex: 1;
     overflow-y: auto;
-    padding: 10px;
+    padding: 0 16px 80px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--terminus-border-hover) var(--terminus-bg);
 }
 
-/* Host Group */
+.host-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.host-list::-webkit-scrollbar-track {
+    background: var(--terminus-bg);
+}
+
+.host-list::-webkit-scrollbar-thumb {
+    background: var(--terminus-border-hover);
+    border-radius: 3px;
+}
+
+.host-list::-webkit-scrollbar-thumb:hover {
+    background: var(--terminus-border-light);
+}
+
+/* =============================================================================
+   HOST GROUP (Folder Accordion)
+   ============================================================================= */
 .host-group {
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-lg);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.host-group.drag-over {
+    border-color: var(--terminus-accent);
+    background-color: rgba(59, 130, 246, 0.05);
 }
 
 .group-header {
     display: flex;
     align-items: center;
-    padding: 5px;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--terminus-border-panel);
     cursor: pointer;
-    font-weight: bold;
     user-select: none;
 }
 
 .group-header:hover {
-    background: var(--vscode-list-hoverBackground);
+    background-color: var(--terminus-hover);
 }
 
-.group-icon {
-    margin-right: 5px;
-    color: var(--vscode-symbolIcon-folderForeground);
-}
-
-.group-count {
-    margin-left: auto;
-    opacity: 0.7;
-    font-size: 0.9em;
-}
-
-/* Host Card */
-.host-card {
-    background: var(--vscode-list-hoverBackground);
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: 5px;
-    margin: 5px 0 10px 15px;
-    /* Indent from group */
-    padding: 10px;
+.group-title {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.group-title .codicon {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+    flex-shrink: 0;
+}
+
+.group-title span {
+    font-weight: 500;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.group-title span:hover {
+    color: var(--terminus-accent-light);
+}
+
+.group-checkbox {
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    background-color: var(--terminus-bg-button);
+    color: var(--terminus-text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 9999px;
+    flex-shrink: 0;
+}
+
+.group-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.group-header:hover .group-actions {
+    opacity: 1;
+}
+
+.rename-input {
+    padding: 2px 8px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-accent);
+    border-radius: var(--terminus-radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    width: 150px;
+}
+
+.group-content {
+    padding: 8px;
+    background-color: var(--terminus-bg);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 8px;
 }
 
-.host-card:hover {
-    border-color: var(--focus-border);
+/* =============================================================================
+   HOST CARD - Terminus Style
+   ============================================================================= */
+.host-card {
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-lg);
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
 }
 
+.host-card:hover {
+    background-color: var(--terminus-hover-alt);
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.host-card.selected {
+    border-color: var(--terminus-accent);
+    background-color: rgba(59, 130, 246, 0.08);
+}
+
+.host-card.active-session {
+    border-color: var(--terminus-success);
+}
+
+.host-card.drag-over {
+    border-color: var(--terminus-accent);
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+/* Card Top - Checkbox, Status, Host Info, Pin */
 .card-top {
     display: flex;
-    gap: 10px;
     align-items: flex-start;
+    gap: 8px;
+}
+
+.card-top input[type="checkbox"] {
+    margin-top: 2px;
+    flex-shrink: 0;
+    accent-color: var(--terminus-accent);
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+.status-online {
+    background-color: var(--terminus-success);
+    box-shadow: 0 0 6px var(--terminus-success);
+}
+
+.status-offline {
+    background-color: var(--terminus-error);
+}
+
+.status-unknown {
+    background-color: var(--terminus-muted);
+}
+
+.active-indicator {
+    width: 8px;
+    height: 8px;
+    background-color: var(--terminus-success);
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .host-info {
     flex: 1;
+    min-width: 0;
 }
 
 .host-name {
-    font-weight: bold;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--terminus-text);
+    margin-bottom: 2px;
+}
+
+.host-name .codicon {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+}
+
+.host-name .pin-icon {
+    color: #eab308;
+    font-size: 11px;
 }
 
 .host-address {
-    font-size: 0.9em;
-    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+    color: var(--terminus-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
+/* Card Top-Right Actions */
+.card-actions-top {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.host-card:hover .card-actions-top {
+    opacity: 1;
+}
+
+/* Card Middle - Tags */
 .card-middle {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 4px;
+    margin-top: 8px;
+    min-height: 20px;
 }
 
 .tag-pill {
-    background: var(--vscode-badge-background);
-    color: var(--vscode-badge-foreground);
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
     padding: 2px 6px;
-    border-radius: 10px;
-    font-size: 0.8em;
+    background-color: transparent;
+    border: 1px solid var(--terminus-border);
+    color: var(--terminus-text-muted);
+    font-size: 10px;
+    border-radius: var(--terminus-radius-sm);
 }
 
+.tag-pill .codicon {
+    font-size: 9px;
+}
+
+.feature-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 6px;
+    background-color: transparent;
+    border: 1px solid var(--terminus-border);
+    color: var(--terminus-text-muted);
+    font-size: 10px;
+    border-radius: var(--terminus-radius-sm);
+}
+
+.feature-badge .codicon {
+    font-size: 9px;
+}
+
+.notes-icon {
+    color: var(--terminus-text-subtle);
+    cursor: help;
+}
+
+/* Card Bottom - Action Buttons */
 .card-bottom {
     display: flex;
-    gap: 5px;
-    margin-top: 5px;
+    gap: 4px;
+    margin-top: 10px;
 }
 
 .action-btn {
     flex: 1;
-    background: var(--button-bg);
-    color: var(--button-fg);
-    border: none;
-    padding: 5px;
-    border-radius: 3px;
-    cursor: pointer;
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 8px;
+    background-color: var(--terminus-bg-button);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
 }
 
 .action-btn:hover {
-    background: var(--button-hover-bg);
+    background-color: var(--terminus-hover);
+    border-color: var(--terminus-border-hover);
 }
 
 .action-btn.secondary {
-    background: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
-    flex: 0;
-    min-width: 30px;
+    background-color: transparent;
+    flex: none;
+    width: 28px;
+    padding: 6px;
 }
 
 .action-btn.secondary:hover {
-    background: var(--vscode-button-secondaryHoverBackground);
+    background-color: var(--terminus-hover);
 }
 
-/* Search Bar */
-.search-bar {
+.action-btn .codicon {
+    font-size: 12px;
+}
+
+/* Icon Button (used in headers, etc.) */
+.icon-button {
     display: flex;
     align-items: center;
-    padding: 5px 10px;
-    background: var(--vscode-input-background);
-    border: 1px solid var(--vscode-input-border);
-    margin: 10px;
-    border-radius: 2px;
-}
-
-.search-bar input {
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
     background: transparent;
+    color: var(--terminus-text-muted);
     border: none;
-    color: var(--foreground);
-    flex: 1;
-    margin-left: 5px;
-    outline: none;
+    border-radius: var(--terminus-radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
 }
 
-/* Edit View & Forms */
+.icon-button:hover {
+    background-color: var(--terminus-hover);
+    color: var(--terminus-text);
+}
+
+.icon-button .codicon {
+    font-size: 12px;
+}
+
+/* Options Dropdown Menu */
+.options-wrapper {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.options-btn {
+    width: 28px;
+    height: 28px;
+}
+
+.options-btn:hover {
+    background-color: var(--terminus-hover);
+}
+
+.options-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    min-width: 160px;
+    background-color: var(--terminus-bg-panel);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    padding: 4px;
+    z-index: 100;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    animation: optionsSlideIn 0.15s ease;
+}
+
+@keyframes optionsSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.option-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    color: var(--terminus-text);
+    border: none;
+    border-radius: var(--terminus-radius-sm);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.1s;
+}
+
+.option-item:hover {
+    background-color: var(--terminus-hover);
+}
+
+.option-item .codicon {
+    font-size: 14px;
+    color: var(--terminus-text-muted);
+}
+
+.option-item.danger {
+    color: var(--terminus-error);
+}
+
+.option-item.danger .codicon {
+    color: var(--terminus-error);
+}
+
+.option-item.danger:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+}
+
+.option-divider {
+    height: 1px;
+    background-color: var(--terminus-border);
+    margin: 4px 0;
+}
+
+
+/* =============================================================================
+   EDIT HOST VIEW
+   ============================================================================= */
 .edit-host-view {
-    padding: 20px;
+    flex: 1;
     overflow-y: auto;
+    padding: 16px;
+    background-color: var(--terminus-bg);
+}
+
+.edit-host-view h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--terminus-text);
 }
 
 .tabs {
     display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    border-bottom: 1px solid var(--vscode-panel-border);
+    gap: 0;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--terminus-border);
 }
 
 .tab {
-    background: none;
+    padding: 8px 16px;
+    background: transparent;
+    color: var(--terminus-text-muted);
     border: none;
-    color: var(--vscode-descriptionForeground);
-    padding: 8px 15px;
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
     border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.tab:hover {
+    color: var(--terminus-text);
 }
 
 .tab.active {
-    color: var(--foreground);
-    border-bottom-color: var(--focus-border);
+    color: var(--terminus-text);
+    border-bottom-color: var(--terminus-accent);
 }
 
+/* Form Groups */
 .form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--terminus-text-muted);
+    margin-bottom: 6px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 8px 12px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--terminus-accent);
+}
+
+.form-group small {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--terminus-text-subtle);
+}
+
+.checkbox-label {
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--terminus-text);
+    cursor: pointer;
 }
 
-label {
-    font-weight: 600;
-}
-
-input,
-select {
-    background: var(--vscode-input-background);
-    color: var(--foreground);
-    border: 1px solid var(--vscode-input-border);
-    padding: 6px;
-    border-radius: 2px;
-}
-
-input:focus,
-select:focus {
-    outline: 1px solid var(--focus-border);
-    border-color: var(--focus-border);
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    accent-color: var(--terminus-accent);
 }
 
 .form-actions {
     display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
+    gap: 8px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--terminus-border);
 }
 
-.btn-primary {
-    background: var(--button-bg);
-    color: var(--button-fg);
-    border: none;
+.primary-button,
+.vscode-button {
     padding: 8px 16px;
-    border-radius: 2px;
+    background-color: var(--terminus-accent);
+    color: white;
+    border: none;
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.primary-button:hover,
+.vscode-button:hover {
+    background-color: var(--terminus-accent-hover);
+}
+
+.secondary-button,
+.vscode-button.secondary {
+    padding: 8px 16px;
+    background-color: var(--terminus-bg-button);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+    font-weight: 500;
     cursor: pointer;
 }
 
-.btn-primary:hover {
-    background: var(--button-hover-bg);
+.secondary-button:hover,
+.vscode-button.secondary:hover {
+    background-color: var(--terminus-hover);
 }
 
-.btn-secondary {
-    background: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
+/* =============================================================================
+   CREDENTIALS VIEW
+   ============================================================================= */
+.credentials-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.credentials-view .toolbar {
+    padding: 12px 16px;
+}
+
+.list-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 16px 16px;
+}
+
+.credential-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-lg);
+    margin-bottom: 8px;
+    transition: all 0.15s;
+}
+
+.credential-item:hover {
+    background-color: var(--terminus-hover-alt);
+    border-color: var(--terminus-border-hover);
+}
+
+.cred-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background-color: var(--terminus-bg-button);
+    border-radius: var(--terminus-radius-md);
+    color: var(--terminus-accent);
+}
+
+.cred-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.cred-name {
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--terminus-text);
+}
+
+.cred-user {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+}
+
+.cred-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.cred-actions button {
+    padding: 6px;
+    background: transparent;
+    color: var(--terminus-text-muted);
     border: none;
-    padding: 8px 16px;
-    border-radius: 2px;
+    border-radius: var(--terminus-radius-sm);
     cursor: pointer;
 }
 
-.btn-secondary:hover {
-    background: var(--vscode-button-secondaryHoverBackground);
+.cred-actions button:hover {
+    background-color: var(--terminus-hover);
+    color: var(--terminus-text);
+}
+
+/* =============================================================================
+   EMPTY STATE
+   ============================================================================= */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--terminus-text-muted);
+}
+
+.empty-state .codicon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    color: var(--terminus-text-subtle);
+}
+
+.empty-state h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--terminus-text);
+}
+
+.empty-state p {
+    font-size: 13px;
+    max-width: 300px;
+}
+
+/* =============================================================================
+   MODAL / DIALOG
+   ============================================================================= */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.modal-content {
+    background-color: var(--terminus-bg-panel);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-lg);
+    padding: 24px;
+    min-width: 320px;
+    max-width: 480px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.modal-content h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--terminus-text);
+}
+
+/* =============================================================================
+   SCRIPT LIST
+   ============================================================================= */
+.script-list {
+    padding: 16px;
+    border-top: 1px solid var(--terminus-border);
+    background-color: var(--terminus-bg-darker);
+}
+
+.script-list h4 {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--terminus-text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.script-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-sm);
+    margin-bottom: 4px;
+    cursor: grab;
+    font-size: 12px;
+}
+
+.script-item:active {
+    cursor: grabbing;
+}
+
+/* =============================================================================
+   HOST KEY DIALOG
+   ============================================================================= */
+.host-key-dialog {
+    text-align: center;
+}
+
+.host-key-dialog .fingerprint {
+    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    background-color: var(--terminus-bg-input);
+    padding: 12px;
+    border-radius: var(--terminus-radius-md);
+    font-size: 11px;
+    word-break: break-all;
+    margin: 16px 0;
+}
+
+.host-key-dialog .warning {
+    color: var(--terminus-warning);
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+
+/* =============================================================================
+   TUNNEL DIALOG
+   ============================================================================= */
+.tunnel-list {
+    margin-bottom: 16px;
+}
+
+.tunnel-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    margin-bottom: 8px;
+}
+
+/* =============================================================================
+   VSCODE INPUT (compatibility class)
+   ============================================================================= */
+.vscode-input {
+    padding: 8px 12px;
+    background-color: var(--terminus-bg-input);
+    color: var(--terminus-text);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+}
+
+.vscode-input:focus {
+    outline: none;
+    border-color: var(--terminus-accent);
+}
+
+/* =============================================================================
+   INFO TEXT
+   ============================================================================= */
+.info-text {
+    padding: 8px 12px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+}
+
+/* =============================================================================
+   SEGMENTED CONTROLS - Styled Auth Buttons
+   ============================================================================= */
+.segmented-control {
+    display: flex;
+    gap: 0;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    padding: 4px;
+    overflow: hidden;
+}
+
+.segmented-control button {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 12px;
+    background: transparent;
+    color: var(--terminus-text-muted);
+    border: none;
+    border-radius: var(--terminus-radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.segmented-control button:hover {
+    background-color: var(--terminus-hover);
+    color: var(--terminus-text);
+}
+
+.segmented-control button.active {
+    background-color: var(--terminus-accent);
+    color: white;
+}
+
+.segmented-control button .codicon {
+    font-size: 16px;
+}
+
+.segmented-control button .option-desc {
+    font-size: 10px;
+    font-weight: 400;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+/* Cursor Preview in Terminal Settings */
+.cursor-preview {
+    font-family: monospace;
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+/* =============================================================================
+   FORM SECTIONS
+   ============================================================================= */
+.form-section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--terminus-border-panel);
+}
+
+.form-section:last-child {
+    border-bottom: none;
+}
+
+.form-section h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--terminus-text);
+    margin-bottom: 4px;
+}
+
+.section-description {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+    margin-bottom: 16px;
+}
+
+/* Form Rows */
+.form-row {
+    display: flex;
+    gap: 12px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-row .form-group.flex-1 {
+    flex: 1;
+}
+
+.form-row .form-group.flex-2 {
+    flex: 2;
+}
+
+/* Input with Button */
+.input-with-button {
+    display: flex;
+    gap: 8px;
+}
+
+.input-with-button .vscode-input {
+    flex: 1;
+}
+
+/* Info Box */
+.info-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+}
+
+.info-box .codicon {
+    font-size: 14px;
+    color: var(--terminus-accent-light);
+}
+
+.status-success {
+    color: var(--terminus-success);
+    margin-left: auto;
+}
+
+.status-error {
+    color: var(--terminus-error);
+    margin-left: auto;
+}
+
+/* Separator */
+.separator {
+    height: 1px;
+    background-color: var(--terminus-border-panel);
+    margin: 16px 0;
+}
+
+/* =============================================================================
+   CREDENTIALS PAGE
+   ============================================================================= */
+.credentials-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    border-bottom: 1px solid var(--terminus-border-panel);
+}
+
+.credentials-title h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--terminus-text);
+}
+
+.credentials-title .subtitle {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+    margin-top: 4px;
+}
+
+.add-credential-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background-color: var(--terminus-accent);
+    color: white;
+    border: none;
+    border-radius: var(--terminus-radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.add-credential-btn:hover {
+    background-color: var(--terminus-accent-hover);
+}
+
+.add-credential-btn .codicon {
+    font-size: 14px;
+}
+
+/* Credentials Grid */
+.credentials-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    padding: 16px;
+}
+
+.credential-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-lg);
+    transition: all 0.15s ease;
+    position: relative;
+}
+
+.credential-card:hover {
+    background-color: var(--terminus-hover-alt);
+    border-color: var(--terminus-border-hover);
+}
+
+.credential-card .cred-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, var(--terminus-accent) 0%, var(--terminus-accent-hover) 100%);
+    border-radius: var(--terminus-radius-md);
+    color: white;
+    flex-shrink: 0;
+}
+
+.credential-card .cred-icon .codicon {
+    font-size: 20px;
+}
+
+.credential-card .cred-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.credential-card .cred-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--terminus-text);
+    margin-bottom: 2px;
+}
+
+.credential-card .cred-user {
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+}
+
+.credential-card .cred-folder {
+    font-size: 11px;
+    color: var(--terminus-text-subtle);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.credential-card .cred-folder .codicon {
+    font-size: 11px;
+}
+
+.cred-type-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 2px 8px;
+    background-color: var(--terminus-bg-button);
+    border: 1px solid var(--terminus-border);
+    border-radius: 9999px;
+    font-size: 10px;
+    color: var(--terminus-text-muted);
+}
+
+.credential-card .cred-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.credential-card:hover .cred-actions {
+    opacity: 1;
+}
+
+.credential-card .cred-actions button {
+    padding: 6px;
+    background: transparent;
+    color: var(--terminus-text-muted);
+    border: none;
+    border-radius: var(--terminus-radius-sm);
+    cursor: pointer;
+}
+
+.credential-card .cred-actions button:hover {
+    background-color: var(--terminus-hover);
+    color: var(--terminus-text);
+}
+
+.credential-card .cred-actions button.danger:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--terminus-error);
+}
+
+/* Tabs with icons */
+.tabs button .codicon {
+    margin-right: 6px;
+}
+
+/* =============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================= */
+
+/* Very small widths (sidebar mode) */
+@media (max-width: 400px) {
+    .toolbar {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 10px;
+    }
+
+    .toolbar button {
+        padding: 5px 8px;
+        font-size: 11px;
+    }
+
+    .toolbar button .codicon {
+        font-size: 12px;
+    }
+
+    /* Hide text on small screens, show only icons */
+    .toolbar button:not(.selected-count) {
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .quick-connect {
+        width: 100%;
+        order: 10;
+    }
+
+    .quick-connect input {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .toolbar-separator {
+        display: none;
+    }
+
+    .dropdown-wrapper {
+        flex: 1;
+    }
+
+    .host-card {
+        padding: 10px;
+    }
+
+    .card-bottom {
+        flex-direction: column;
+    }
+
+    .action-btn {
+        width: 100%;
+    }
+
+    .tabs {
+        flex-wrap: wrap;
+    }
+
+    .tab {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .credentials-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .add-credential-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .credentials-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Small widths */
+@media (max-width: 600px) {
+    .group-content {
+        grid-template-columns: 1fr;
+    }
+
+    .toolbar button {
+        padding: 6px 10px;
+    }
+
+    .search-bar {
+        padding: 0 10px 10px;
+    }
+
+    .host-list {
+        padding: 0 10px 60px;
+    }
+}
+
+/* Medium widths */
+@media (min-width: 601px) and (max-width: 900px) {
+    .group-content {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    }
+}
+
+/* Large widths */
+@media (min-width: 901px) {
+    .group-content {
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    }
+}
+
+/* Ensure smooth transitions */
+.app-container,
+.toolbar,
+.host-card,
+.group-content,
+.form-row,
+.tabs {
+    transition: all 0.2s ease;
 }
