@@ -1,39 +1,84 @@
-import React, { useState, useEffect } from 'react';
-import {
-	ChevronUp,
-	RefreshCw,
-	Upload,
-	FolderPlus,
-	Download,
-	Trash2,
-	Home
-} from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { FileEntry, TransferStatus } from '../../common/types';
-import { FileIcon } from '../components/FileIcon';
+import { Toolbar } from '../components/FileManager/Toolbar';
+import { FileList } from '../components/FileManager/FileList';
 import vscode from '../utils/vscode';
+import '../styles/fileManager.css';
 
 interface FileManagerProps {
 	hostId: string;
 	initialPath?: string;
+	layout?: 'explorer' | 'commander';
+	defaultView?: 'list' | 'grid';
+}
+
+interface PanelState {
+	currentPath: string;
+	files: FileEntry[];
+	history: string[];
+	historyIndex: number;
+	selection: string[];
+	focusedFile: string | null;
+	searchQuery: string;
+	isLoading: boolean;
 }
 
 /**
  * FileManager Component
- * SFTP File Browser UI
+ * Advanced SFTP File Browser with dual-panel support
  */
-export const FileManager: React.FC<FileManagerProps> = ({ hostId, initialPath = '~' }) => {
-	const [currentPath, setCurrentPath] = useState<string>(initialPath);
-	const [files, setFiles] = useState<FileEntry[]>([]);
-	const [pathInput, setPathInput] = useState<string>(initialPath);
-	const [isLoading, setIsLoading] = useState<boolean>(false);
+export const FileManager: React.FC<FileManagerProps> = ({
+	hostId,
+	initialPath = '~',
+	layout: initialLayout = 'explorer',
+	defaultView: initialView = 'list'
+}) => {
+	// Global state
+	const [layoutMode, setLayoutMode] = useState<'explorer' | 'commander'>(initialLayout);
+	const [viewMode, setViewMode] = useState<'list' | 'grid'>(initialView);
+	const [activePanel, setActivePanel] = useState<'left' | 'right'>('left');
 	const [error, setError] = useState<string | null>(null);
 	const [transfer, setTransfer] = useState<TransferStatus | null>(null);
-	const [selectedFile, setSelectedFile] = useState<string | null>(null);
+
+	// Panel states
+	const [leftPanel, setLeftPanel] = useState<PanelState>({
+		currentPath: initialPath,
+		files: [],
+		history: [initialPath],
+		historyIndex: 0,
+		selection: [],
+		focusedFile: null,
+		searchQuery: '',
+		isLoading: false
+	});
+
+	const [rightPanel, setRightPanel] = useState<PanelState>({
+		currentPath: initialPath,
+		files: [],
+		history: [initialPath],
+		historyIndex: 0,
+		selection: [],
+		focusedFile: null,
+		searchQuery: '',
+		isLoading: false
+	});
+
+	const getActiveState = (): PanelState => activePanel === 'left' ? leftPanel : rightPanel;
+	const setActiveState = (updater: (prev: PanelState) => PanelState) => {
+		if (activePanel === 'left') {
+			setLeftPanel(updater);
+		} else {
+			setRightPanel(updater);
+		}
+	};
 
 	// Load directory on mount and when path changes
 	useEffect(() => {
-		loadDirectory(currentPath);
-	}, [currentPath]);
+		loadDirectory(leftPanel.currentPath, 'left');
+		if (layoutMode === 'commander') {
+			loadDirectory(rightPanel.currentPath, 'right');
+		}
+	}, []);
 
 	// Listen for messages from extension
 	useEffect(() => {
@@ -41,13 +86,19 @@ export const FileManager: React.FC<FileManagerProps> = ({ hostId, initialPath = 
 			const message = event.data;
 
 			switch (message.command) {
-				case 'SFTP_LS_RESPONSE':
-					setFiles(message.payload.files);
-					setCurrentPath(message.payload.currentPath);
-					setPathInput(message.payload.currentPath);
-					setIsLoading(false);
+				case 'SFTP_LS_RESPONSE': {
+					const panelId = message.payload.panelId || 'left';
+					const setState = panelId === 'left' ? setLeftPanel : setRightPanel;
+
+					setState(prev => ({
+						...prev,
+						files: message.payload.files,
+						currentPath: message.payload.currentPath,
+						isLoading: false
+					}));
 					setError(null);
 					break;
+				}
 
 				case 'SFTP_TRANSFER_PROGRESS':
 					setTransfer(message.payload);
@@ -55,14 +106,14 @@ export const FileManager: React.FC<FileManagerProps> = ({ hostId, initialPath = 
 
 				case 'SFTP_ERROR':
 					setError(message.payload.message);
-					setIsLoading(false);
+					setLeftPanel(prev => ({ ...prev, isLoading: false }));
+					setRightPanel(prev => ({ ...prev, isLoading: false }));
 					setTransfer(null);
 					break;
 
 				case 'UPDATE_DATA':
-					// Initial data load
 					if (message.payload.currentPath) {
-						setCurrentPath(message.payload.currentPath);
+						setLeftPanel(prev => ({ ...prev, currentPath: message.payload.currentPath }));
 					}
 					break;
 			}
@@ -75,221 +126,343 @@ export const FileManager: React.FC<FileManagerProps> = ({ hostId, initialPath = 
 	/**
 	 * Loads a directory listing
 	 */
-	const loadDirectory = (path: string) => {
-		setIsLoading(true);
+	const loadDirectory = (path: string, panelId: 'left' | 'right' = activePanel) => {
+		const setState = panelId === 'left' ? setLeftPanel : setRightPanel;
+
+		setState(prev => ({ ...prev, isLoading: true }));
 		setError(null);
+
 		vscode.postMessage({
 			command: 'SFTP_LS',
-			payload: { hostId, path }
+			payload: { hostId, path, panelId }
 		});
 	};
 
 	/**
-	 * Navigates to parent directory
+	 * Navigates to a path
 	 */
-	const navigateUp = () => {
-		if (currentPath === '/' || currentPath === '~') {
+	const navigateToPath = (path: string, panelId: 'left' | 'right' = activePanel) => {
+		const setState = panelId === 'left' ? setLeftPanel : setRightPanel;
+
+		setState(prev => {
+			const newHistory = [...prev.history.slice(0, prev.historyIndex + 1), path];
+			return {
+				...prev,
+				currentPath: path,
+				history: newHistory,
+				historyIndex: newHistory.length - 1,
+				selection: [],
+				focusedFile: null
+			};
+		});
+
+		loadDirectory(path, panelId);
+	};
+
+	/**
+	 * Navigation handlers
+	 */
+	const handleNavigateHome = () => {
+		navigateToPath('~');
+	};
+
+	const handleNavigateUp = () => {
+		const state = getActiveState();
+		if (state.currentPath === '/' || state.currentPath === '~') {
 			return;
 		}
-		const parentPath = currentPath.split('/').slice(0, -1).join('/') || '/';
-		setCurrentPath(parentPath);
+		const parentPath = state.currentPath.split('/').slice(0, -1).join('/') || '/';
+		navigateToPath(parentPath);
 	};
 
-	/**
-	 * Navigates to home directory
-	 */
-	const navigateHome = () => {
-		setCurrentPath('~');
-	};
+	const handleNavigateBack = () => {
+		const state = getActiveState();
+		if (state.historyIndex > 0) {
+			const newIndex = state.historyIndex - 1;
+			const path = state.history[newIndex];
 
-	/**
-	 * Refreshes current directory
-	 */
-	const refresh = () => {
-		loadDirectory(currentPath);
-	};
+			setActiveState(prev => ({
+				...prev,
+				historyIndex: newIndex,
+				currentPath: path,
+				selection: [],
+				focusedFile: null
+			}));
 
-	/**
-	 * Handles path input submission
-	 */
-	const handlePathSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
-		setCurrentPath(pathInput);
-	};
-
-	/**
-	 * Handles file double-click
-	 */
-	const handleFileDoubleClick = (file: FileEntry) => {
-		if (file.type === 'd') {
-			// Navigate into directory
-			setCurrentPath(file.path);
-		} else {
-			// Download file
-			handleDownload(file);
+			loadDirectory(path);
 		}
 	};
 
+	const handleNavigateForward = () => {
+		const state = getActiveState();
+		if (state.historyIndex < state.history.length - 1) {
+			const newIndex = state.historyIndex + 1;
+			const path = state.history[newIndex];
+
+			setActiveState(prev => ({
+				...prev,
+				historyIndex: newIndex,
+				currentPath: path,
+				selection: [],
+				focusedFile: null
+			}));
+
+			loadDirectory(path);
+		}
+	};
+
+	const handleRefresh = () => {
+		loadDirectory(getActiveState().currentPath);
+	};
+
 	/**
-	 * Handles file download
+	 * File operation handlers
 	 */
-	const handleDownload = (file: FileEntry) => {
+	const handleFileSelect = (filePath: string, ctrlKey: boolean, shiftKey: boolean) => {
+		setActiveState(prev => {
+			if (shiftKey && prev.focusedFile) {
+				// Range selection
+				const files = prev.files;
+				const startIndex = files.findIndex(f => f.path === prev.focusedFile);
+				const endIndex = files.findIndex(f => f.path === filePath);
+				const range = files.slice(
+					Math.min(startIndex, endIndex),
+					Math.max(startIndex, endIndex) + 1
+				).map(f => f.path);
+				return {
+					...prev,
+					selection: range,
+					focusedFile: filePath
+				};
+			} else if (ctrlKey) {
+				// Multi selection
+				const isSelected = prev.selection.includes(filePath);
+				return {
+					...prev,
+					selection: isSelected
+						? prev.selection.filter(p => p !== filePath)
+						: [...prev.selection, filePath],
+					focusedFile: filePath
+				};
+			} else {
+				// Single selection
+				return {
+					...prev,
+					selection: [filePath],
+					focusedFile: filePath
+				};
+			}
+		});
+	};
+
+	const handleFileOpen = (file: FileEntry) => {
+		if (file.type === 'd') {
+			// Navigate into directory
+			navigateToPath(file.path);
+		} else {
+			// Edit file (Edit-on-Fly)
+			vscode.postMessage({
+				command: 'EDIT_FILE',
+				payload: { hostId, remotePath: file.path }
+			});
+		}
+	};
+
+	const handleFileEdit = (file: FileEntry) => {
+		vscode.postMessage({
+			command: 'EDIT_FILE',
+			payload: { hostId, remotePath: file.path }
+		});
+	};
+
+	const handleFileDownload = (file: FileEntry) => {
 		vscode.postMessage({
 			command: 'SFTP_DOWNLOAD',
 			payload: { hostId, remotePath: file.path }
 		});
 	};
 
-	/**
-	 * Handles file upload
-	 */
-	const handleUpload = () => {
+	const handleFileDelete = (files: FileEntry[]) => {
+		files.forEach(file => {
+			vscode.postMessage({
+				command: 'SFTP_RM',
+				payload: { hostId, path: file.path }
+			});
+		});
+
+		// Clear selection
+		setActiveState(prev => ({ ...prev, selection: [], focusedFile: null }));
+
+		// Refresh after a short delay
+		setTimeout(() => handleRefresh(), 500);
+	};
+
+	const handleFileRename = (file: FileEntry) => {
+		// This would show a modal/input box in the extension
 		vscode.postMessage({
-			command: 'SFTP_UPLOAD',
-			payload: { hostId, remotePath: currentPath }
+			command: 'SFTP_RENAME',
+			payload: { hostId, oldPath: file.path, newPath: '' }
 		});
 	};
 
-	/**
-	 * Handles file deletion
-	 */
-	const handleDelete = (file: FileEntry) => {
+	const handleFileProperties = (file: FileEntry) => {
 		vscode.postMessage({
-			command: 'SFTP_RM',
+			command: 'FILE_PROPERTIES',
 			payload: { hostId, path: file.path }
 		});
 	};
 
-	/**
-	 * Handles new folder creation
-	 */
-	const handleNewFolder = () => {
+	const handleCopyPath = (path: string) => {
 		vscode.postMessage({
-			command: 'SFTP_MKDIR',
-			payload: { hostId, path: currentPath }
+			command: 'COPY_PATH',
+			payload: { path }
+		});
+	};
+
+	const handleCompareFile = (file: FileEntry) => {
+		vscode.postMessage({
+			command: 'DIFF_FILES',
+			payload: { hostId, remotePath: file.path }
 		});
 	};
 
 	/**
-	 * Formats file size
+	 * Upload handlers
 	 */
-	const formatSize = (bytes: number): string => {
-		if (bytes === 0) return '0 B';
-		const k = 1024;
-		const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+	const handleUpload = () => {
+		vscode.postMessage({
+			command: 'SFTP_UPLOAD',
+			payload: { hostId, remotePath: getActiveState().currentPath }
+		});
+	};
+
+	const handleNewFolder = () => {
+		vscode.postMessage({
+			command: 'SFTP_MKDIR',
+			payload: { hostId, path: getActiveState().currentPath }
+		});
+	};
+
+	const handleNewFile = () => {
+		// Create a new empty file (implementation depends on backend support)
+		vscode.postMessage({
+			command: 'SFTP_NEW_FILE',
+			payload: { hostId, path: getActiveState().currentPath }
+		});
+	};
+
+	const handleOpenTerminal = () => {
+		// Open terminal in current directory
+		vscode.postMessage({
+			command: 'OPEN_TERMINAL',
+			payload: { hostId, path: getActiveState().currentPath }
+		});
 	};
 
 	/**
-	 * Formats date
+	 * Drag & Drop handlers
 	 */
-	const formatDate = (date: Date): string => {
-		const d = new Date(date);
-		return d.toLocaleString();
+	const handleDrop = (files: FileList, targetPath: string) => {
+		// Upload dropped files
+		// Note: Browser File objects don't expose the path property for security reasons
+		// The backend will prompt for file selection instead
+		Array.from(files).forEach(file => {
+			vscode.postMessage({
+				command: 'SFTP_UPLOAD',
+				payload: { hostId, remotePath: targetPath }
+			});
+		});
+	};
+
+	const handleInternalDrop = (sourcePaths: string[], targetPath: string, sourcePanel?: 'left' | 'right') => {
+		// Handle move/copy between panels or within same panel
+		vscode.postMessage({
+			command: 'SFTP_MOVE',
+			payload: { hostId, sourcePaths, targetPath, sourcePanel }
+		});
 	};
 
 	/**
-	 * Generates breadcrumbs from path
+	 * View mode handlers
 	 */
-	const getBreadcrumbs = (): string[] => {
-		if (currentPath === '~' || currentPath === '') {
-			return ['~'];
+	const handleSearchChange = (query: string) => {
+		setActiveState(prev => ({ ...prev, searchQuery: query }));
+	};
+
+	const handleLayoutModeChange = (mode: 'explorer' | 'commander') => {
+		setLayoutMode(mode);
+		if (mode === 'commander' && rightPanel.files.length === 0) {
+			loadDirectory(rightPanel.currentPath, 'right');
 		}
-		if (currentPath === '/') {
-			return ['/'];
-		}
-		const parts = currentPath.split('/').filter(p => p);
-		return ['/', ...parts];
 	};
 
 	/**
-	 * Handles breadcrumb click
+	 * Renders a single panel
 	 */
-	const handleBreadcrumbClick = (index: number) => {
-		const breadcrumbs = getBreadcrumbs();
-		if (index === 0 && breadcrumbs[0] === '/') {
-			setCurrentPath('/');
-		} else {
-			const newPath = '/' + breadcrumbs.slice(1, index + 1).join('/');
-			setCurrentPath(newPath);
-		}
+	const renderPanel = (panelId: 'left' | 'right') => {
+		const state = panelId === 'left' ? leftPanel : rightPanel;
+		const isActive = activePanel === panelId;
+
+		return (
+			<div
+				className={`file-manager-panel ${isActive ? 'active' : 'inactive'}`}
+				onClick={() => setActivePanel(panelId)}
+			>
+				<FileList
+					files={state.files}
+					viewMode={viewMode}
+					selection={state.selection}
+					focusedFile={state.focusedFile}
+					searchQuery={state.searchQuery}
+					panelId={panelId}
+					onFileSelect={handleFileSelect}
+					onFileOpen={handleFileOpen}
+					onFileEdit={handleFileEdit}
+					onFileDownload={handleFileDownload}
+					onFileDelete={handleFileDelete}
+					onFileRename={handleFileRename}
+					onFileProperties={handleFileProperties}
+					onCopyPath={handleCopyPath}
+					onCompareFile={handleCompareFile}
+					onDrop={handleDrop}
+					onInternalDrop={handleInternalDrop}
+				/>
+
+				{state.isLoading && (
+					<div className="loading-overlay">
+						<div className="spinner" />
+						<p>Loading...</p>
+					</div>
+				)}
+			</div>
+		);
 	};
 
 	return (
 		<div className="file-manager">
 			{/* Toolbar */}
-			<div className="file-manager-toolbar">
-				<button
-					className="toolbar-button"
-					onClick={navigateHome}
-					title="Home"
-					disabled={isLoading}
-				>
-					<Home size={16} />
-				</button>
-				<button
-					className="toolbar-button"
-					onClick={navigateUp}
-					title="Up"
-					disabled={isLoading || currentPath === '/' || currentPath === '~'}
-				>
-					<ChevronUp size={16} />
-				</button>
-				<button
-					className="toolbar-button"
-					onClick={refresh}
-					title="Refresh"
-					disabled={isLoading}
-				>
-					<RefreshCw size={16} className={isLoading ? 'spinning' : ''} />
-				</button>
-				<button
-					className="toolbar-button"
-					onClick={handleUpload}
-					title="Upload File"
-					disabled={isLoading}
-				>
-					<Upload size={16} />
-				</button>
-				<button
-					className="toolbar-button"
-					onClick={handleNewFolder}
-					title="New Folder"
-					disabled={isLoading}
-				>
-					<FolderPlus size={16} />
-				</button>
-
-				{/* Path Input */}
-				<form onSubmit={handlePathSubmit} className="path-form">
-					<input
-						type="text"
-						className="path-input"
-						value={pathInput}
-						onChange={(e) => setPathInput(e.target.value)}
-						disabled={isLoading}
-						placeholder="Enter path..."
-					/>
-				</form>
-			</div>
-
-			{/* Breadcrumbs */}
-			<div className="breadcrumbs">
-				{getBreadcrumbs().map((crumb, index) => (
-					<React.Fragment key={index}>
-						<span
-							className="breadcrumb"
-							onClick={() => handleBreadcrumbClick(index)}
-						>
-							{crumb}
-						</span>
-						{index < getBreadcrumbs().length - 1 && (
-							<span className="breadcrumb-separator">/</span>
-						)}
-					</React.Fragment>
-				))}
-			</div>
+			<Toolbar
+				currentPath={getActiveState().currentPath}
+				canGoBack={getActiveState().historyIndex > 0}
+				canGoForward={getActiveState().historyIndex < getActiveState().history.length - 1}
+				viewMode={viewMode}
+				layoutMode={layoutMode}
+				isLoading={getActiveState().isLoading}
+				searchQuery={getActiveState().searchQuery}
+				onNavigateHome={handleNavigateHome}
+				onNavigateUp={handleNavigateUp}
+				onNavigateBack={handleNavigateBack}
+				onNavigateForward={handleNavigateForward}
+				onRefresh={handleRefresh}
+				onUpload={handleUpload}
+				onNewFolder={handleNewFolder}
+				onNewFile={handleNewFile}
+				onOpenTerminal={handleOpenTerminal}
+				onViewModeChange={setViewMode}
+				onLayoutModeChange={handleLayoutModeChange}
+				onSearchChange={handleSearchChange}
+				onPathNavigate={navigateToPath}
+			/>
 
 			{/* Error Message */}
 			{error && (
@@ -299,60 +472,15 @@ export const FileManager: React.FC<FileManagerProps> = ({ hostId, initialPath = 
 				</div>
 			)}
 
-			{/* File List */}
-			<div className="file-list">
-				{files.length === 0 && !isLoading && !error && (
-					<div className="empty-state">
-						<p>No files in this directory</p>
-					</div>
+			{/* File Panels */}
+			<div className={`file-manager-panels ${layoutMode === 'commander' ? 'commander-mode' : ''}`}>
+				{renderPanel('left')}
+				{layoutMode === 'commander' && (
+					<>
+						<div className="panel-divider" />
+						{renderPanel('right')}
+					</>
 				)}
-
-				{files.map((file) => (
-					<div
-						key={file.path}
-						className={`file-item ${selectedFile === file.path ? 'selected' : ''}`}
-						onClick={() => setSelectedFile(file.path)}
-						onDoubleClick={() => handleFileDoubleClick(file)}
-					>
-						<div className="file-icon">
-							<FileIcon file={file} size={20} />
-						</div>
-						<div className="file-info">
-							<div className="file-name">{file.name}</div>
-							<div className="file-meta">
-								{file.type !== 'd' && (
-									<span className="file-size">{formatSize(file.size)}</span>
-								)}
-								<span className="file-date">{formatDate(file.modTime)}</span>
-								<span className="file-permissions">{file.permissions}</span>
-							</div>
-						</div>
-						<div className="file-actions">
-							{file.type !== 'd' && (
-								<button
-									className="action-button"
-									onClick={(e) => {
-										e.stopPropagation();
-										handleDownload(file);
-									}}
-									title="Download"
-								>
-									<Download size={14} />
-								</button>
-							)}
-							<button
-								className="action-button delete"
-								onClick={(e) => {
-									e.stopPropagation();
-									handleDelete(file);
-								}}
-								title="Delete"
-							>
-								<Trash2 size={14} />
-							</button>
-						</div>
-					</div>
-				))}
 			</div>
 
 			{/* Transfer Progress */}
@@ -372,14 +500,6 @@ export const FileManager: React.FC<FileManagerProps> = ({ hostId, initialPath = 
 						/>
 					</div>
 					<div className="transfer-percentage">{transfer.progress}%</div>
-				</div>
-			)}
-
-			{/* Loading Overlay */}
-			{isLoading && (
-				<div className="loading-overlay">
-					<div className="spinner" />
-					<p>Loading...</p>
 				</div>
 			)}
 		</div>

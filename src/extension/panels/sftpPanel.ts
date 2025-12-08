@@ -124,7 +124,7 @@ export class SftpPanel {
 	private async _handleMessage(message: Message): Promise<void> {
 		switch (message.command) {
 			case 'SFTP_LS': {
-				await this._listFiles(message.payload.path);
+				await this._listFiles(message.payload.path, message.payload.panelId);
 				break;
 			}
 
@@ -134,7 +134,7 @@ export class SftpPanel {
 			}
 
 			case 'SFTP_UPLOAD': {
-				await this._uploadFile(message.payload.remotePath);
+				await this._uploadFile(message.payload.remotePath, message.payload.localPath);
 				break;
 			}
 
@@ -145,6 +145,36 @@ export class SftpPanel {
 
 			case 'SFTP_MKDIR': {
 				await this._createDirectory(message.payload.path);
+				break;
+			}
+
+			case 'SFTP_RENAME': {
+				await this._renameFile(message.payload.oldPath, message.payload.newPath);
+				break;
+			}
+
+			case 'SFTP_STAT': {
+				await this._statFile(message.payload.path);
+				break;
+			}
+
+			case 'EDIT_FILE': {
+				await this._editFile(message.payload.remotePath);
+				break;
+			}
+
+			case 'COPY_PATH': {
+				await this._copyPath(message.payload.path);
+				break;
+			}
+
+			case 'FILE_PROPERTIES': {
+				await this._showFileProperties(message.payload.path);
+				break;
+			}
+
+			case 'DIFF_FILES': {
+				await this._diffFile(message.payload.remotePath, message.payload.localPath);
 				break;
 			}
 
@@ -170,7 +200,7 @@ export class SftpPanel {
 	/**
 	 * Lists files in a directory
 	 */
-	private async _listFiles(path: string): Promise<void> {
+	private async _listFiles(path: string, panelId?: 'left' | 'right'): Promise<void> {
 		try {
 			const files = await this._sftpService.listFiles(this._hostId, path);
 			this._currentPath = path;
@@ -179,7 +209,8 @@ export class SftpPanel {
 				command: 'SFTP_LS_RESPONSE',
 				payload: {
 					files,
-					currentPath: path
+					currentPath: path,
+					panelId
 				}
 			});
 		} catch (error) {
@@ -243,20 +274,25 @@ export class SftpPanel {
 	/**
 	 * Uploads a file from local to remote
 	 */
-	private async _uploadFile(remotePath: string): Promise<void> {
+	private async _uploadFile(remotePath: string, localPath?: string): Promise<void> {
 		try {
-			// Prompt user to select file
-			const uris = await vscode.window.showOpenDialog({
-				canSelectMany: false,
-				openLabel: 'Upload'
-			});
+			let sourceLocalPath = localPath;
 
-			if (!uris || uris.length === 0) {
-				return;
+			// If no local path provided, prompt user to select file
+			if (!sourceLocalPath) {
+				const uris = await vscode.window.showOpenDialog({
+					canSelectMany: false,
+					openLabel: 'Upload'
+				});
+
+				if (!uris || uris.length === 0) {
+					return;
+				}
+
+				sourceLocalPath = uris[0].fsPath;
 			}
 
-			const localPath = uris[0].fsPath;
-			const fileName = localPath.split(/[\\/]/).pop() || 'file';
+			const fileName = sourceLocalPath.split(/[\\/]/).pop() || 'file';
 			const targetPath = remotePath.endsWith('/')
 				? remotePath + fileName
 				: remotePath + '/' + fileName;
@@ -264,7 +300,7 @@ export class SftpPanel {
 			// Upload the file with progress
 			await this._sftpService.putFile(
 				this._hostId,
-				localPath,
+				sourceLocalPath,
 				targetPath,
 				(progress, speed) => {
 					this._panel.webview.postMessage({
@@ -351,6 +387,171 @@ export class SftpPanel {
 					message: `Failed to create directory: ${error}`
 				}
 			});
+		}
+	}
+
+	/**
+	 * Renames a file or directory
+	 */
+	private async _renameFile(oldPath: string, newPath: string): Promise<void> {
+		try {
+			let targetPath = newPath;
+
+			// If newPath is empty, prompt for new name
+			if (!targetPath) {
+				const oldName = oldPath.split('/').pop() || '';
+				const newName = await vscode.window.showInputBox({
+					prompt: 'Enter new name',
+					value: oldName,
+					placeHolder: oldName
+				});
+
+				if (!newName || newName === oldName) {
+					return;
+				}
+
+				const parentPath = oldPath.split('/').slice(0, -1).join('/');
+				targetPath = parentPath ? `${parentPath}/${newName}` : newName;
+			}
+
+			await this._sftpService.rename(this._hostId, oldPath, targetPath);
+			vscode.window.showInformationMessage(`Renamed successfully`);
+
+			// Refresh directory listing
+			await this._listFiles(this._currentPath);
+		} catch (error) {
+			this._panel.webview.postMessage({
+				command: 'SFTP_ERROR',
+				payload: {
+					message: `Rename failed: ${error}`
+				}
+			});
+		}
+	}
+
+	/**
+	 * Gets file stats
+	 */
+	private async _statFile(path: string): Promise<void> {
+		try {
+			const fileInfo = await this._sftpService.stat(this._hostId, path);
+			this._panel.webview.postMessage({
+				command: 'SFTP_STAT_RESPONSE',
+				payload: {
+					file: fileInfo
+				}
+			});
+		} catch (error) {
+			this._panel.webview.postMessage({
+				command: 'SFTP_ERROR',
+				payload: {
+					message: `Stat failed: ${error}`
+				}
+			});
+		}
+	}
+
+	/**
+	 * Opens a remote file for editing (Edit-on-Fly)
+	 * This will be handled by EditHandler which is injected via dependency
+	 */
+	private async _editFile(remotePath: string): Promise<void> {
+		try {
+			// Trigger the Edit-on-Fly workflow
+			// The actual implementation is in the main.ts which has access to EditHandler
+			vscode.commands.executeCommand('labonair.editRemoteFile', this._hostId, remotePath);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to open file for editing: ${error}`);
+		}
+	}
+
+	/**
+	 * Copies a file path to clipboard
+	 */
+	private async _copyPath(path: string): Promise<void> {
+		try {
+			await vscode.env.clipboard.writeText(path);
+			vscode.window.showInformationMessage(`Path copied: ${path}`);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to copy path: ${error}`);
+		}
+	}
+
+	/**
+	 * Shows file properties in a dialog
+	 */
+	private async _showFileProperties(path: string): Promise<void> {
+		try {
+			const fileInfo = await this._sftpService.stat(this._hostId, path);
+
+			const formatSize = (bytes: number): string => {
+				if (bytes < 1024) return `${bytes} B`;
+				if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+				return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+			};
+
+			const message = [
+				`Name: ${fileInfo.name}`,
+				`Path: ${fileInfo.path}`,
+				`Type: ${fileInfo.type === 'd' ? 'Directory' : fileInfo.type === 'l' ? 'Symlink' : 'File'}`,
+				fileInfo.type !== 'd' ? `Size: ${formatSize(fileInfo.size)}` : null,
+				`Permissions: ${fileInfo.permissions}`,
+				`Owner: ${fileInfo.owner || 'unknown'}`,
+				`Group: ${fileInfo.group || 'unknown'}`,
+				`Modified: ${fileInfo.modTime.toLocaleString()}`,
+				fileInfo.symlinkTarget ? `Target: ${fileInfo.symlinkTarget}` : null
+			].filter(Boolean).join('\n');
+
+			vscode.window.showInformationMessage(message, { modal: true });
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to get file properties: ${error}`);
+		}
+	}
+
+	/**
+	 * Compares a remote file with a local file
+	 */
+	private async _diffFile(remotePath: string, localPath?: string): Promise<void> {
+		try {
+			const fileName = remotePath.split('/').pop() || 'file';
+
+			// Download remote file to temp location
+			const tempDir = require('os').tmpdir();
+			const tempPath = require('path').join(tempDir, `remote_${fileName}`);
+
+			await this._sftpService.getFile(this._hostId, remotePath, tempPath);
+
+			let compareWithPath = localPath;
+
+			// If no local path provided, prompt user
+			if (!compareWithPath) {
+				const uris = await vscode.window.showOpenDialog({
+					canSelectMany: false,
+					openLabel: 'Compare with',
+					title: 'Select local file to compare'
+				});
+
+				if (!uris || uris.length === 0) {
+					// Clean up temp file
+					require('fs').unlinkSync(tempPath);
+					return;
+				}
+
+				compareWithPath = uris[0].fsPath;
+			}
+
+			// Open diff view
+			const remoteUri = vscode.Uri.file(tempPath);
+			const localUri = vscode.Uri.file(compareWithPath);
+
+			await vscode.commands.executeCommand(
+				'vscode.diff',
+				localUri,
+				remoteUri,
+				`Local ↔ Remote: ${fileName}`
+			);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Diff failed: ${error}`);
 		}
 	}
 

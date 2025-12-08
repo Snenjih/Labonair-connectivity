@@ -43,6 +43,8 @@ export interface Host {
 	fileManagerLayout?: 'explorer' | 'commander';
 	fileManagerDefaultView?: 'grid' | 'list';
 	fileManagerLocalPath?: string;
+	// Sudo Save Mode: 'credential' uses host password, 'prompt' asks each time, 'cache' caches for session
+	sudoSaveMode?: 'credential' | 'prompt' | 'cache';
 }
 
 
@@ -75,6 +77,9 @@ export interface FileEntry {
 	type: 'd' | '-' | 'l';  // directory, file, or symlink
 	modTime: Date;
 	permissions: string;
+	owner?: string;         // Owner username
+	group?: string;         // Group name
+	symlinkTarget?: string; // Target path if type is 'l'
 }
 
 export interface TransferStatus {
@@ -178,14 +183,34 @@ export type Message =
 	| { command: 'AVAILABLE_SHELLS'; payload: { shells: string[] } }
 
 	// SFTP File Manager
-	| { command: 'SFTP_LS'; payload: { hostId: string; path: string } }
-	| { command: 'SFTP_LS_RESPONSE'; payload: { files: FileEntry[]; currentPath: string } }
+	| { command: 'SFTP_LS'; payload: { hostId: string; path: string; panelId?: 'left' | 'right' } }
+	| { command: 'SFTP_LS_RESPONSE'; payload: { files: FileEntry[]; currentPath: string; panelId?: 'left' | 'right' } }
 	| { command: 'SFTP_UPLOAD'; payload: { hostId: string; remotePath: string; localPath?: string } }
 	| { command: 'SFTP_DOWNLOAD'; payload: { hostId: string; remotePath: string; localPath?: string } }
 	| { command: 'SFTP_RM'; payload: { hostId: string; path: string } }
 	| { command: 'SFTP_MKDIR'; payload: { hostId: string; path: string } }
+	| { command: 'SFTP_RENAME'; payload: { hostId: string; oldPath: string; newPath: string } }
+	| { command: 'SFTP_STAT'; payload: { hostId: string; path: string } }
+	| { command: 'SFTP_STAT_RESPONSE'; payload: { file: FileEntry } }
 	| { command: 'SFTP_TRANSFER_PROGRESS'; payload: TransferStatus }
 	| { command: 'SFTP_ERROR'; payload: { message: string } }
+	| { command: 'NAVIGATE'; payload: { path: string; panelId?: 'left' | 'right' } }
+
+	// Edit-on-Fly
+	| { command: 'EDIT_FILE'; payload: { hostId: string; remotePath: string } }
+	| { command: 'FILE_OPENED'; payload: { localUri: string; remotePath: string } }
+	| { command: 'FILE_SAVED'; payload: { localUri: string; remotePath: string; success: boolean; error?: string } }
+	| { command: 'UPLOAD_PROGRESS'; payload: { remotePath: string; progress: number } }
+	| { command: 'SUDO_SAVE_REQUIRED'; payload: { remotePath: string; error: string } }
+	| { command: 'SUDO_SAVE_CONFIRM'; payload: { remotePath: string; password?: string } }
+
+	// File Operations
+	| { command: 'COPY_PATH'; payload: { path: string } }
+	| { command: 'FILE_PROPERTIES'; payload: { hostId: string; path: string } }
+	| { command: 'DIFF_FILES'; payload: { hostId: string; remotePath: string; localPath?: string } }
+	| { command: 'SFTP_NEW_FILE'; payload: { hostId: string; path: string } }
+	| { command: 'SFTP_MOVE'; payload: { hostId: string; sourcePaths: string[]; targetPath: string; sourcePanel?: 'left' | 'right' } }
+	| { command: 'OPEN_TERMINAL'; payload: { hostId: string; path: string } }
 
 	// SSH Terminal
 	| { command: 'TERM_DATA'; payload: { data: string } }

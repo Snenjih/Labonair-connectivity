@@ -12,6 +12,7 @@ import { StatusService } from './statusService';
 import { registerCommands } from './commands';
 import { SshConnectionService } from './services/sshConnectionService';
 import { SftpService } from './services/sftpService';
+import { EditHandler } from './services/editHandler';
 import { SftpPanel } from './panels/sftpPanel';
 import { TerminalPanel } from './panels/TerminalPanel';
 import { Message, Host, HostStatus } from '../common/types';
@@ -19,6 +20,7 @@ import { Message, Host, HostStatus } from '../common/types';
 // Store service instances for cleanup
 let sshConnectionServiceInstance: SshConnectionService | undefined;
 let sftpServiceInstance: SftpService | undefined;
+let editHandlerInstance: EditHandler | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 	const hostService = new HostService(context);
@@ -31,13 +33,28 @@ export function activate(context: vscode.ExtensionContext) {
 	const shellService = new ShellService();
 	const sshConnectionService = new SshConnectionService(hostService, credentialService);
 	const sftpService = new SftpService(hostService, credentialService);
+	const editHandler = new EditHandler(sftpService, hostService, credentialService, context);
 
 	// Store for cleanup
 	sshConnectionServiceInstance = sshConnectionService;
 	sftpServiceInstance = sftpService;
+	editHandlerInstance = editHandler;
 
 	// Register Commands
 	registerCommands(context, hostService, sftpService);
+
+	// Register Edit-on-Fly command
+	const editRemoteFileCommand = vscode.commands.registerCommand(
+		'labonair.editRemoteFile',
+		async (hostId: string, remotePath: string) => {
+			try {
+				await editHandler.openRemoteFile(hostId, remotePath);
+			} catch (error) {
+				vscode.window.showErrorMessage(`Failed to open remote file: ${error}`);
+			}
+		}
+	);
+	context.subscriptions.push(editRemoteFileCommand);
 
 	// Register the Webview View Provider
 	try {
@@ -555,6 +572,12 @@ export function deactivate() {
 	if (sftpServiceInstance) {
 		sftpServiceInstance.dispose();
 		sftpServiceInstance = undefined;
+	}
+
+	// Clean up Edit Handler (removes temp files and clears caches)
+	if (editHandlerInstance) {
+		editHandlerInstance.dispose();
+		editHandlerInstance = undefined;
 	}
 }
 

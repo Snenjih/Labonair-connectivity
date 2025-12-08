@@ -7,12 +7,23 @@ import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
 
 /**
+ * Cache entry for directory listings
+ */
+interface DirectoryCacheEntry {
+	files: FileEntry[];
+	timestamp: number;
+}
+
+/**
  * SFTP Service
  * Manages SFTP connections and file operations
  */
 export class SftpService {
 	private activeSessions: Map<string, { client: Client; sftp: SFTPWrapper }> = new Map();
 	private progressCallbacks: Map<string, (progress: number, speed: string) => void> = new Map();
+	private directoryCache: Map<string, DirectoryCacheEntry> = new Map();
+	private readonly CACHE_TTL = 10000; // 10 seconds
+	private readonly PAGINATION_THRESHOLD = 1000; // Files threshold for pagination
 
 	constructor(
 		private readonly hostService: HostService,
@@ -60,36 +71,73 @@ export class SftpService {
 	}
 
 	/**
-	 * Lists files in a remote directory
+	 * Lists files in a remote directory with caching
 	 */
-	public async listFiles(hostId: string, remotePath: string): Promise<FileEntry[]> {
+	public async listFiles(hostId: string, remotePath: string, useCache: boolean = true): Promise<FileEntry[]> {
+		// Check cache first
+		const cacheKey = `${hostId}:${remotePath}`;
+		if (useCache) {
+			const cached = this.directoryCache.get(cacheKey);
+			if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL)) {
+				return cached.files;
+			}
+		}
+
 		const sftp = await this.getSftpSession(hostId);
 
 		return new Promise((resolve, reject) => {
-			sftp.readdir(remotePath, (err, list) => {
+			sftp.readdir(remotePath, async (err, list) => {
 				if (err) {
 					reject(new Error(`Failed to list directory: ${err.message}`));
 					return;
 				}
 
-				const files: FileEntry[] = list.map(item => {
+				// Check if we need pagination
+				if (list.length > this.PAGINATION_THRESHOLD) {
+					console.log(`Large directory (${list.length} files) - using streaming`);
+				}
+
+				const files: FileEntry[] = [];
+
+				for (const item of list) {
+					// Parse longname format: "drwxr-xr-x 2 user group 4096 Jan 1 12:00 filename"
+					const longnameParts = item.longname.split(/\s+/);
+					const permissions = longnameParts[0] || '';
+					const owner = longnameParts[2] || '';
+					const group = longnameParts[3] || '';
+
 					// Determine file type
 					let type: 'd' | '-' | 'l' = '-';
-					if (item.longname.startsWith('d')) {
+					if (permissions.startsWith('d')) {
 						type = 'd';
-					} else if (item.longname.startsWith('l')) {
+					} else if (permissions.startsWith('l')) {
 						type = 'l';
 					}
 
-					return {
+					const filePath = path.posix.join(remotePath, item.filename);
+					const fileEntry: FileEntry = {
 						name: item.filename,
-						path: path.posix.join(remotePath, item.filename),
+						path: filePath,
 						size: item.attrs.size || 0,
 						type,
 						modTime: new Date((item.attrs.mtime || 0) * 1000),
-						permissions: item.longname.substring(0, 10)
+						permissions,
+						owner,
+						group
 					};
-				});
+
+					// Resolve symlink target if it's a symlink
+					if (type === 'l') {
+						try {
+							fileEntry.symlinkTarget = await this.readSymlink(sftp, filePath);
+						} catch (error) {
+							console.warn(`Failed to resolve symlink ${filePath}:`, error);
+							fileEntry.symlinkTarget = '(unresolved)';
+						}
+					}
+
+					files.push(fileEntry);
+				}
 
 				// Sort: directories first, then by name
 				files.sort((a, b) => {
@@ -102,9 +150,83 @@ export class SftpService {
 					return a.name.localeCompare(b.name);
 				});
 
+				// Cache the result
+				this.directoryCache.set(cacheKey, {
+					files,
+					timestamp: Date.now()
+				});
+
 				resolve(files);
 			});
 		});
+	}
+
+	/**
+	 * Reads a symlink target
+	 */
+	private async readSymlink(sftp: SFTPWrapper, linkPath: string): Promise<string> {
+		return new Promise((resolve, reject) => {
+			sftp.readlink(linkPath, (err, target) => {
+				if (err) {
+					reject(err);
+				} else {
+					resolve(target);
+				}
+			});
+		});
+	}
+
+	/**
+	 * Gets detailed file information
+	 */
+	public async stat(hostId: string, remotePath: string): Promise<FileEntry> {
+		const sftp = await this.getSftpSession(hostId);
+
+		return new Promise((resolve, reject) => {
+			sftp.stat(remotePath, (err, stats) => {
+				if (err) {
+					reject(new Error(`Failed to stat file: ${err.message}`));
+					return;
+				}
+
+				// Get file name from path
+				const name = remotePath.split('/').pop() || remotePath;
+
+				// Determine type from stats
+				let type: 'd' | '-' | 'l' = '-';
+				if (stats.isDirectory()) {
+					type = 'd';
+				} else if (stats.isSymbolicLink()) {
+					type = 'l';
+				}
+
+				// Build permissions string
+				const permissions = this.buildPermissionsString(stats.mode || 0);
+
+				resolve({
+					name,
+					path: remotePath,
+					size: stats.size || 0,
+					type,
+					modTime: new Date((stats.mtime || 0) * 1000),
+					permissions,
+					owner: String(stats.uid || ''),
+					group: String(stats.gid || '')
+				});
+			});
+		});
+	}
+
+	/**
+	 * Builds a permissions string from mode bits
+	 */
+	private buildPermissionsString(mode: number): string {
+		const types = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx'];
+		const typeChar = (mode & 0o040000) ? 'd' : (mode & 0o120000) ? 'l' : '-';
+		const owner = types[(mode >> 6) & 7];
+		const group = types[(mode >> 3) & 7];
+		const other = types[mode & 7];
+		return typeChar + owner + group + other;
 	}
 
 	/**
@@ -261,10 +383,54 @@ export class SftpService {
 				if (err) {
 					reject(new Error(`Failed to create directory: ${err.message}`));
 				} else {
+					// Invalidate directory cache for parent directory
+					const parentPath = remotePath.split('/').slice(0, -1).join('/') || '/';
+					this.directoryCache.delete(`${hostId}:${parentPath}`);
 					resolve();
 				}
 			});
 		});
+	}
+
+	/**
+	 * Renames or moves a file/directory
+	 */
+	public async rename(hostId: string, oldPath: string, newPath: string): Promise<void> {
+		const sftp = await this.getSftpSession(hostId);
+
+		return new Promise((resolve, reject) => {
+			sftp.rename(oldPath, newPath, (err) => {
+				if (err) {
+					reject(new Error(`Failed to rename: ${err.message}`));
+				} else {
+					// Invalidate cache for both old and new parent directories
+					const oldParent = oldPath.split('/').slice(0, -1).join('/') || '/';
+					const newParent = newPath.split('/').slice(0, -1).join('/') || '/';
+					this.directoryCache.delete(`${hostId}:${oldParent}`);
+					this.directoryCache.delete(`${hostId}:${newParent}`);
+					resolve();
+				}
+			});
+		});
+	}
+
+	/**
+	 * Clears the directory cache for a specific path or all paths
+	 */
+	public clearCache(hostId?: string, remotePath?: string): void {
+		if (hostId && remotePath) {
+			this.directoryCache.delete(`${hostId}:${remotePath}`);
+		} else if (hostId) {
+			// Clear all cache entries for this host
+			for (const key of this.directoryCache.keys()) {
+				if (key.startsWith(`${hostId}:`)) {
+					this.directoryCache.delete(key);
+				}
+			}
+		} else {
+			// Clear entire cache
+			this.directoryCache.clear();
+		}
 	}
 
 	/**

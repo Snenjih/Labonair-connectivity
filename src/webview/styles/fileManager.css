@@ -1,0 +1,603 @@
+/* ============================================================================
+   FILE MANAGER STYLES
+   Uses VS Code native CSS variables for theme compatibility
+   ============================================================================ */
+
+/* Main Container */
+.file-manager {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	background: var(--vscode-editor-background);
+	color: var(--vscode-foreground);
+	overflow: hidden;
+}
+
+/* ============================================================================
+   TOOLBAR STYLES
+   ============================================================================ */
+
+.file-manager-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	background: var(--vscode-sideBar-background);
+	border-bottom: 1px solid var(--vscode-panel-border);
+	flex-shrink: 0;
+}
+
+.toolbar-section {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.toolbar-nav {
+	flex-shrink: 0;
+}
+
+.toolbar-path {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.toolbar-actions {
+	flex-shrink: 0;
+}
+
+.toolbar-view {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.toolbar-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	color: var(--vscode-foreground);
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+	background: var(--vscode-toolbar-hoverBackground);
+}
+
+.toolbar-btn:active:not(:disabled) {
+	background: var(--vscode-list-activeSelectionBackground);
+}
+
+.toolbar-btn:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.toolbar-btn.active {
+	background: var(--vscode-list-activeSelectionBackground);
+	color: var(--vscode-list-activeSelectionForeground);
+}
+
+.toolbar-btn svg.spinning {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* Breadcrumbs */
+.breadcrumbs {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: 1;
+	min-width: 0;
+	overflow-x: auto;
+	padding: 4px 8px;
+	background: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 4px;
+}
+
+.breadcrumbs::-webkit-scrollbar {
+	height: 4px;
+}
+
+.breadcrumb {
+	padding: 2px 6px;
+	background: transparent;
+	border: none;
+	border-radius: 3px;
+	color: var(--vscode-foreground);
+	cursor: pointer;
+	font-size: 12px;
+	white-space: nowrap;
+	transition: background-color 0.15s ease;
+}
+
+.breadcrumb:hover:not(:disabled) {
+	background: var(--vscode-list-hoverBackground);
+}
+
+.breadcrumb:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.breadcrumb-separator {
+	color: var(--vscode-descriptionForeground);
+	font-size: 12px;
+	user-select: none;
+}
+
+/* Path Input */
+.path-input-form {
+	display: flex;
+	flex: 2;
+	min-width: 200px;
+}
+
+.path-input {
+	flex: 1;
+	padding: 4px 8px;
+	background: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 4px;
+	color: var(--vscode-input-foreground);
+	font-size: 12px;
+	font-family: var(--vscode-font-family);
+}
+
+.path-input:focus {
+	outline: none;
+	border-color: var(--vscode-focusBorder);
+}
+
+.path-input::placeholder {
+	color: var(--vscode-input-placeholderForeground);
+}
+
+/* Search Input */
+.search-input {
+	padding: 4px 8px;
+	background: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 4px;
+	color: var(--vscode-input-foreground);
+	font-size: 12px;
+	min-width: 120px;
+	font-family: var(--vscode-font-family);
+}
+
+.search-input:focus {
+	outline: none;
+	border-color: var(--vscode-focusBorder);
+}
+
+/* View Toggle */
+.view-toggle {
+	display: flex;
+	gap: 0;
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.view-toggle .toolbar-btn {
+	border-radius: 0;
+	border-right: 1px solid var(--vscode-panel-border);
+}
+
+.view-toggle .toolbar-btn:last-child {
+	border-right: none;
+}
+
+/* ============================================================================
+   SPLIT PANE LAYOUT (Commander Mode)
+   ============================================================================ */
+
+.file-manager-panels {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 0;
+	flex: 1;
+	overflow: hidden;
+}
+
+.file-manager-panels.commander-mode {
+	grid-template-columns: 1fr 1px 1fr;
+}
+
+.panel-divider {
+	background: var(--vscode-panel-border);
+	cursor: col-resize;
+}
+
+.file-manager-panel {
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	background: var(--vscode-editor-background);
+}
+
+.file-manager-panel.active {
+	background: var(--vscode-editor-background);
+}
+
+.file-manager-panel.inactive {
+	opacity: 0.7;
+}
+
+/* ============================================================================
+   FILE LIST - LIST VIEW
+   ============================================================================ */
+
+.file-list-container {
+	flex: 1;
+	overflow: auto;
+	position: relative;
+	outline: none;
+}
+
+.file-list-container.drag-over {
+	background: var(--vscode-list-dropBackground);
+	outline: 2px dashed var(--vscode-focusBorder);
+	outline-offset: -2px;
+}
+
+.file-list-table {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+}
+
+.file-list-header {
+	display: grid;
+	grid-template-columns: 2fr 100px 150px 120px 100px;
+	gap: 8px;
+	padding: 8px 12px;
+	background: var(--vscode-sideBar-background);
+	border-bottom: 1px solid var(--vscode-panel-border);
+	font-size: 11px;
+	font-weight: 600;
+	color: var(--vscode-descriptionForeground);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	position: sticky;
+	top: 0;
+	z-index: 1;
+}
+
+.file-list-body {
+	display: flex;
+	flex-direction: column;
+}
+
+.file-list-row {
+	display: grid;
+	grid-template-columns: 2fr 100px 150px 120px 100px;
+	gap: 8px;
+	padding: 6px 12px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	cursor: pointer;
+	transition: background-color 0.1s ease;
+	outline: none;
+}
+
+.file-list-row:nth-child(even) {
+	background: var(--vscode-keybindingTable-rowsBackground);
+}
+
+.file-list-row:hover {
+	background: var(--vscode-list-hoverBackground);
+}
+
+.file-list-row.selected {
+	background: var(--vscode-list-activeSelectionBackground);
+	color: var(--vscode-list-activeSelectionForeground);
+}
+
+.file-list-row.focused {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+
+.col-name {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	overflow: hidden;
+}
+
+.file-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.symlink-target {
+	color: var(--vscode-descriptionForeground);
+	font-style: italic;
+	font-size: 11px;
+}
+
+.col-size,
+.col-modified,
+.col-permissions,
+.col-owner {
+	display: flex;
+	align-items: center;
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+}
+
+/* ============================================================================
+   FILE LIST - GRID VIEW
+   ============================================================================ */
+
+.file-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+	gap: 16px;
+	padding: 16px;
+}
+
+.file-grid-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 12px 8px;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background-color 0.1s ease;
+	outline: none;
+	text-align: center;
+}
+
+.file-grid-item:hover {
+	background: var(--vscode-list-hoverBackground);
+}
+
+.file-grid-item.selected {
+	background: var(--vscode-list-activeSelectionBackground);
+	color: var(--vscode-list-activeSelectionForeground);
+}
+
+.file-grid-item.focused {
+	outline: 1px solid var(--vscode-focusBorder);
+	outline-offset: -1px;
+}
+
+.file-grid-icon {
+	margin-bottom: 8px;
+}
+
+.file-grid-name {
+	font-size: 12px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 100%;
+	margin-bottom: 4px;
+}
+
+.file-grid-size {
+	font-size: 10px;
+	color: var(--vscode-descriptionForeground);
+}
+
+/* ============================================================================
+   CONTEXT MENU
+   ============================================================================ */
+
+.context-menu {
+	position: fixed;
+	z-index: 1000;
+	background: var(--vscode-menu-background);
+	border: 1px solid var(--vscode-menu-border);
+	border-radius: 6px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	padding: 4px;
+	min-width: 180px;
+}
+
+.context-menu-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	padding: 6px 12px;
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	color: var(--vscode-menu-foreground);
+	cursor: pointer;
+	font-size: 13px;
+	text-align: left;
+	transition: background-color 0.1s ease;
+}
+
+.context-menu-item:hover:not(:disabled) {
+	background: var(--vscode-menu-selectionBackground);
+	color: var(--vscode-menu-selectionForeground);
+}
+
+.context-menu-item:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.context-menu-item.danger {
+	color: var(--vscode-errorForeground);
+}
+
+.context-menu-separator {
+	height: 1px;
+	background: var(--vscode-menu-separatorBackground);
+	margin: 4px 0;
+}
+
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================ */
+
+.empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	color: var(--vscode-descriptionForeground);
+	font-size: 14px;
+	padding: 32px;
+	text-align: center;
+}
+
+/* ============================================================================
+   LOADING & ERROR STATES
+   ============================================================================ */
+
+.loading-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.3);
+	z-index: 100;
+}
+
+.spinner {
+	width: 32px;
+	height: 32px;
+	border: 3px solid var(--vscode-panel-border);
+	border-top-color: var(--vscode-focusBorder);
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+}
+
+.error-message {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	background: var(--vscode-inputValidation-errorBackground);
+	border: 1px solid var(--vscode-inputValidation-errorBorder);
+	border-radius: 4px;
+	color: var(--vscode-errorForeground);
+	font-size: 12px;
+	margin: 8px 12px;
+}
+
+.error-icon {
+	flex-shrink: 0;
+}
+
+/* ============================================================================
+   TRANSFER PROGRESS
+   ============================================================================ */
+
+.transfer-status {
+	position: fixed;
+	bottom: 16px;
+	right: 16px;
+	background: var(--vscode-notifications-background);
+	border: 1px solid var(--vscode-notifications-border);
+	border-radius: 6px;
+	padding: 12px 16px;
+	min-width: 300px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	z-index: 1000;
+}
+
+.transfer-info {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+	font-size: 12px;
+}
+
+.transfer-type {
+	font-size: 16px;
+}
+
+.transfer-filename {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.transfer-speed {
+	color: var(--vscode-descriptionForeground);
+	font-size: 11px;
+}
+
+.progress-bar {
+	height: 4px;
+	background: var(--vscode-panel-border);
+	border-radius: 2px;
+	overflow: hidden;
+	margin-bottom: 4px;
+}
+
+.progress-fill {
+	height: 100%;
+	background: var(--vscode-progressBar-background);
+	transition: width 0.3s ease;
+}
+
+.transfer-percentage {
+	text-align: right;
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+}
+
+/* ============================================================================
+   SCROLLBAR CUSTOMIZATION
+   ============================================================================ */
+
+.file-list-container::-webkit-scrollbar,
+.breadcrumbs::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+.file-list-container::-webkit-scrollbar-track,
+.breadcrumbs::-webkit-scrollbar-track {
+	background: var(--vscode-scrollbarSlider-background);
+}
+
+.file-list-container::-webkit-scrollbar-thumb,
+.breadcrumbs::-webkit-scrollbar-thumb {
+	background: var(--vscode-scrollbarSlider-hoverBackground);
+	border-radius: 5px;
+}
+
+.file-list-container::-webkit-scrollbar-thumb:hover,
+.breadcrumbs::-webkit-scrollbar-thumb:hover {
+	background: var(--vscode-scrollbarSlider-activeBackground);
+}
