@@ -3,50 +3,50 @@
    Replicates the dark theme from Terminus Host Manager
    ============================================================================= */
 
-/* CSS Variables - Terminus Dark Theme */
+/* CSS Variables - Mapped to VS Code Theme Variables */
 :root {
-    /* Base Colors */
-    --terminus-bg: #18181b;
-    --terminus-bg-darker: #0e0e10;
-    --terminus-bg-darkest: #09090b;
-    --terminus-bg-input: #222225;
-    --terminus-bg-button: #23232a;
-    --terminus-bg-active: #1d1d1f;
-    --terminus-bg-header: #131316;
-    --terminus-bg-panel: #1b1b1e;
-    --terminus-bg-panel-hover: #232327;
+    /* Base Colors - mapped to VS Code editor/sidebar colors */
+    --terminus-bg: var(--vscode-editor-background);
+    --terminus-bg-darker: var(--vscode-sideBar-background);
+    --terminus-bg-darkest: var(--vscode-titleBar-activeBackground);
+    --terminus-bg-input: var(--vscode-input-background);
+    --terminus-bg-button: var(--vscode-button-secondaryBackground);
+    --terminus-bg-active: var(--vscode-list-activeSelectionBackground);
+    --terminus-bg-header: var(--vscode-sideBarSectionHeader-background);
+    --terminus-bg-panel: var(--vscode-panel-background);
+    --terminus-bg-panel-hover: var(--vscode-list-hoverBackground);
 
-    /* Border Colors */
-    --terminus-border: #303032;
-    --terminus-border-active: #2d2d30;
-    --terminus-border-hover: #434345;
-    --terminus-border-light: #5a5a5d;
-    --terminus-border-medium: #373739;
-    --terminus-border-panel: #222224;
+    /* Border Colors - mapped to VS Code border colors */
+    --terminus-border: var(--vscode-panel-border);
+    --terminus-border-active: var(--vscode-focusBorder);
+    --terminus-border-hover: var(--vscode-contrastBorder, var(--vscode-panel-border));
+    --terminus-border-light: var(--vscode-widget-border, var(--vscode-panel-border));
+    --terminus-border-medium: var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border));
+    --terminus-border-panel: var(--vscode-panelSection-border, var(--vscode-panel-border));
 
-    /* Interaction States */
-    --terminus-hover: #2d2d30;
-    --terminus-hover-alt: #2a2a2d;
-    --terminus-active: #2a2a2c;
-    --terminus-pressed: #1a1a1c;
+    /* Interaction States - mapped to VS Code list/hover states */
+    --terminus-hover: var(--vscode-list-hoverBackground);
+    --terminus-hover-alt: var(--vscode-list-inactiveSelectionBackground);
+    --terminus-active: var(--vscode-list-activeSelectionBackground);
+    --terminus-pressed: var(--vscode-list-focusBackground);
 
-    /* Accent Colors */
-    --terminus-accent: #3b82f6;
-    --terminus-accent-hover: #2563eb;
-    --terminus-accent-light: #60a5fa;
+    /* Accent Colors - mapped to VS Code accent/button colors */
+    --terminus-accent: var(--vscode-focusBorder);
+    --terminus-accent-hover: var(--vscode-button-hoverBackground);
+    --terminus-accent-light: var(--vscode-textLink-foreground);
 
-    /* Status Colors */
-    --terminus-success: #22c55e;
-    --terminus-warning: #f59e0b;
-    --terminus-error: #ef4444;
-    --terminus-muted: #71717a;
+    /* Status Colors - mapped to VS Code notification/status colors */
+    --terminus-success: var(--vscode-testing-iconPassed, #22c55e);
+    --terminus-warning: var(--vscode-editorWarning-foreground, #f59e0b);
+    --terminus-error: var(--vscode-errorForeground);
+    --terminus-muted: var(--vscode-disabledForeground);
 
-    /* Text Colors */
-    --terminus-text: #fafafa;
-    --terminus-text-muted: #a1a1aa;
-    --terminus-text-subtle: #71717a;
+    /* Text Colors - mapped to VS Code foreground colors */
+    --terminus-text: var(--vscode-foreground);
+    --terminus-text-muted: var(--vscode-descriptionForeground);
+    --terminus-text-subtle: var(--vscode-disabledForeground);
 
-    /* Radius */
+    /* Radius - keep as fixed values for consistent UI */
     --terminus-radius-sm: 4px;
     --terminus-radius-md: 6px;
     --terminus-radius-lg: 8px;
