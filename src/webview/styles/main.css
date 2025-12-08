@@ -1565,3 +1565,356 @@
 .tabs {
     transition: all 0.2s ease;
 }
+
+/* =============================================================================
+   SFTP FILE MANAGER
+   ============================================================================= */
+
+.file-manager {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: var(--terminus-bg);
+    color: var(--terminus-text);
+    overflow: hidden;
+}
+
+/* Toolbar */
+.file-manager-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    background-color: var(--terminus-bg-header);
+    border-bottom: 1px solid var(--terminus-border-panel);
+    flex-shrink: 0;
+}
+
+.toolbar-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--terminus-radius-sm);
+    color: var(--terminus-text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.toolbar-button:hover:not(:disabled) {
+    background-color: var(--terminus-hover);
+    border-color: var(--terminus-border-hover);
+}
+
+.toolbar-button:active:not(:disabled) {
+    background-color: var(--terminus-pressed);
+}
+
+.toolbar-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.toolbar-button .spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Path Form */
+.path-form {
+    flex: 1;
+    margin-left: 8px;
+}
+
+.path-input {
+    width: 100%;
+    padding: 6px 10px;
+    background-color: var(--terminus-bg-input);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-sm);
+    color: var(--terminus-text);
+    font-size: 13px;
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.path-input:focus {
+    outline: none;
+    border-color: var(--terminus-border-active);
+}
+
+.path-input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Breadcrumbs */
+.breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background-color: var(--terminus-bg-darker);
+    border-bottom: 1px solid var(--terminus-border);
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--terminus-text-muted);
+    flex-shrink: 0;
+}
+
+.breadcrumb {
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: var(--terminus-radius-sm);
+    transition: all 0.15s ease;
+}
+
+.breadcrumb:hover {
+    background-color: var(--terminus-hover);
+    color: var(--terminus-text);
+}
+
+.breadcrumb-separator {
+    color: var(--terminus-text-subtle);
+}
+
+/* Error Message */
+.error-message {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    margin: 8px;
+    background-color: var(--terminus-bg-panel);
+    border: 1px solid var(--terminus-error);
+    border-radius: var(--terminus-radius-md);
+    color: var(--terminus-error);
+    font-size: 13px;
+}
+
+.error-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+/* File List */
+.file-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.file-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border: 1px solid transparent;
+    border-radius: var(--terminus-radius-sm);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 2px;
+}
+
+.file-item:hover {
+    background-color: var(--terminus-hover);
+    border-color: var(--terminus-border-hover);
+}
+
+.file-item.selected {
+    background-color: var(--terminus-active);
+    border-color: var(--terminus-border-active);
+}
+
+.file-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--terminus-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 2px;
+    font-size: 11px;
+    color: var(--terminus-text-muted);
+}
+
+.file-size,
+.file-date,
+.file-permissions {
+    white-space: nowrap;
+}
+
+.file-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.file-item:hover .file-actions {
+    opacity: 1;
+}
+
+.action-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 4px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--terminus-radius-sm);
+    color: var(--terminus-text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.action-button:hover {
+    background-color: var(--terminus-bg-panel);
+    border-color: var(--terminus-border);
+    color: var(--terminus-text);
+}
+
+.action-button.delete:hover {
+    background-color: var(--terminus-error);
+    border-color: var(--terminus-error);
+    color: white;
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--terminus-text-muted);
+    font-size: 14px;
+}
+
+/* Transfer Status */
+.transfer-status {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px;
+    background-color: var(--terminus-bg-header);
+    border-top: 1px solid var(--terminus-border-panel);
+    z-index: 100;
+}
+
+.transfer-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+}
+
+.transfer-type {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background-color: var(--terminus-accent);
+    border-radius: 50%;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.transfer-filename {
+    flex: 1;
+    font-weight: 500;
+    color: var(--terminus-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.transfer-speed {
+    color: var(--terminus-text-muted);
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+.progress-bar {
+    position: relative;
+    width: 100%;
+    height: 6px;
+    background-color: var(--terminus-bg-panel);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: var(--terminus-accent);
+    transition: width 0.3s ease;
+    border-radius: 3px;
+}
+
+.transfer-percentage {
+    text-align: right;
+    font-size: 11px;
+    color: var(--terminus-text-muted);
+    font-family: 'Consolas', 'Courier New', monospace;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--terminus-border);
+    border-top-color: var(--terminus-accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.loading-overlay p {
+    margin-top: 16px;
+    color: var(--terminus-text);
+    font-size: 14px;
+}

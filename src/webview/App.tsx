@@ -7,6 +7,7 @@ import HostGroup from './components/HostGroup';
 import HostCard from './components/HostCard';
 import EditHost from './views/EditHost';
 import CredentialsView from './views/CredentialsView';
+import { FileManager } from './views/FileManager';
 import HostKeyDialog from './dialogs/HostKeyDialog';
 import ScriptList from './components/ScriptList';
 import SearchBar from './components/SearchBar';
@@ -46,11 +47,14 @@ const App: React.FC = () => {
 				case 'UPDATE_DATA':
 					setState(prev => ({
 						...prev,
+						view: message.payload.view || prev.view,
 						hosts: message.payload.hosts || prev.hosts,
 						credentials: message.payload.credentials || prev.credentials,
 						scripts: message.payload.scripts || prev.scripts,
 						activeSessionHostIds: message.payload.activeSessionHostIds !== undefined ? message.payload.activeSessionHostIds : prev.activeSessionHostIds,
-						hostStatuses: message.payload.hostStatuses || prev.hostStatuses
+						hostStatuses: message.payload.hostStatuses || prev.hostStatuses,
+						hostId: message.payload.hostId || prev.hostId,
+						currentPath: message.payload.currentPath || prev.currentPath
 					}));
 					break;
 				case 'SESSION_UPDATE':
@@ -424,6 +428,13 @@ const App: React.FC = () => {
 			{state.view === 'credentials' && (
 				<CredentialsView
 					credentials={state.credentials || []}
+				/>
+			)}
+
+			{state.view === 'fileManager' && state.hostId && (
+				<FileManager
+					hostId={state.hostId}
+					initialPath={state.currentPath}
 				/>
 			)}
 

@@ -31,7 +31,19 @@
 					"type": "webview"
 				}
 			]
-		}
+		},
+		"commands": [
+			{
+				"command": "labonair.quickConnect",
+				"title": "Quick Connect to Host",
+				"category": "Labonair"
+			},
+			{
+				"command": "labonair.openSFTP",
+				"title": "Open SFTP File Manager",
+				"category": "Labonair"
+			}
+		]
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run package",

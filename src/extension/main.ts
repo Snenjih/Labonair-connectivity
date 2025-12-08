@@ -11,10 +11,13 @@ import { ImporterService } from './importers';
 import { StatusService } from './statusService';
 import { registerCommands } from './commands';
 import { SshConnectionService } from './services/sshConnectionService';
+import { SftpService } from './services/sftpService';
+import { SftpPanel } from './panels/sftpPanel';
 import { Message, Host, HostStatus } from '../common/types';
 
 // Store service instances for cleanup
 let sshConnectionServiceInstance: SshConnectionService | undefined;
+let sftpServiceInstance: SftpService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 	const hostService = new HostService(context);
@@ -26,12 +29,14 @@ export function activate(context: vscode.ExtensionContext) {
 	const hostKeyService = new HostKeyService();
 	const shellService = new ShellService();
 	const sshConnectionService = new SshConnectionService(hostService, credentialService);
+	const sftpService = new SftpService(hostService, credentialService);
 
 	// Store for cleanup
 	sshConnectionServiceInstance = sshConnectionService;
+	sftpServiceInstance = sftpService;
 
 	// Register Commands
-	registerCommands(context, hostService);
+	registerCommands(context, hostService, sftpService);
 
 	// Register the Webview View Provider
 	try {
@@ -46,7 +51,8 @@ export function activate(context: vscode.ExtensionContext) {
 			importerService,
 			hostKeyService,
 			shellService,
-			sshConnectionService
+			sshConnectionService,
+			sftpService
 		);
 		context.subscriptions.push(
 			vscode.window.registerWebviewViewProvider('labonair.views.hosts', provider)
@@ -72,7 +78,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		private readonly _importerService: ImporterService,
 		private readonly _hostKeyService: HostKeyService,
 		private readonly _shellService: ShellService,
-		private readonly _sshConnectionService: SshConnectionService
+		private readonly _sshConnectionService: SshConnectionService,
+		private readonly _sftpService: SftpService
 	) { }
 
 	public resolveWebviewView(
@@ -305,8 +312,25 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 				}
 
 				case 'OPEN_SFTP': {
-					// TODO: Implement SFTP File Manager
-					vscode.window.showInformationMessage('SFTP File Manager: Coming soon!');
+					const hostId = message.payload.id;
+					if (!hostId) {
+						vscode.window.showErrorMessage('No host ID provided');
+						break;
+					}
+
+					const host = this._hostService.getHostById(hostId);
+					if (!host) {
+						vscode.window.showErrorMessage('Host not found');
+						break;
+					}
+
+					// Open SFTP Panel
+					SftpPanel.createOrShow(
+						this._extensionUri,
+						hostId,
+						this._sftpService,
+						this._hostService
+					);
 					break;
 				}
 
@@ -479,6 +503,12 @@ export function deactivate() {
 	if (sshConnectionServiceInstance) {
 		sshConnectionServiceInstance.dispose();
 		sshConnectionServiceInstance = undefined;
+	}
+
+	// Clean up all active SFTP sessions
+	if (sftpServiceInstance) {
+		sftpServiceInstance.dispose();
+		sftpServiceInstance = undefined;
 	}
 }
 

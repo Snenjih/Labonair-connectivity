@@ -68,7 +68,23 @@ export interface Script {
 	shell?: string;
 }
 
-export type ViewType = 'hosts' | 'addHost' | 'credentials' | 'addCredential';
+export interface FileEntry {
+	name: string;
+	path: string;
+	size: number;
+	type: 'd' | '-' | 'l';  // directory, file, or symlink
+	modTime: Date;
+	permissions: string;
+}
+
+export interface TransferStatus {
+	filename: string;
+	progress: number;  // 0-100
+	speed: string;
+	type: 'upload' | 'download';
+}
+
+export type ViewType = 'hosts' | 'addHost' | 'credentials' | 'addCredential' | 'fileManager';
 
 export interface WebviewState {
 	view: ViewType;
@@ -82,6 +98,9 @@ export interface WebviewState {
 	hostStatuses?: Record<string, 'online' | 'offline' | 'unknown'>;
 	selectedHostIds?: string[];  // For bulk selection
 	editingCredential?: Credential | null;
+	// File Manager specific
+	hostId?: string;
+	currentPath?: string;
 }
 
 export interface FolderConfig {
@@ -98,7 +117,7 @@ export interface FolderConfig {
 export type Message =
 	// Data fetching
 	| { command: 'FETCH_DATA' }
-	| { command: 'UPDATE_DATA'; payload: { hosts: Host[]; credentials?: Credential[]; scripts?: Script[]; activeSessionHostIds?: string[]; hostStatuses?: Record<string, 'online' | 'offline' | 'unknown'> } }
+	| { command: 'UPDATE_DATA'; payload: { view?: ViewType; hosts?: Host[]; credentials?: Credential[]; scripts?: Script[]; activeSessionHostIds?: string[]; hostStatuses?: Record<string, 'online' | 'offline' | 'unknown'>; hostId?: string; currentPath?: string } }
 
 	// Host CRUD
 	| { command: 'SAVE_HOST'; payload: { host: Host; password?: string; keyPath?: string } }
@@ -156,7 +175,17 @@ export type Message =
 	| { command: 'KEY_FILE_PICKED'; payload: { path: string } }
 
 	// Shell detection
-	| { command: 'AVAILABLE_SHELLS'; payload: { shells: string[] } };
+	| { command: 'AVAILABLE_SHELLS'; payload: { shells: string[] } }
+
+	// SFTP File Manager
+	| { command: 'SFTP_LS'; payload: { hostId: string; path: string } }
+	| { command: 'SFTP_LS_RESPONSE'; payload: { files: FileEntry[]; currentPath: string } }
+	| { command: 'SFTP_UPLOAD'; payload: { hostId: string; remotePath: string; localPath?: string } }
+	| { command: 'SFTP_DOWNLOAD'; payload: { hostId: string; remotePath: string; localPath?: string } }
+	| { command: 'SFTP_RM'; payload: { hostId: string; path: string } }
+	| { command: 'SFTP_MKDIR'; payload: { hostId: string; path: string } }
+	| { command: 'SFTP_TRANSFER_PROGRESS'; payload: TransferStatus }
+	| { command: 'SFTP_ERROR'; payload: { message: string } };
 
 // ============================================================================
 // UTILITY TYPES
