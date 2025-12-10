@@ -198,15 +198,24 @@ export class SshSession {
 					return;
 				}
 
-				sftp.readFile(path, 'utf8', (err, data) => {
+				const chunks: Buffer[] = [];
+				const stream = sftp.createReadStream(path);
+
+				stream.on('data', (chunk: Buffer) => {
+					chunks.push(chunk);
+				});
+
+				stream.on('error', (err: Error) => {
 					sftp.end();
-					if (err) {
-						reject(err);
-					} else {
-						resolve(data.toString());
-					}
+					reject(err);
+				});
+
+				stream.on('end', () => {
+					sftp.end();
+					resolve(Buffer.concat(chunks).toString('utf8'));
 				});
 			});
 		});
 	}
+
 }

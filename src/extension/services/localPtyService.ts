@@ -1,4 +1,5 @@
 import * as os from 'os';
+import * as fs from 'fs';
 import { Host } from '../../common/types';
 
 // node-pty types
@@ -114,11 +115,27 @@ export class LocalPtyService {
 		this.isConnected = false;
 	}
 
-	/**
-	 * Check if session is connected
-	 */
 	public get connected(): boolean {
 		return this.isConnected;
+	}
+
+	/**
+	 * Check if a file exists locally
+	 */
+	public async checkFileExists(path: string): Promise<boolean> {
+		try {
+			await fs.promises.access(path);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Read a file's contents locally
+	 */
+	public async readFile(path: string): Promise<string> {
+		return fs.promises.readFile(path, 'utf8');
 	}
 
 	/**

@@ -12,6 +12,8 @@ interface ITerminalSession {
 	resize(cols: number, rows: number): void;
 	dispose(): void;
 	connected: boolean;
+	checkFileExists(path: string): Promise<boolean>;
+	readFile(path: string): Promise<string>;
 }
 
 /**
