@@ -12,7 +12,8 @@ const extensionConfig = {
 	},
 	externals: {
 		'vscode': 'commonjs vscode',
-		'ssh2': 'commonjs ssh2'
+		'ssh2': 'commonjs ssh2',
+		'node-pty': 'commonjs node-pty'
 	},
 	resolve: {
 		extensions: ['.ts', '.js'],

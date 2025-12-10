@@ -546,6 +546,7 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 			</head>
 			<body>
 				<div id="root"></div>
+				<script nonce="${nonce}">window.LABONAIR_CONTEXT = 'sidebar';</script>
 				<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
 			</html>`;

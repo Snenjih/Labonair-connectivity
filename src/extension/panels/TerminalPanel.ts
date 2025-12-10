@@ -1,8 +1,18 @@
 import * as vscode from 'vscode';
 import { SshSession } from '../services/sshSession';
+import { LocalPtyService } from '../services/localPtyService';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
 import { Message, Host } from '../../common/types';
+
+// Common interface for both SSH and Local sessions
+interface ITerminalSession {
+	connect(): Promise<void>;
+	write(data: string): void;
+	resize(cols: number, rows: number): void;
+	dispose(): void;
+	connected: boolean;
+}
 
 /**
  * Terminal Panel Manager
@@ -17,7 +27,7 @@ export class TerminalPanel {
 	private readonly _hostId: string;
 	private readonly _host: Host;
 	private _disposables: vscode.Disposable[] = [];
-	private _session: SshSession | null = null;
+	private _session: ITerminalSession | null = null;
 
 	/**
 	 * Creates or shows the terminal panel for a host
@@ -41,9 +51,14 @@ export class TerminalPanel {
 		}
 
 		// Otherwise, create a new panel
+		const isLocalShell = host.protocol === 'local' || host.protocol === 'wsl';
+		const panelTitle = isLocalShell 
+			? `Local: ${host.name || 'Shell'}`
+			: `SSH: ${host.name || host.host}`;
+
 		const panel = vscode.window.createWebviewPanel(
 			TerminalPanel.viewType,
-			`SSH: ${host.name || host.host}`,
+			panelTitle,
 			column || vscode.ViewColumn.One,
 			{
 				enableScripts: true,
@@ -98,7 +113,7 @@ export class TerminalPanel {
 	}
 
 	/**
-	 * Initializes the SSH session
+	 * Initializes the terminal session (SSH or Local PTY)
 	 */
 	private async _initializeSession(): Promise<void> {
 		try {
@@ -112,28 +127,52 @@ export class TerminalPanel {
 				}
 			});
 
-			// Create SSH session
-			this._session = new SshSession(
-				this._host,
-				this._hostService,
-				this._credentialService,
-				(data: string) => {
-					// Send data to webview
-					this._panel.webview.postMessage({
-						command: 'TERM_DATA',
-						payload: { data }
-					});
-				},
-				(status: 'connecting' | 'connected' | 'disconnected' | 'error', message?: string) => {
-					// Send status to webview
-					this._panel.webview.postMessage({
-						command: 'TERM_STATUS',
-						payload: { status, message }
-					});
-				}
-			);
+			// Check if this is a local shell connection
+			const isLocalShell = this._host.protocol === 'local' || this._host.protocol === 'wsl';
 
-			// Connect to SSH
+			if (isLocalShell) {
+				// Create local PTY session
+				this._session = new LocalPtyService(
+					this._host,
+					(data: string) => {
+						// Send data to webview
+						this._panel.webview.postMessage({
+							command: 'TERM_DATA',
+							payload: { data }
+						});
+					},
+					(status: 'connecting' | 'connected' | 'disconnected' | 'error', message?: string) => {
+						// Send status to webview
+						this._panel.webview.postMessage({
+							command: 'TERM_STATUS',
+							payload: { status, message }
+						});
+					}
+				);
+			} else {
+				// Create SSH session
+				this._session = new SshSession(
+					this._host,
+					this._hostService,
+					this._credentialService,
+					(data: string) => {
+						// Send data to webview
+						this._panel.webview.postMessage({
+							command: 'TERM_DATA',
+							payload: { data }
+						});
+					},
+					(status: 'connecting' | 'connected' | 'disconnected' | 'error', message?: string) => {
+						// Send status to webview
+						this._panel.webview.postMessage({
+							command: 'TERM_STATUS',
+							payload: { status, message }
+						});
+					}
+				);
+			}
+
+			// Connect
 			await this._session.connect();
 
 		} catch (error) {
@@ -272,6 +311,7 @@ export class TerminalPanel {
 			</head>
 			<body>
 				<div id="root"></div>
+				<script nonce="${nonce}">window.LABONAIR_CONTEXT = 'editor';</script>
 				<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
 			</html>`;

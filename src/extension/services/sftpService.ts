@@ -1,10 +1,10 @@
-import * as vscode from 'vscode';
-import { Client, SFTPWrapper } from 'ssh2';
+import { SFTPWrapper } from 'ssh2';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Host, FileEntry } from '../../common/types';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
+import { ConnectionPool } from './connectionPool';
 
 /**
  * Cache entry for directory listings
@@ -19,7 +19,8 @@ interface DirectoryCacheEntry {
  * Manages SFTP connections and file operations
  */
 export class SftpService {
-	private activeSessions: Map<string, { client: Client; sftp: SFTPWrapper }> = new Map();
+	// Track SFTP wrappers only - the Client is managed by ConnectionPool
+	private activeSessions: Map<string, { sftp: SFTPWrapper }> = new Map();
 	private progressCallbacks: Map<string, (progress: number, speed: string) => void> = new Map();
 	private directoryCache: Map<string, DirectoryCacheEntry> = new Map();
 	private readonly CACHE_TTL = 10000; // 10 seconds
@@ -32,6 +33,7 @@ export class SftpService {
 
 	/**
 	 * Gets or creates an SFTP session for a host
+	 * Uses ConnectionPool for shared SSH connection
 	 */
 	private async getSftpSession(hostId: string): Promise<SFTPWrapper> {
 		// Check if session already exists
@@ -40,30 +42,25 @@ export class SftpService {
 			return existing.sftp;
 		}
 
-		// Create new SSH connection
+		// Get shared SSH connection from pool
 		const host = await this.getHost(hostId);
-		const client = await this.createSshConnection(host);
+		const client = await ConnectionPool.acquire(
+			host,
+			this.hostService,
+			this.credentialService
+		);
 
 		// Request SFTP subsystem
 		return new Promise((resolve, reject) => {
 			client.sftp((err, sftp) => {
 				if (err) {
-					client.end();
+					ConnectionPool.release(hostId);
 					reject(err);
 					return;
 				}
 
-				// Cache the session
-				this.activeSessions.set(hostId, { client, sftp });
-
-				// Handle client disconnect
-				client.on('close', () => {
-					this.activeSessions.delete(hostId);
-				});
-
-				client.on('error', () => {
-					this.activeSessions.delete(hostId);
-				});
+				// Cache the SFTP wrapper (Client is managed by ConnectionPool)
+				this.activeSessions.set(hostId, { sftp });
 
 				resolve(sftp);
 			});
@@ -435,21 +432,24 @@ export class SftpService {
 
 	/**
 	 * Closes a specific SFTP session
+	 * Releases the connection back to the pool
 	 */
 	public closeSession(hostId: string): void {
 		const session = this.activeSessions.get(hostId);
 		if (session) {
-			session.client.end();
+			// Release connection back to pool
+			ConnectionPool.release(hostId);
 			this.activeSessions.delete(hostId);
 		}
 	}
 
 	/**
 	 * Closes all SFTP sessions
+	 * Releases all connections back to the pool
 	 */
 	public dispose(): void {
-		for (const [hostId, session] of this.activeSessions.entries()) {
-			session.client.end();
+		for (const hostId of this.activeSessions.keys()) {
+			ConnectionPool.release(hostId);
 		}
 		this.activeSessions.clear();
 	}
@@ -464,107 +464,6 @@ export class SftpService {
 			throw new Error(`Host not found: ${hostId}`);
 		}
 		return host;
-	}
-
-	/**
-	 * Creates an SSH connection
-	 */
-	private async createSshConnection(host: Host): Promise<Client> {
-		const authConfig = await this.getAuthConfig(host);
-
-		return new Promise((resolve, reject) => {
-			const client = new Client();
-
-			client.on('ready', () => {
-				resolve(client);
-			});
-
-			client.on('error', (err: Error) => {
-				reject(err);
-			});
-
-			client.connect({
-				host: host.host,
-				port: host.port,
-				username: host.username,
-				...authConfig,
-				keepaliveInterval: host.keepAlive ? 30000 : undefined,
-				readyTimeout: 20000
-			});
-		});
-	}
-
-	/**
-	 * Retrieves authentication configuration based on host settings
-	 */
-	private async getAuthConfig(host: Host): Promise<any> {
-		const authConfig: any = {};
-
-		switch (host.authType) {
-			case 'password': {
-				const password = await this.hostService.getPassword(host.id);
-				if (password) {
-					authConfig.password = password;
-				} else {
-					throw new Error('Password authentication configured but no password found');
-				}
-				break;
-			}
-
-			case 'key': {
-				const keyPath = await this.hostService.getKeyPath(host.id);
-				if (keyPath) {
-					try {
-						const privateKey = fs.readFileSync(keyPath, 'utf8');
-						authConfig.privateKey = privateKey;
-					} catch (error) {
-						throw new Error(`Failed to read private key from ${keyPath}: ${error}`);
-					}
-				} else {
-					throw new Error('Key authentication configured but no key path found');
-				}
-				break;
-			}
-
-			case 'agent': {
-				authConfig.agent = process.env.SSH_AUTH_SOCK;
-				if (!authConfig.agent) {
-					throw new Error('SSH agent authentication configured but SSH_AUTH_SOCK not found');
-				}
-				break;
-			}
-
-			case 'credential': {
-				if (!host.credentialId) {
-					throw new Error('Credential authentication configured but no credential ID specified');
-				}
-
-				const secret = await this.credentialService.getSecret(host.credentialId);
-				if (!secret) {
-					throw new Error(`Credential not found: ${host.credentialId}`);
-				}
-
-				// Determine if secret is password or key
-				if (secret.includes('BEGIN') || secret.includes('PRIVATE KEY')) {
-					authConfig.privateKey = secret;
-				} else if (secret.startsWith('/') || secret.startsWith('~')) {
-					try {
-						const privateKey = fs.readFileSync(secret, 'utf8');
-						authConfig.privateKey = privateKey;
-					} catch (error) {
-						throw new Error(`Failed to read private key from ${secret}: ${error}`);
-					}
-				} else {
-					authConfig.password = secret;
-				}
-				break;
-			}
-
-			default:
-				throw new Error(`Unsupported authentication type: ${host.authType}`);
-		}
-
-		return authConfig;
 	}
 
 	/**

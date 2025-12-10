@@ -1,18 +1,20 @@
 import { Client, ClientChannel } from 'ssh2';
-import * as vscode from 'vscode';
-import * as fs from 'fs';
 import { Host } from '../../common/types';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
+import { ConnectionPool } from './connectionPool';
 
 /**
  * SSH Session Manager
  * Wraps an ssh2.Client and manages a shell session for terminal communication
+ * Now uses ConnectionPool for shared connections
  */
 export class SshSession {
 	private client: Client | null = null;
 	private stream: ClientChannel | null = null;
 	private isConnected: boolean = false;
+	private usePooledConnection: boolean = true;
+	private hostId: string;
 
 	constructor(
 		private readonly host: Host,
@@ -20,7 +22,9 @@ export class SshSession {
 		private readonly credentialService: CredentialService,
 		private readonly onData: (data: string) => void,
 		private readonly onStatus: (status: 'connecting' | 'connected' | 'disconnected' | 'error', message?: string) => void
-	) { }
+	) {
+		this.hostId = host.id;
+	}
 
 	/**
 	 * Connect to the SSH host and start a shell
@@ -29,28 +33,62 @@ export class SshSession {
 		try {
 			this.onStatus('connecting', `Connecting to ${this.host.name || this.host.host}...`);
 
-			// Get authentication configuration
-			const authConfig = await this.getAuthConfig();
+			// Use ConnectionPool for shared connection
+			this.client = await ConnectionPool.acquire(
+				this.host,
+				this.hostService,
+				this.credentialService
+			);
 
-			// Initialize SSH client
-			this.client = new Client();
-
-			// Setup event handlers
-			this.setupClientHandlers();
-
-			// Connect
-			this.client.connect({
-				host: this.host.host,
-				port: this.host.port,
-				username: this.host.username,
-				...authConfig,
-				keepaliveInterval: this.host.keepAlive ? 30000 : undefined,
-				readyTimeout: 20000
-			});
+			// Setup shell on the pooled connection
+			this.setupShell();
 
 		} catch (error) {
 			this.handleError(error);
 		}
+	}
+
+	/**
+	 * Setup shell on the connected client
+	 */
+	private setupShell(): void {
+		if (!this.client) {
+			return;
+		}
+
+		this.client.shell(
+			{
+				term: 'xterm-256color',
+				cols: 80,
+				rows: 24
+			},
+			(err: Error | undefined, stream: ClientChannel) => {
+				if (err) {
+					this.handleError(err);
+					return;
+				}
+
+				this.stream = stream;
+				this.isConnected = true;
+				this.onStatus('connected', 'Connected successfully');
+
+				// Pipe SSH stream data to terminal
+				stream.on('data', (data: Buffer) => {
+					this.onData(data.toString('utf8'));
+				});
+
+				// Handle stream close
+				stream.on('close', () => {
+					this.isConnected = false;
+					this.onStatus('disconnected', 'Session ended');
+				});
+
+				// Handle stream errors
+				stream.stderr.on('data', (data: Buffer) => {
+					this.onData('\x1b[31m' + data.toString('utf8') + '\x1b[0m');
+				});
+			}
+		);
 	}
 
 	/**
@@ -79,162 +117,18 @@ export class SshSession {
 			this.stream.end();
 			this.stream = null;
 		}
-		if (this.client) {
-			this.client.end();
-			this.client = null;
+		
+		// Release the connection back to the pool
+		if (this.usePooledConnection && this.hostId) {
+			ConnectionPool.release(this.hostId);
 		}
+		
+		this.client = null;
 		this.isConnected = false;
 	}
 
-	/**
-	 * Check if session is connected
-	 */
 	public get connected(): boolean {
 		return this.isConnected;
-	}
-
-	/**
-	 * Get authentication configuration
-	 */
-	private async getAuthConfig(): Promise<any> {
-		const authConfig: any = {};
-
-		switch (this.host.authType) {
-			case 'password': {
-				const password = await this.hostService.getPassword(this.host.id);
-				if (password) {
-					authConfig.password = password;
-				} else {
-					throw new Error('Password authentication configured but no password found');
-				}
-				break;
-			}
-
-			case 'key': {
-				const keyPath = await this.hostService.getKeyPath(this.host.id);
-				if (keyPath) {
-					try {
-						const privateKey = fs.readFileSync(keyPath, 'utf8');
-						authConfig.privateKey = privateKey;
-					} catch (error) {
-						throw new Error(`Failed to read private key from ${keyPath}: ${error}`);
-					}
-				} else {
-					throw new Error('Key authentication configured but no key path found');
-				}
-				break;
-			}
-
-			case 'agent': {
-				authConfig.agent = process.env.SSH_AUTH_SOCK;
-				if (!authConfig.agent) {
-					throw new Error('SSH agent authentication configured but SSH_AUTH_SOCK not found');
-				}
-				break;
-			}
-
-			case 'credential': {
-				if (!this.host.credentialId) {
-					throw new Error('Credential authentication configured but no credential ID specified');
-				}
-
-				const secret = await this.credentialService.getSecret(this.host.credentialId);
-				if (!secret) {
-					throw new Error(`Credential not found: ${this.host.credentialId}`);
-				}
-
-				// Determine if secret is password or key
-				if (secret.includes('BEGIN') || secret.includes('PRIVATE KEY')) {
-					authConfig.privateKey = secret;
-				} else if (secret.startsWith('/') || secret.startsWith('~')) {
-					// It's a file path
-					try {
-						const privateKey = fs.readFileSync(secret, 'utf8');
-						authConfig.privateKey = privateKey;
-					} catch (error) {
-						throw new Error(`Failed to read private key from ${secret}: ${error}`);
-					}
-				} else {
-					// Treat as password
-					authConfig.password = secret;
-				}
-				break;
-			}
-
-			default:
-				throw new Error(`Unsupported authentication type: ${this.host.authType}`);
-		}
-
-		return authConfig;
-	}
-
-	/**
-	 * Setup SSH client event handlers
-	 */
-	private setupClientHandlers(): void {
-		if (!this.client) {
-			return;
-		}
-
-		// Connection ready
-		this.client.on('ready', () => {
-			this.onStatus('connected', 'Connected successfully');
-
-			// Request shell
-			this.client!.shell(
-				{
-					term: 'xterm-256color',
-					cols: 80,
-					rows: 24
-				},
-				(err: Error | undefined, stream: ClientChannel) => {
-					if (err) {
-						this.handleError(err);
-						return;
-					}
-
-					this.stream = stream;
-					this.isConnected = true;
-
-					// Pipe SSH stream data to terminal
-					stream.on('data', (data: Buffer) => {
-						this.onData(data.toString('utf8'));
-					});
-
-					// Handle stream close
-					stream.on('close', () => {
-						this.isConnected = false;
-						this.onStatus('disconnected', 'Session ended');
-						this.dispose();
-					});
-
-					// Handle stream errors
-					stream.stderr.on('data', (data: Buffer) => {
-						this.onData('\x1b[31m' + data.toString('utf8') + '\x1b[0m');
-					});
-				}
-			);
-		});
-
-		// Connection errors
-		this.client.on('error', (err: Error) => {
-			this.handleError(err);
-		});
-
-		// Connection closed
-		this.client.on('close', () => {
-			if (!this.stream) {
-				this.isConnected = false;
-				this.onStatus('disconnected', 'Connection closed');
-			}
-		});
-
-		// Connection timeout
-		this.client.on('timeout', () => {
-			this.isConnected = false;
-			this.onStatus('error', 'Connection timeout');
-			this.dispose();
-		});
 	}
 
 	/**

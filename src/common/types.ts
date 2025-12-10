@@ -30,6 +30,8 @@ export interface Host {
 	credentialId?: string;
 	lastUsed?: number;
 	protocol?: 'ssh' | 'local' | 'wsl';
+	shell?: string;              // Shell to use for local connections
+	wsl?: boolean;               // Use WSL for this host
 	enableTerminal?: boolean;    // Enable SSH terminal
 	enableFileManager?: boolean; // Enable SFTP file manager
 	defaultPath?: string;        // Default path for connections

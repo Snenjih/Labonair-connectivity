@@ -1,0 +1,239 @@
+import { Client } from 'ssh2';
+import * as fs from 'fs';
+import { Host } from '../../common/types';
+import { HostService } from '../hostService';
+import { CredentialService } from '../credentialService';
+
+/**
+ * Connection entry in the pool
+ */
+interface PooledConnection {
+	client: Client;
+	refCount: number;
+	host: Host;
+}
+
+/**
+ * Singleton Connection Pool
+ * Manages SSH connections with ref-counting for shared access between Terminal and SFTP
+ */
+class ConnectionPoolImpl {
+	private static instance: ConnectionPoolImpl;
+	private connections: Map<string, PooledConnection> = new Map();
+
+	private constructor() {}
+
+	public static getInstance(): ConnectionPoolImpl {
+		if (!ConnectionPoolImpl.instance) {
+			ConnectionPoolImpl.instance = new ConnectionPoolImpl();
+		}
+		return ConnectionPoolImpl.instance;
+	}
+
+	/**
+	 * Gets an existing connection if available
+	 */
+	public getConnection(hostId: string): Client | undefined {
+		const pooled = this.connections.get(hostId);
+		return pooled?.client;
+	}
+
+	/**
+	 * Acquires a connection - creates new one if needed, or increments refCount
+	 */
+	public async acquire(
+		host: Host,
+		hostService: HostService,
+		credentialService: CredentialService
+	): Promise<Client> {
+		const existing = this.connections.get(host.id);
+
+		if (existing) {
+			existing.refCount++;
+			console.log(`[ConnectionPool] Reusing connection for ${host.id}, refCount: ${existing.refCount}`);
+			return existing.client;
+		}
+
+		// Create new connection
+		console.log(`[ConnectionPool] Creating new connection for ${host.id}`);
+		const client = await this.createConnection(host, hostService, credentialService);
+
+		this.connections.set(host.id, {
+			client,
+			refCount: 1,
+			host
+		});
+
+		// Handle unexpected disconnection
+		client.on('close', () => {
+			console.log(`[ConnectionPool] Connection closed unexpectedly for ${host.id}`);
+			this.connections.delete(host.id);
+		});
+
+		client.on('error', (err) => {
+			console.error(`[ConnectionPool] Connection error for ${host.id}:`, err);
+			this.connections.delete(host.id);
+		});
+
+		return client;
+	}
+
+	/**
+	 * Releases a connection - decrements refCount and disconnects when 0
+	 */
+	public release(hostId: string): void {
+		const pooled = this.connections.get(hostId);
+
+		if (!pooled) {
+			console.log(`[ConnectionPool] No connection to release for ${hostId}`);
+			return;
+		}
+
+		pooled.refCount--;
+		console.log(`[ConnectionPool] Released connection for ${hostId}, refCount: ${pooled.refCount}`);
+
+		if (pooled.refCount <= 0) {
+			console.log(`[ConnectionPool] Closing connection for ${hostId}`);
+			pooled.client.end();
+			this.connections.delete(hostId);
+		}
+	}
+
+	/**
+	 * Checks if a connection exists for a host
+	 */
+	public hasConnection(hostId: string): boolean {
+		return this.connections.has(hostId);
+	}
+
+	/**
+	 * Gets current ref count for debugging
+	 */
+	public getRefCount(hostId: string): number {
+		return this.connections.get(hostId)?.refCount || 0;
+	}
+
+	/**
+	 * Disposes all connections
+	 */
+	public dispose(): void {
+		for (const [hostId, pooled] of this.connections.entries()) {
+			console.log(`[ConnectionPool] Disposing connection for ${hostId}`);
+			pooled.client.end();
+		}
+		this.connections.clear();
+	}
+
+	/**
+	 * Creates a new SSH connection
+	 */
+	private async createConnection(
+		host: Host,
+		hostService: HostService,
+		credentialService: CredentialService
+	): Promise<Client> {
+		const authConfig = await this.getAuthConfig(host, hostService, credentialService);
+
+		return new Promise((resolve, reject) => {
+			const client = new Client();
+
+			client.on('ready', () => {
+				console.log(`[ConnectionPool] Connection ready for ${host.id}`);
+				resolve(client);
+			});
+
+			client.on('error', (err: Error) => {
+				reject(err);
+			});
+
+			client.connect({
+				host: host.host,
+				port: host.port,
+				username: host.username,
+				...authConfig,
+				keepaliveInterval: host.keepAlive ? 30000 : undefined,
+				readyTimeout: 20000
+			});
+		});
+	}
+
+	/**
+	 * Gets authentication configuration for a host
+	 */
+	private async getAuthConfig(
+		host: Host,
+		hostService: HostService,
+		credentialService: CredentialService
+	): Promise<any> {
+		const authConfig: any = {};
+
+		switch (host.authType) {
+			case 'password': {
+				const password = await hostService.getPassword(host.id);
+				if (password) {
+					authConfig.password = password;
+				} else {
+					throw new Error('Password authentication configured but no password found');
+				}
+				break;
+			}
+
+			case 'key': {
+				const keyPath = await hostService.getKeyPath(host.id);
+				if (keyPath) {
+					try {
+						const privateKey = fs.readFileSync(keyPath, 'utf8');
+						authConfig.privateKey = privateKey;
+					} catch (error) {
+						throw new Error(`Failed to read private key from ${keyPath}: ${error}`);
+					}
+				} else {
+					throw new Error('Key authentication configured but no key path found');
+				}
+				break;
+			}
+
+			case 'agent': {
+				authConfig.agent = process.env.SSH_AUTH_SOCK;
+				if (!authConfig.agent) {
+					throw new Error('SSH agent authentication configured but SSH_AUTH_SOCK not found');
+				}
+				break;
+			}
+
+			case 'credential': {
+				if (!host.credentialId) {
+					throw new Error('Credential authentication configured but no credential ID specified');
+				}
+
+				const secret = await credentialService.getSecret(host.credentialId);
+				if (!secret) {
+					throw new Error(`Credential not found: ${host.credentialId}`);
+				}
+
+				// Determine if secret is password or key
+				if (secret.includes('BEGIN') || secret.includes('PRIVATE KEY')) {
+					authConfig.privateKey = secret;
+				} else if (secret.startsWith('/') || secret.startsWith('~')) {
+					try {
+						const privateKey = fs.readFileSync(secret, 'utf8');
+						authConfig.privateKey = privateKey;
+					} catch (error) {
+						throw new Error(`Failed to read private key from ${secret}: ${error}`);
+					}
+				} else {
+					authConfig.password = secret;
+				}
+				break;
+			}
+
+			default:
+				throw new Error(`Unsupported authentication type: ${host.authType}`);
+		}
+
+		return authConfig;
+	}
+}
+
+// Export singleton instance
+export const ConnectionPool = ConnectionPoolImpl.getInstance();

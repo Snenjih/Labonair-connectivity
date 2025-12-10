@@ -16,6 +16,13 @@ import TunnelDialog from './dialogs/TunnelDialog';
 import EmptyState from './components/EmptyState';
 import './styles/main.css';
 
+// Declare global window type for LABONAIR_CONTEXT
+declare global {
+	interface Window {
+		LABONAIR_CONTEXT?: 'sidebar' | 'editor';
+	}
+}
+
 const App: React.FC = () => {
 	const [state, setState] = useState<WebviewState>({
 		view: 'hosts',
@@ -31,6 +38,9 @@ const App: React.FC = () => {
 
 	const [filterText, setFilterText] = useState('');
 	const [sortCriteria, setSortCriteria] = useState<'name' | 'lastUsed' | 'group'>('name');
+
+	// Check if we're in editor context (Terminal/SFTP panel) vs sidebar
+	const isEditorContext = window.LABONAIR_CONTEXT === 'editor';
 
 	// Dialogs
 	const [tunnelDialogHost, setTunnelDialogHost] = useState<Host | null>(null);
@@ -350,7 +360,8 @@ const App: React.FC = () => {
 				/>
 			)}
 
-			<TopNav activeView={state.view} onNavigate={handleNavigate} />
+			{/* Only show TopNav in sidebar context */}
+			{!isEditorContext && <TopNav activeView={state.view} onNavigate={handleNavigate} />}
 
 			{state.view === 'hosts' && (
 				<>
