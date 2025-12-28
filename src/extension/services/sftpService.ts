@@ -5,6 +5,7 @@ import { Host, FileEntry } from '../../common/types';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
 import { ConnectionPool } from './connectionPool';
+import { HostKeyService } from '../security/hostKeyService';
 
 /**
  * Cache entry for directory listings
@@ -28,7 +29,8 @@ export class SftpService {
 
 	constructor(
 		private readonly hostService: HostService,
-		private readonly credentialService: CredentialService
+		private readonly credentialService: CredentialService,
+		private readonly hostKeyService: HostKeyService
 	) { }
 
 	/**
@@ -47,7 +49,8 @@ export class SftpService {
 		const client = await ConnectionPool.acquire(
 			host,
 			this.hostService,
-			this.credentialService
+			this.credentialService,
+			this.hostKeyService
 		);
 
 		// Request SFTP subsystem

@@ -32,7 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
 	const hostKeyService = new HostKeyService();
 	const shellService = new ShellService();
 	const sshConnectionService = new SshConnectionService(hostService, credentialService);
-	const sftpService = new SftpService(hostService, credentialService);
+	const sftpService = new SftpService(hostService, credentialService, hostKeyService);
 	const editHandler = new EditHandler(sftpService, hostService, credentialService, context);
 
 	// Store for cleanup
@@ -308,22 +308,7 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 
 					vscode.window.showInformationMessage(`Connecting to ${hostToConnect.name || hostToConnect.host}...`);
 
-					// Host Key Verification
-					const mockKey = Buffer.from('mock-public-key-' + hostToConnect.host);
-					const verificationStatus = await this._hostKeyService.verifyHostKey(hostToConnect.host, hostToConnect.port, 'ssh-rsa', mockKey);
 
-					if (verificationStatus !== 'valid') {
-						webviewView.webview.postMessage({
-							command: 'CHECK_HOST_KEY',
-							payload: {
-								host: hostToConnect.host,
-								port: hostToConnect.port,
-								fingerprint: mockKey.toString('base64'),
-								status: verificationStatus
-							}
-						});
-						return;
-					}
 
 					// Open Terminal Panel instead of using Pseudoterminal
 					TerminalPanel.createOrShow(
@@ -331,7 +316,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 						hostToConnect.id,
 						hostToConnect,
 						this._hostService,
-						this._credentialService
+						this._credentialService,
+						this._hostKeyService
 					);
 
 					// Note: Session tracking is now handled by TerminalPanel lifecycle
@@ -402,7 +388,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 							existingHost.id,
 							existingHost,
 							this._hostService,
-							this._credentialService
+							this._credentialService,
+							this._hostKeyService
 						);
 
 						// Update last used

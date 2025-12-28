@@ -2,6 +2,7 @@ import { Client, ClientChannel } from 'ssh2';
 import { Host } from '../../common/types';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
+import { HostKeyService } from '../security/hostKeyService';
 import { ConnectionPool } from './connectionPool';
 
 /**
@@ -20,6 +21,7 @@ export class SshSession {
 		private readonly host: Host,
 		private readonly hostService: HostService,
 		private readonly credentialService: CredentialService,
+		private readonly hostKeyService: HostKeyService,
 		private readonly onData: (data: string) => void,
 		private readonly onStatus: (status: 'connecting' | 'connected' | 'disconnected' | 'error', message?: string) => void
 	) {
@@ -37,7 +39,8 @@ export class SshSession {
 			this.client = await ConnectionPool.acquire(
 				this.host,
 				this.hostService,
-				this.credentialService
+				this.credentialService,
+				this.hostKeyService
 			);
 
 			// Setup shell on the pooled connection

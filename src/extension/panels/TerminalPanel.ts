@@ -3,6 +3,7 @@ import { SshSession } from '../services/sshSession';
 import { LocalPtyService } from '../services/localPtyService';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
+import { HostKeyService } from '../security/hostKeyService';
 import { Message, Host } from '../../common/types';
 
 // Common interface for both SSH and Local sessions
@@ -39,7 +40,8 @@ export class TerminalPanel {
 		hostId: string,
 		host: Host,
 		hostService: HostService,
-		credentialService: CredentialService
+		credentialService: CredentialService,
+		hostKeyService: HostKeyService
 	): TerminalPanel {
 		const column = vscode.window.activeTextEditor
 			? vscode.window.activeTextEditor.viewColumn
@@ -75,7 +77,8 @@ export class TerminalPanel {
 			hostId,
 			host,
 			hostService,
-			credentialService
+			credentialService,
+			hostKeyService
 		);
 
 		TerminalPanel.panels.set(hostId, terminalPanel);
@@ -88,7 +91,8 @@ export class TerminalPanel {
 		hostId: string,
 		host: Host,
 		private readonly _hostService: HostService,
-		private readonly _credentialService: CredentialService
+		private readonly _credentialService: CredentialService,
+		private readonly _hostKeyService: HostKeyService
 	) {
 		this._panel = panel;
 		this._extensionUri = extensionUri;
@@ -157,6 +161,7 @@ export class TerminalPanel {
 					this._host,
 					this._hostService,
 					this._credentialService,
+					this._hostKeyService,
 					(data: string) => {
 						// Send data to webview
 						this._panel.webview.postMessage({
