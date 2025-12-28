@@ -259,13 +259,17 @@ export type Message =
 	| { command: 'OPEN_TERMINAL'; payload: { hostId: string; path: string } }
 
 	// SSH Terminal
-	| { command: 'TERM_DATA'; payload: { data: string } }
-	| { command: 'TERM_INPUT'; payload: { data: string } }
-	| { command: 'TERM_RESIZE'; payload: { cols: number; rows: number } }
-	| { command: 'TERM_STATUS'; payload: { status: 'connecting' | 'connected' | 'disconnected' | 'error'; message?: string } }
+	| { command: 'TERM_DATA'; payload: { data: string; splitId?: number } }
+	| { command: 'TERM_INPUT'; payload: { data: string; splitId?: number } }
+	| { command: 'TERM_RESIZE'; payload: { cols: number; rows: number; splitId?: number } }
+	| { command: 'TERM_STATUS'; payload: { status: 'connecting' | 'connected' | 'disconnected' | 'error'; message?: string; splitId?: number } }
 	| { command: 'TERM_RECONNECT'; payload: { hostId: string } }
 	| { command: 'CHECK_FILE'; payload: { path: string; hostId: string } }
 	| { command: 'OPEN_REMOTE_FILE'; payload: { hostId: string; remotePath: string; content: string } }
+	| { command: 'TERMINAL_SPLIT'; payload: { mode: 'vertical' | 'horizontal' } }
+	| { command: 'TERMINAL_CLOSE_SPLIT'; payload: { splitId: number } }
+	| { command: 'SAVE_TERMINAL_CONFIG'; payload: { fontSize: number; encoding: string; colorScheme: string } }
+	| { command: 'CHANGE_ENCODING'; payload: { encoding: string; splitId?: number } }
 
 	// Transfer Engine (Subphase 3.5)
 	| { command: 'TRANSFER_QUEUE'; payload: { action: 'add'; job: Partial<TransferJob> } }

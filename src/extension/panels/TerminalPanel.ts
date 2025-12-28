@@ -30,7 +30,8 @@ export class TerminalPanel {
 	private readonly _hostId: string;
 	private readonly _host: Host;
 	private _disposables: vscode.Disposable[] = [];
-	private _session: ITerminalSession | null = null;
+	private _sessions: Map<number, ITerminalSession> = new Map();
+	private _splitMode: 'none' | 'vertical' | 'horizontal' = 'none';
 
 	/**
 	 * Creates or shows the terminal panel for a host
@@ -114,14 +115,15 @@ export class TerminalPanel {
 			this._disposables
 		);
 
-		// Initialize SSH session
-		this._initializeSession();
+		// Initialize main SSH session (splitId = 1)
+		this._initializeSession(1);
 	}
 
 	/**
-	 * Initializes the terminal session (SSH or Local PTY)
+	 * Initializes a terminal session (SSH or Local PTY)
+	 * @param splitId - ID of the split pane (1 = main, 2 = split)
 	 */
-	private async _initializeSession(): Promise<void> {
+	private async _initializeSession(splitId: number): Promise<void> {
 		try {
 			// Send initial state to webview
 			this._panel.webview.postMessage({
@@ -136,51 +138,56 @@ export class TerminalPanel {
 			// Check if this is a local shell connection
 			const isLocalShell = this._host.protocol === 'local' || this._host.protocol === 'wsl';
 
+			let session: ITerminalSession;
+
 			if (isLocalShell) {
 				// Create local PTY session
-				this._session = new LocalPtyService(
+				session = new LocalPtyService(
 					this._host,
 					(data: string) => {
-						// Send data to webview
+						// Send data to webview with splitId
 						this._panel.webview.postMessage({
 							command: 'TERM_DATA',
-							payload: { data }
+							payload: { data, splitId }
 						});
 					},
 					(status: 'connecting' | 'connected' | 'disconnected' | 'error', message?: string) => {
-						// Send status to webview
+						// Send status to webview with splitId
 						this._panel.webview.postMessage({
 							command: 'TERM_STATUS',
-							payload: { status, message }
+							payload: { status, message, splitId }
 						});
 					}
 				);
 			} else {
 				// Create SSH session
-				this._session = new SshSession(
+				session = new SshSession(
 					this._host,
 					this._hostService,
 					this._credentialService,
 					this._hostKeyService,
 					(data: string) => {
-						// Send data to webview
+						// Send data to webview with splitId
 						this._panel.webview.postMessage({
 							command: 'TERM_DATA',
-							payload: { data }
+							payload: { data, splitId }
 						});
 					},
 					(status: 'connecting' | 'connected' | 'disconnected' | 'error', message?: string) => {
-						// Send status to webview
+						// Send status to webview with splitId
 						this._panel.webview.postMessage({
 							command: 'TERM_STATUS',
-							payload: { status, message }
+							payload: { status, message, splitId }
 						});
 					}
 				);
 			}
 
+			// Store session in map
+			this._sessions.set(splitId, session);
+
 			// Connect
-			await this._session.connect();
+			await session.connect();
 
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to initialize terminal: ${error}`);
@@ -201,26 +208,75 @@ export class TerminalPanel {
 		switch (message.command) {
 			case 'TERM_INPUT': {
 				// User input from terminal
-				if (this._session) {
-					this._session.write(message.payload.data);
+				const splitId = message.payload.splitId || 1;
+				const session = this._sessions.get(splitId);
+				if (session) {
+					session.write(message.payload.data);
 				}
 				break;
 			}
 
 			case 'TERM_RESIZE': {
 				// Terminal resize
-				if (this._session) {
-					this._session.resize(message.payload.cols, message.payload.rows);
+				const splitId = message.payload.splitId || 1;
+				const session = this._sessions.get(splitId);
+				if (session) {
+					session.resize(message.payload.cols, message.payload.rows);
 				}
 				break;
 			}
 
 			case 'TERM_RECONNECT': {
-				// Reconnect to host
-				if (this._session) {
-					this._session.dispose();
+				// Reconnect to host - dispose all sessions and reinit main
+				this._sessions.forEach(session => session.dispose());
+				this._sessions.clear();
+				this._splitMode = 'none';
+				await this._initializeSession(1);
+				break;
+			}
+
+			case 'TERMINAL_SPLIT': {
+				// Create a split pane with new session
+				if (this._sessions.size < 2) {
+					this._splitMode = message.payload.mode;
+					await this._initializeSession(2);
+					// Notify webview of split mode
+					this._panel.webview.postMessage({
+						command: 'UPDATE_DATA',
+						payload: {
+							view: 'terminal',
+							splitMode: this._splitMode
+						}
+					});
 				}
-				await this._initializeSession();
+				break;
+			}
+
+			case 'TERMINAL_CLOSE_SPLIT': {
+				// Close a split pane
+				const splitId = message.payload.splitId;
+				const session = this._sessions.get(splitId);
+				if (session) {
+					session.dispose();
+					this._sessions.delete(splitId);
+				}
+				if (this._sessions.size === 1) {
+					this._splitMode = 'none';
+				}
+				break;
+			}
+
+			case 'SAVE_TERMINAL_CONFIG': {
+				// Save terminal configuration to global state
+				// This would be handled by storing in VS Code's globalState
+				// For now, just acknowledge
+				break;
+			}
+
+			case 'CHANGE_ENCODING': {
+				// Change encoding for a specific session
+				// This would require updating SshSession to support encoding changes
+				// For now, just acknowledge
 				break;
 			}
 
@@ -231,12 +287,13 @@ export class TerminalPanel {
 			}
 
 			case 'CHECK_FILE': {
-				// Check if file exists and open it
-				if (this._session && this._session.connected) {
-					const exists = await this._session.checkFileExists(message.payload.path);
+				// Check if file exists and open it - use first available session
+				const session = this._sessions.get(1);
+				if (session && session.connected) {
+					const exists = await session.checkFileExists(message.payload.path);
 					if (exists) {
 						try {
-							const content = await this._session.readFile(message.payload.path);
+							const content = await session.readFile(message.payload.path);
 							// Create a temporary file and open it
 							const tempUri = vscode.Uri.parse(`untitled:${message.payload.path}`);
 							const doc = await vscode.workspace.openTextDocument(tempUri);
@@ -292,11 +349,9 @@ export class TerminalPanel {
 			}
 		}
 
-		// Close SSH session
-		if (this._session) {
-			this._session.dispose();
-			this._session = null;
-		}
+		// Close all SSH sessions
+		this._sessions.forEach(session => session.dispose());
+		this._sessions.clear();
 	}
 
 	/**

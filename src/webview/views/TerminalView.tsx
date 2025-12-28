@@ -7,6 +7,7 @@ import vscode from '../utils/vscode';
 import { Host } from '../../common/types';
 import TerminalHUD from '../components/Terminal/TerminalHUD';
 import PasteModal from '../components/Terminal/PasteModal';
+import { DropOverlay } from '../components/Terminal/DropOverlay';
 import '../styles/terminal.css';
 
 interface TerminalViewProps {
@@ -15,21 +16,27 @@ interface TerminalViewProps {
 }
 
 const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
-	const terminalRef = useRef<HTMLDivElement>(null);
-	const xtermRef = useRef<Terminal | null>(null);
-	const fitAddonRef = useRef<FitAddon | null>(null);
-	const resizeObserverRef = useRef<ResizeObserver | null>(null);
+	const terminal1Ref = useRef<HTMLDivElement>(null);
+	const terminal2Ref = useRef<HTMLDivElement>(null);
+	const xterm1Ref = useRef<Terminal | null>(null);
+	const xterm2Ref = useRef<Terminal | null>(null);
+	const fitAddon1Ref = useRef<FitAddon | null>(null);
+	const fitAddon2Ref = useRef<FitAddon | null>(null);
+	const resizeObserver1Ref = useRef<ResizeObserver | null>(null);
+	const resizeObserver2Ref = useRef<ResizeObserver | null>(null);
 
+	const [splitMode, setSplitMode] = useState<'none' | 'vertical' | 'horizontal'>('none');
+	const [activeSplit, setActiveSplit] = useState<number>(1);
 	const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
 	const [statusMessage, setStatusMessage] = useState<string>('');
 	const [pasteData, setPasteData] = useState<string | null>(null);
 	const [fontSize, setFontSize] = useState<number>(14);
 
 	useEffect(() => {
-		if (!terminalRef.current) return;
+		// Initialize first terminal
+		if (!terminal1Ref.current) return;
 
-		// Initialize xterm.js
-		const term = new Terminal({
+		const term1 = new Terminal({
 			fontFamily: 'var(--vscode-editor-font-family, monospace)',
 			fontSize: fontSize,
 			cursorBlink: true,
@@ -58,12 +65,10 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 			}
 		});
 
-		// Add addons
-		const fitAddon = new FitAddon();
-		term.loadAddon(fitAddon);
+		const fitAddon1 = new FitAddon();
+		term1.loadAddon(fitAddon1);
 
-		const webLinksAddon = new WebLinksAddon((event, uri) => {
-			// Check if it looks like a file path
+		const webLinksAddon1 = new WebLinksAddon((event, uri) => {
 			if (uri.startsWith('/') || uri.match(/^~\//)) {
 				event.preventDefault();
 				vscode.postMessage({
@@ -72,94 +77,196 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 				});
 			}
 		});
-		term.loadAddon(webLinksAddon);
+		term1.loadAddon(webLinksAddon1);
 
-		// Open terminal
-		term.open(terminalRef.current);
-		fitAddon.fit();
+		term1.open(terminal1Ref.current);
+		fitAddon1.fit();
 
-		// Store references
-		xtermRef.current = term;
-		fitAddonRef.current = fitAddon;
+		xterm1Ref.current = term1;
+		fitAddon1Ref.current = fitAddon1;
 
-		// Handle user input
-		term.onData((data) => {
-			// Check for paste protection
+		term1.onData((data) => {
 			if (data.includes('\n') && data.length > 10) {
 				setPasteData(data);
 			} else {
 				vscode.postMessage({
 					command: 'TERM_INPUT',
-					payload: { data }
+					payload: { data, splitId: 1 }
 				});
 			}
 		});
 
-		// Setup resize observer
-		const resizeObserver = new ResizeObserver(() => {
-			if (fitAddonRef.current && xtermRef.current) {
-				fitAddonRef.current.fit();
+		const resizeObserver1 = new ResizeObserver(() => {
+			if (fitAddon1Ref.current && xterm1Ref.current) {
+				fitAddon1Ref.current.fit();
 				vscode.postMessage({
 					command: 'TERM_RESIZE',
 					payload: {
-						cols: xtermRef.current.cols,
-						rows: xtermRef.current.rows
+						cols: xterm1Ref.current.cols,
+						rows: xterm1Ref.current.rows,
+						splitId: 1
 					}
 				});
 			}
 		});
-		resizeObserver.observe(terminalRef.current);
-		resizeObserverRef.current = resizeObserver;
+		resizeObserver1.observe(terminal1Ref.current);
+		resizeObserver1Ref.current = resizeObserver1;
 
-		// Theme sync - watch for theme changes
-		const observer = new MutationObserver(() => {
-			updateTheme(term);
+		const themeObserver = new MutationObserver(() => {
+			updateTheme(term1);
+			if (xterm2Ref.current) {
+				updateTheme(xterm2Ref.current);
+			}
 		});
-		observer.observe(document.body, {
+		themeObserver.observe(document.body, {
 			attributes: true,
 			attributeFilter: ['class']
 		});
 
-		// Initial theme update
-		updateTheme(term);
+		updateTheme(term1);
 
-		// Listen for messages from extension
 		const handleMessage = (event: MessageEvent) => {
 			const message = event.data;
 			switch (message.command) {
 				case 'TERM_DATA':
-					if (xtermRef.current) {
-						xtermRef.current.write(message.payload.data);
+					const splitId = message.payload.splitId || 1;
+					const term = splitId === 1 ? xterm1Ref.current : xterm2Ref.current;
+					if (term) {
+						term.write(message.payload.data);
 					}
 					break;
 				case 'TERM_STATUS':
 					setStatus(message.payload.status);
 					setStatusMessage(message.payload.message || '');
 					break;
+				case 'UPDATE_DATA':
+					if (message.payload.splitMode) {
+						setSplitMode(message.payload.splitMode);
+					}
+					break;
 			}
 		};
 
 		window.addEventListener('message', handleMessage);
 
-		// Cleanup
 		return () => {
 			window.removeEventListener('message', handleMessage);
-			observer.disconnect();
-			if (resizeObserverRef.current) {
-				resizeObserverRef.current.disconnect();
+			themeObserver.disconnect();
+			if (resizeObserver1Ref.current) {
+				resizeObserver1Ref.current.disconnect();
 			}
-			if (xtermRef.current) {
-				xtermRef.current.dispose();
+			if (xterm1Ref.current) {
+				xterm1Ref.current.dispose();
 			}
 		};
 	}, [hostId]);
 
+	// Initialize second terminal when split mode is activated
+	useEffect(() => {
+		if (splitMode !== 'none' && terminal2Ref.current && !xterm2Ref.current) {
+			const term2 = new Terminal({
+				fontFamily: 'var(--vscode-editor-font-family, monospace)',
+				fontSize: fontSize,
+				cursorBlink: true,
+				cursorStyle: 'bar',
+				theme: {
+					background: 'var(--vscode-editor-background)',
+					foreground: 'var(--vscode-editor-foreground)',
+					cursor: 'var(--vscode-editorCursor-foreground)',
+					selectionBackground: 'var(--vscode-editor-selectionBackground)',
+					black: '#000000',
+					red: '#cd3131',
+					green: '#0dbc79',
+					yellow: '#e5e510',
+					blue: '#2472c8',
+					magenta: '#bc3fbc',
+					cyan: '#11a8cd',
+					white: '#e5e5e5',
+					brightBlack: '#666666',
+					brightRed: '#f14c4c',
+					brightGreen: '#23d18b',
+					brightYellow: '#f5f543',
+					brightBlue: '#3b8eea',
+					brightMagenta: '#d670d6',
+					brightCyan: '#29b8db',
+					brightWhite: '#e5e5e5'
+				}
+			});
+
+			const fitAddon2 = new FitAddon();
+			term2.loadAddon(fitAddon2);
+
+			const webLinksAddon2 = new WebLinksAddon((event, uri) => {
+				if (uri.startsWith('/') || uri.match(/^~\//)) {
+					event.preventDefault();
+					vscode.postMessage({
+						command: 'CHECK_FILE',
+						payload: { path: uri, hostId }
+					});
+				}
+			});
+			term2.loadAddon(webLinksAddon2);
+
+			term2.open(terminal2Ref.current);
+			fitAddon2.fit();
+
+			xterm2Ref.current = term2;
+			fitAddon2Ref.current = fitAddon2;
+
+			term2.onData((data) => {
+				if (data.includes('\n') && data.length > 10) {
+					setPasteData(data);
+				} else {
+					vscode.postMessage({
+						command: 'TERM_INPUT',
+						payload: { data, splitId: 2 }
+					});
+				}
+			});
+
+			const resizeObserver2 = new ResizeObserver(() => {
+				if (fitAddon2Ref.current && xterm2Ref.current) {
+					fitAddon2Ref.current.fit();
+					vscode.postMessage({
+						command: 'TERM_RESIZE',
+						payload: {
+							cols: xterm2Ref.current.cols,
+							rows: xterm2Ref.current.rows,
+							splitId: 2
+						}
+					});
+				}
+			});
+			resizeObserver2.observe(terminal2Ref.current);
+			resizeObserver2Ref.current = resizeObserver2;
+
+			updateTheme(term2);
+		}
+
+		return () => {
+			if (resizeObserver2Ref.current) {
+				resizeObserver2Ref.current.disconnect();
+				resizeObserver2Ref.current = null;
+			}
+			if (xterm2Ref.current) {
+				xterm2Ref.current.dispose();
+				xterm2Ref.current = null;
+			}
+		};
+	}, [splitMode]);
+
 	// Update font size when it changes
 	useEffect(() => {
-		if (xtermRef.current) {
-			xtermRef.current.options.fontSize = fontSize;
-			if (fitAddonRef.current) {
-				fitAddonRef.current.fit();
+		if (xterm1Ref.current) {
+			xterm1Ref.current.options.fontSize = fontSize;
+			if (fitAddon1Ref.current) {
+				fitAddon1Ref.current.fit();
+			}
+		}
+		if (xterm2Ref.current) {
+			xterm2Ref.current.options.fontSize = fontSize;
+			if (fitAddon2Ref.current) {
+				fitAddon2Ref.current.fit();
 			}
 		}
 	}, [fontSize]);
@@ -223,6 +330,45 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 		setFontSize(newSize);
 	};
 
+	const handleSplitVertical = () => {
+		vscode.postMessage({
+			command: 'TERMINAL_SPLIT',
+			payload: { mode: 'vertical' }
+		});
+	};
+
+	const handleSplitHorizontal = () => {
+		vscode.postMessage({
+			command: 'TERMINAL_SPLIT',
+			payload: { mode: 'horizontal' }
+		});
+	};
+
+	const handleCloseSplit = (splitId: number) => {
+		vscode.postMessage({
+			command: 'TERMINAL_CLOSE_SPLIT',
+			payload: { splitId }
+		});
+		setSplitMode('none');
+	};
+
+	const handlePastePath = (path: string) => {
+		// Write path to active terminal
+		const term = activeSplit === 1 ? xterm1Ref.current : xterm2Ref.current;
+		if (term) {
+			term.write(path);
+		}
+	};
+
+	const handleUploadFile = (file: File) => {
+		// Get current working directory (would need to be tracked or queried)
+		// For now, use home directory as default
+		vscode.postMessage({
+			command: 'SFTP_UPLOAD',
+			payload: { hostId, remotePath: '~', localPath: file.name }
+		});
+	};
+
 	return (
 		<div className="terminal-container">
 			<TerminalHUD
@@ -232,9 +378,25 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 				onOpenSftp={handleOpenSftp}
 				fontSize={fontSize}
 				onFontSizeChange={handleFontSizeChange}
+				onSplitVertical={handleSplitVertical}
+				onSplitHorizontal={handleSplitHorizontal}
+				splitMode={splitMode}
 			/>
 
-			<div className="terminal-wrapper" ref={terminalRef} />
+			<div className={`terminal-layout terminal-layout-${splitMode}`}>
+				<div
+					className={`terminal-pane ${activeSplit === 1 ? 'active' : ''}`}
+					onClick={() => setActiveSplit(1)}
+					ref={terminal1Ref}
+				/>
+				{splitMode !== 'none' && (
+					<div
+						className={`terminal-pane ${activeSplit === 2 ? 'active' : ''}`}
+						onClick={() => setActiveSplit(2)}
+						ref={terminal2Ref}
+					/>
+				)}
+			</div>
 
 			{pasteData && (
 				<PasteModal
@@ -253,6 +415,12 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 					</div>
 				</div>
 			)}
+
+			{/* Drop Overlay for Smart Drag & Drop */}
+			<DropOverlay
+				onPastePath={handlePastePath}
+				onUpload={handleUploadFile}
+			/>
 		</div>
 	);
 };

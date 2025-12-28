@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { RefreshCw, Folder, Settings } from 'lucide-react';
+import { RefreshCw, Folder, Settings, SplitSquareVertical, SplitSquareHorizontal } from 'lucide-react';
+import { QuickSettings } from './QuickSettings';
 
 interface TerminalHUDProps {
 	status: 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -8,6 +9,9 @@ interface TerminalHUDProps {
 	onOpenSftp: () => void;
 	fontSize: number;
 	onFontSizeChange: (size: number) => void;
+	onSplitVertical?: () => void;
+	onSplitHorizontal?: () => void;
+	splitMode?: 'none' | 'vertical' | 'horizontal';
 }
 
 const TerminalHUD: React.FC<TerminalHUDProps> = ({
@@ -16,9 +20,20 @@ const TerminalHUD: React.FC<TerminalHUDProps> = ({
 	onReconnect,
 	onOpenSftp,
 	fontSize,
-	onFontSizeChange
+	onFontSizeChange,
+	onSplitVertical,
+	onSplitHorizontal,
+	splitMode = 'none'
 }) => {
 	const [showSettings, setShowSettings] = useState(false);
+	const [showQuickSettings, setShowQuickSettings] = useState(false);
+	const [quickSettingsPosition, setQuickSettingsPosition] = useState({ x: 0, y: 0 });
+
+	const handleContextMenu = (e: React.MouseEvent) => {
+		e.preventDefault();
+		setQuickSettingsPosition({ x: e.clientX, y: e.clientY });
+		setShowQuickSettings(true);
+	};
 
 	const getStatusColor = () => {
 		switch (status) {
@@ -50,7 +65,7 @@ const TerminalHUD: React.FC<TerminalHUDProps> = ({
 	};
 
 	return (
-		<div className="terminal-hud">
+		<div className="terminal-hud" onContextMenu={handleContextMenu}>
 			<div className="terminal-hud-main">
 				{/* Status Indicator */}
 				<div className="terminal-status">
@@ -66,6 +81,24 @@ const TerminalHUD: React.FC<TerminalHUDProps> = ({
 
 				{/* Actions */}
 				<div className="terminal-actions">
+					{splitMode === 'none' && onSplitVertical && (
+						<button
+							className="terminal-action-button"
+							onClick={onSplitVertical}
+							title="Split Vertically"
+						>
+							<SplitSquareVertical size={16} />
+						</button>
+					)}
+					{splitMode === 'none' && onSplitHorizontal && (
+						<button
+							className="terminal-action-button"
+							onClick={onSplitHorizontal}
+							title="Split Horizontally"
+						>
+							<SplitSquareHorizontal size={16} />
+						</button>
+					)}
 					<button
 						className="terminal-action-button"
 						onClick={onReconnect}
@@ -112,6 +145,16 @@ const TerminalHUD: React.FC<TerminalHUDProps> = ({
 						</div>
 					</div>
 				</div>
+			)}
+
+			{/* Quick Settings (Right-click menu) */}
+			{showQuickSettings && (
+				<QuickSettings
+					fontSize={fontSize}
+					onFontSizeChange={onFontSizeChange}
+					onClose={() => setShowQuickSettings(false)}
+					position={quickSettingsPosition}
+				/>
 			)}
 		</div>
 	);

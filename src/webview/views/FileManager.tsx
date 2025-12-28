@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FileEntry, TransferStatus } from '../../common/types';
 import { Toolbar } from '../components/FileManager/Toolbar';
 import { FileList } from '../components/FileManager/FileList';
+import { Footer } from '../components/FileManager/Footer';
 import vscode from '../utils/vscode';
 import '../styles/fileManager.css';
 
@@ -122,6 +123,131 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		window.addEventListener('message', handleMessage);
 		return () => window.removeEventListener('message', handleMessage);
 	}, []);
+
+	// Commander hotkeys (Tab, Space, Insert, F-Keys)
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const state = getActiveState();
+
+			// Tab: Toggle focus between panels (Commander mode only)
+			if (e.key === 'Tab' && layoutMode === 'commander') {
+				e.preventDefault();
+				setActivePanel(prev => prev === 'left' ? 'right' : 'left');
+				return;
+			}
+
+			// Space: Toggle selection of focused file
+			if (e.key === ' ' && state.focusedFile) {
+				e.preventDefault();
+				setActiveState(prev => {
+					const isSelected = prev.selection.includes(prev.focusedFile!);
+					return {
+						...prev,
+						selection: isSelected
+							? prev.selection.filter(p => p !== prev.focusedFile)
+							: [...prev.selection, prev.focusedFile!]
+					};
+				});
+				return;
+			}
+
+			// Insert: Toggle selection and move cursor down
+			if (e.key === 'Insert' && state.focusedFile) {
+				e.preventDefault();
+				setActiveState(prev => {
+					const currentIndex = prev.files.findIndex(f => f.path === prev.focusedFile);
+					const nextIndex = Math.min(currentIndex + 1, prev.files.length - 1);
+					const nextFile = prev.files[nextIndex];
+					const isSelected = prev.selection.includes(prev.focusedFile!);
+
+					return {
+						...prev,
+						selection: isSelected
+							? prev.selection.filter(p => p !== prev.focusedFile)
+							: [...prev.selection, prev.focusedFile!],
+						focusedFile: nextFile?.path || prev.focusedFile
+					};
+				});
+				return;
+			}
+
+			// F-Keys (only in Commander mode and when files are available)
+			if (layoutMode === 'commander' && state.files.length > 0) {
+				const selectedFiles = state.files.filter(f => state.selection.includes(f.path));
+				const focusedFileEntry = state.files.find(f => f.path === state.focusedFile);
+
+				switch (e.key) {
+					case 'F3':
+						e.preventDefault();
+						// Quick Look (Media Preview) - use focused file or first selected
+						if (focusedFileEntry && focusedFileEntry.type === '-') {
+							vscode.postMessage({
+								command: 'PREVIEW_FILE',
+								payload: { hostId, remotePath: focusedFileEntry.path, fileType: 'image' }
+							});
+						}
+						break;
+
+					case 'F4':
+						e.preventDefault();
+						// Edit - use focused file or first selected
+						if (focusedFileEntry && focusedFileEntry.type === '-') {
+							handleFileEdit(focusedFileEntry);
+						}
+						break;
+
+					case 'F5':
+						e.preventDefault();
+						// Copy to opposite panel
+						if (selectedFiles.length > 0) {
+							const targetPanel = activePanel === 'left' ? rightPanel : leftPanel;
+							handleInternalDrop(
+								selectedFiles.map(f => f.path),
+								targetPanel.currentPath,
+								activePanel
+							);
+						}
+						break;
+
+					case 'F6':
+						e.preventDefault();
+						// Move to opposite panel
+						if (selectedFiles.length > 0) {
+							const targetPanel = activePanel === 'left' ? rightPanel : leftPanel;
+							vscode.postMessage({
+								command: 'SFTP_MOVE',
+								payload: {
+									hostId,
+									sourcePaths: selectedFiles.map(f => f.path),
+									targetPath: targetPanel.currentPath,
+									sourcePanel: activePanel
+								}
+							});
+							// Clear selection after move
+							setActiveState(prev => ({ ...prev, selection: [], focusedFile: null }));
+						}
+						break;
+
+					case 'F7':
+						e.preventDefault();
+						// New Folder
+						handleNewFolder();
+						break;
+
+					case 'F8':
+						e.preventDefault();
+						// Delete selected files
+						if (selectedFiles.length > 0) {
+							handleFileDelete(selectedFiles);
+						}
+						break;
+				}
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [layoutMode, activePanel, leftPanel, rightPanel]);
 
 	/**
 	 * Loads a directory listing
@@ -503,6 +629,13 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					<div className="transfer-percentage">{transfer.progress}%</div>
 				</div>
 			)}
+
+			{/* F-Keys Footer (Commander mode only) */}
+			<Footer
+				layoutMode={layoutMode}
+				hasSelection={getActiveState().selection.length > 0}
+				hasFocusedFile={getActiveState().focusedFile !== null}
+			/>
 		</div>
 	);
 };
