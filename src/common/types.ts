@@ -91,6 +91,48 @@ export interface TransferStatus {
 	type: 'upload' | 'download';
 }
 
+// ============================================================================
+// TRANSFER ENGINE TYPES (Subphase 3.5)
+// ============================================================================
+
+export type TransferJobStatus = 'pending' | 'active' | 'paused' | 'completed' | 'error' | 'cancelled';
+
+export interface BaseTransferJob {
+	id: string;
+	hostId: string;
+	filename: string;
+	size: number;
+	status: TransferJobStatus;
+	progress: number;  // 0-100
+	speed: number;     // bytes per second
+	bytesTransferred: number;
+	error?: string;
+	priority: number;  // Higher = more priority
+	createdAt: number;
+	startedAt?: number;
+	completedAt?: number;
+}
+
+export interface UploadJob extends BaseTransferJob {
+	type: 'upload';
+	localPath: string;
+	remotePath: string;
+}
+
+export interface DownloadJob extends BaseTransferJob {
+	type: 'download';
+	remotePath: string;
+	localPath: string;
+}
+
+export type TransferJob = UploadJob | DownloadJob;
+
+export interface TransferQueueSummary {
+	activeCount: number;
+	totalSpeed: number;  // Total speed in bytes/s across all active transfers
+	queuedCount: number;
+}
+
 export type ViewType = 'hosts' | 'addHost' | 'credentials' | 'addCredential' | 'fileManager' | 'terminal';
 
 export interface WebviewState {
@@ -221,7 +263,27 @@ export type Message =
 	| { command: 'TERM_STATUS'; payload: { status: 'connecting' | 'connected' | 'disconnected' | 'error'; message?: string } }
 	| { command: 'TERM_RECONNECT'; payload: { hostId: string } }
 	| { command: 'CHECK_FILE'; payload: { path: string; hostId: string } }
-	| { command: 'OPEN_REMOTE_FILE'; payload: { hostId: string; remotePath: string; content: string } };
+	| { command: 'OPEN_REMOTE_FILE'; payload: { hostId: string; remotePath: string; content: string } }
+
+	// Transfer Engine (Subphase 3.5)
+	| { command: 'TRANSFER_QUEUE'; payload: { action: 'add'; job: Partial<TransferJob> } }
+	| { command: 'TRANSFER_QUEUE'; payload: { action: 'pause' | 'resume' | 'cancel'; jobId: string } }
+	| { command: 'TRANSFER_QUEUE'; payload: { action: 'clear_completed' } }
+	| { command: 'TRANSFER_UPDATE'; payload: { job: TransferJob } }
+	| { command: 'TRANSFER_QUEUE_STATE'; payload: { jobs: TransferJob[]; summary: TransferQueueSummary } }
+
+	// Media Preview (Subphase 3.5)
+	| { command: 'PREVIEW_FILE'; payload: { hostId: string; remotePath: string; fileType: 'image' | 'pdf' | 'binary' } }
+
+	// Archive Handling (Subphase 3.5)
+	| { command: 'EXTRACT_ARCHIVE'; payload: { hostId: string; archivePath: string } }
+	| { command: 'COMPRESS_FILES'; payload: { hostId: string; paths: string[]; archiveName: string; archiveType: 'zip' | 'tar' | 'tar.gz' } }
+	| { command: 'PROMPT_SMART_UPLOAD'; payload: { fileCount: number; totalSize: number; targetPath: string } }
+	| { command: 'SMART_UPLOAD_RESPONSE'; payload: { accept: boolean } }
+
+	// Broadcast (Subphase 3.5)
+	| { command: 'BROADCAST_COMMAND'; payload: { hostIds: string[]; command: string } }
+	| { command: 'BROADCAST_STATUS'; payload: { hostId: string; success: boolean; output?: string; error?: string } };
 
 // ============================================================================
 // UTILITY TYPES

@@ -9,17 +9,19 @@ import EditHost from './views/EditHost';
 import CredentialsView from './views/CredentialsView';
 import { FileManager } from './views/FileManager';
 import TerminalView from './views/TerminalView';
+import { TransferQueue } from './views/TransferQueue';
 import HostKeyDialog from './dialogs/HostKeyDialog';
 import ScriptList from './components/ScriptList';
 import SearchBar from './components/SearchBar';
 import TunnelDialog from './dialogs/TunnelDialog';
 import EmptyState from './components/EmptyState';
 import './styles/main.css';
+import './styles/transferQueue.css';
 
 // Declare global window type for LABONAIR_CONTEXT
 declare global {
 	interface Window {
-		LABONAIR_CONTEXT?: 'sidebar' | 'editor';
+		LABONAIR_CONTEXT?: 'sidebar' | 'editor' | 'queue';
 	}
 }
 
@@ -41,6 +43,7 @@ const App: React.FC = () => {
 
 	// Check if we're in editor context (Terminal/SFTP panel) vs sidebar
 	const isEditorContext = window.LABONAIR_CONTEXT === 'editor';
+	const isQueueContext = window.LABONAIR_CONTEXT === 'queue';
 
 	// Dialogs
 	const [tunnelDialogHost, setTunnelDialogHost] = useState<Host | null>(null);
@@ -347,6 +350,12 @@ const App: React.FC = () => {
 	// ============================================================
 	// RENDER
 	// ============================================================
+
+	// Render Transfer Queue view
+	if (isQueueContext) {
+		return <TransferQueue />;
+	}
+
 	return (
 		<div className="app-container">
 			{hostKeyRequest && (

@@ -10,7 +10,8 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onView:labonair.views.hosts"
+		"onView:labonair.views.hosts",
+		"onView:labonair.views.queue"
 	],
 	"main": "./dist/extension.js",
 	"contributes": {
@@ -28,6 +29,11 @@
 				{
 					"id": "labonair.views.hosts",
 					"name": "Host Manager",
+					"type": "webview"
+				},
+				{
+					"id": "labonair.views.queue",
+					"name": "Transfer Queue",
 					"type": "webview"
 				}
 			]

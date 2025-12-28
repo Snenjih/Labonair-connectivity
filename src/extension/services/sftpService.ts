@@ -481,4 +481,134 @@ export class SftpService {
 			return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
 		}
 	}
+
+	/**
+	 * Extracts an archive on the remote server
+	 * Supports .zip, .tar, .tar.gz, .tgz formats
+	 */
+	public async extractRemote(hostId: string, archivePath: string): Promise<void> {
+		const host = await this.getHost(hostId);
+		const client = await ConnectionPool.acquire(
+			host,
+			this.hostService,
+			this.credentialService,
+			this.hostKeyService
+		);
+
+		return new Promise((resolve, reject) => {
+			// Detect archive type
+			const ext = archivePath.toLowerCase();
+			let command: string;
+
+			if (ext.endsWith('.zip')) {
+				// Extract zip file
+				command = `unzip -o '${archivePath}' -d '${archivePath.substring(0, archivePath.lastIndexOf('/'))}'`;
+			} else if (ext.endsWith('.tar.gz') || ext.endsWith('.tgz')) {
+				// Extract tar.gz file
+				command = `tar -xzf '${archivePath}' -C '${archivePath.substring(0, archivePath.lastIndexOf('/'))}'`;
+			} else if (ext.endsWith('.tar')) {
+				// Extract tar file
+				command = `tar -xf '${archivePath}' -C '${archivePath.substring(0, archivePath.lastIndexOf('/'))}'`;
+			} else {
+				reject(new Error('Unsupported archive format. Supported formats: .zip, .tar, .tar.gz, .tgz'));
+				return;
+			}
+
+			client.exec(command, (err, stream) => {
+				if (err) {
+					reject(new Error(`Failed to execute extraction command: ${err.message}`));
+					return;
+				}
+
+				let output = '';
+				let errorOutput = '';
+
+				stream.on('data', (data: Buffer) => {
+					output += data.toString();
+				});
+
+				stream.stderr.on('data', (data: Buffer) => {
+					errorOutput += data.toString();
+				});
+
+				stream.on('close', (code: number) => {
+					if (code === 0) {
+						resolve();
+					} else {
+						reject(new Error(`Extraction failed with code ${code}: ${errorOutput || output}`));
+					}
+				});
+			});
+		});
+	}
+
+	/**
+	 * Compresses files/directories on the remote server into an archive
+	 * Creates a tar.gz archive by default
+	 */
+	public async compressRemote(
+		hostId: string,
+		paths: string[],
+		archiveName: string,
+		archiveType: 'zip' | 'tar' | 'tar.gz' = 'tar.gz'
+	): Promise<void> {
+		const host = await this.getHost(hostId);
+		const client = await ConnectionPool.acquire(
+			host,
+			this.hostService,
+			this.credentialService,
+			this.hostKeyService
+		);
+
+		return new Promise((resolve, reject) => {
+			if (paths.length === 0) {
+				reject(new Error('No paths specified for compression'));
+				return;
+			}
+
+			// Build command based on archive type
+			let command: string;
+			const quotedPaths = paths.map(p => `'${p}'`).join(' ');
+
+			if (archiveType === 'zip') {
+				// Create zip archive
+				command = `zip -r '${archiveName}' ${quotedPaths}`;
+			} else if (archiveType === 'tar.gz') {
+				// Create tar.gz archive
+				command = `tar -czf '${archiveName}' ${quotedPaths}`;
+			} else if (archiveType === 'tar') {
+				// Create tar archive
+				command = `tar -cf '${archiveName}' ${quotedPaths}`;
+			} else {
+				reject(new Error('Unsupported archive type. Supported types: zip, tar, tar.gz'));
+				return;
+			}
+
+			client.exec(command, (err, stream) => {
+				if (err) {
+					reject(new Error(`Failed to execute compression command: ${err.message}`));
+					return;
+				}
+
+				let output = '';
+				let errorOutput = '';
+
+				stream.on('data', (data: Buffer) => {
+					output += data.toString();
+				});
+
+				stream.stderr.on('data', (data: Buffer) => {
+					errorOutput += data.toString();
+				});
+
+				stream.on('close', (code: number) => {
+					if (code === 0) {
+						resolve();
+					} else {
+						reject(new Error(`Compression failed with code ${code}: ${errorOutput || output}`));
+					}
+				});
+			});
+		});
+	}
 }

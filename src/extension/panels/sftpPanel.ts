@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { SftpService } from '../services/sftpService';
 import { HostService } from '../hostService';
+import { MediaPanel } from './MediaPanel';
 import { Message, FileEntry } from '../../common/types';
 
 /**
@@ -192,6 +193,21 @@ export class SftpPanel {
 						}
 					});
 				}
+				break;
+			}
+
+			case 'PREVIEW_FILE': {
+				await this._previewFile(message.payload.remotePath, message.payload.fileType);
+				break;
+			}
+
+			case 'EXTRACT_ARCHIVE': {
+				await this._extractArchive(message.payload.archivePath);
+				break;
+			}
+
+			case 'COMPRESS_FILES': {
+				await this._compressFiles(message.payload.paths, message.payload.archiveName, message.payload.archiveType);
 				break;
 			}
 		}
@@ -505,6 +521,107 @@ export class SftpPanel {
 			vscode.window.showInformationMessage(message, { modal: true });
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to get file properties: ${error}`);
+		}
+	}
+
+	/**
+	 * Opens a media preview panel for an image, PDF, or binary file
+	 */
+	private async _previewFile(remotePath: string, fileType: 'image' | 'pdf' | 'binary'): Promise<void> {
+		try {
+			await MediaPanel.createOrShow(
+				this._extensionUri,
+				this._hostId,
+				remotePath,
+				fileType,
+				this._sftpService,
+				this._hostService
+			);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to preview file: ${error}`);
+		}
+	}
+
+	/**
+	 * Extracts an archive on the remote server
+	 */
+	private async _extractArchive(archivePath: string): Promise<void> {
+		try {
+			const fileName = archivePath.split('/').pop() || 'archive';
+			const confirm = await vscode.window.showInformationMessage(
+				`Extract ${fileName}?`,
+				{ modal: true },
+				'Extract Here'
+			);
+
+			if (confirm !== 'Extract Here') {
+				return;
+			}
+
+			vscode.window.showInformationMessage(`Extracting ${fileName}...`);
+
+			await this._sftpService.extractRemote(this._hostId, archivePath);
+
+			vscode.window.showInformationMessage(`Extracted ${fileName} successfully`);
+
+			// Refresh directory listing
+			await this._listFiles(this._currentPath);
+		} catch (error) {
+			this._panel.webview.postMessage({
+				command: 'SFTP_ERROR',
+				payload: {
+					message: `Extraction failed: ${error}`
+				}
+			});
+			vscode.window.showErrorMessage(`Extraction failed: ${error}`);
+		}
+	}
+
+	/**
+	 * Compresses files into an archive on the remote server
+	 */
+	private async _compressFiles(
+		paths: string[],
+		archiveName: string,
+		archiveType: 'zip' | 'tar' | 'tar.gz'
+	): Promise<void> {
+		try {
+			let finalArchiveName = archiveName;
+
+			// If no archive name provided, prompt user
+			if (!finalArchiveName) {
+				finalArchiveName = await vscode.window.showInputBox({
+					prompt: 'Enter archive name',
+					placeHolder: `archive.${archiveType}`,
+					value: `archive.${archiveType}`
+				}) || '';
+
+				if (!finalArchiveName) {
+					return;
+				}
+			}
+
+			vscode.window.showInformationMessage(`Creating archive ${finalArchiveName}...`);
+
+			await this._sftpService.compressRemote(
+				this._hostId,
+				paths,
+				finalArchiveName,
+				archiveType
+			);
+
+			vscode.window.showInformationMessage(`Created archive ${finalArchiveName} successfully`);
+
+			// Refresh directory listing
+			await this._listFiles(this._currentPath);
+		} catch (error) {
+			this._panel.webview.postMessage({
+				command: 'SFTP_ERROR',
+				payload: {
+					message: `Compression failed: ${error}`
+				}
+			});
+			vscode.window.showErrorMessage(`Compression failed: ${error}`);
 		}
 	}
 

@@ -13,14 +13,18 @@ import { registerCommands } from './commands';
 import { SshConnectionService } from './services/sshConnectionService';
 import { SftpService } from './services/sftpService';
 import { EditHandler } from './services/editHandler';
+import { TransferService } from './services/transferService';
+import { BroadcastService } from './services/broadcastService';
 import { SftpPanel } from './panels/sftpPanel';
 import { TerminalPanel } from './panels/TerminalPanel';
-import { Message, Host, HostStatus } from '../common/types';
+import { Message, Host, HostStatus, TransferJob, TransferQueueSummary } from '../common/types';
 
 // Store service instances for cleanup
 let sshConnectionServiceInstance: SshConnectionService | undefined;
 let sftpServiceInstance: SftpService | undefined;
 let editHandlerInstance: EditHandler | undefined;
+let transferServiceInstance: TransferService | undefined;
+let broadcastServiceInstance: BroadcastService | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
 	const hostService = new HostService(context);
@@ -34,11 +38,34 @@ export function activate(context: vscode.ExtensionContext) {
 	const sshConnectionService = new SshConnectionService(hostService, credentialService);
 	const sftpService = new SftpService(hostService, credentialService, hostKeyService);
 	const editHandler = new EditHandler(sftpService, hostService, credentialService, context);
+	const broadcastService = new BroadcastService();
+
+	// Transfer Service with callbacks for webview updates
+	let transferQueueViewProvider: TransferQueueViewProvider | undefined;
+	const transferService = new TransferService(
+		sftpService,
+		(job: TransferJob) => {
+			// Send job update to Queue View
+			transferQueueViewProvider?.postMessage({
+				command: 'TRANSFER_UPDATE',
+				payload: { job }
+			});
+		},
+		(jobs: TransferJob[], summary: TransferQueueSummary) => {
+			// Send queue state update to Queue View
+			transferQueueViewProvider?.postMessage({
+				command: 'TRANSFER_QUEUE_STATE',
+				payload: { jobs, summary }
+			});
+		}
+	);
 
 	// Store for cleanup
 	sshConnectionServiceInstance = sshConnectionService;
 	sftpServiceInstance = sftpService;
 	editHandlerInstance = editHandler;
+	transferServiceInstance = transferService;
+	broadcastServiceInstance = broadcastService;
 
 	// Register Commands
 	registerCommands(context, hostService, sftpService);
@@ -56,9 +83,11 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 	context.subscriptions.push(editRemoteFileCommand);
 
-	// Register the Webview View Provider
+	// Register the Webview View Providers
 	try {
 		console.log('Activating Connectivity Extension...');
+
+		// Host Manager View
 		const provider = new ConnectivityViewProvider(
 			context.extensionUri,
 			hostService,
@@ -70,11 +99,22 @@ export function activate(context: vscode.ExtensionContext) {
 			hostKeyService,
 			shellService,
 			sshConnectionService,
-			sftpService
+			sftpService,
+			broadcastService
 		);
 		context.subscriptions.push(
 			vscode.window.registerWebviewViewProvider('labonair.views.hosts', provider)
 		);
+
+		// Transfer Queue View
+		transferQueueViewProvider = new TransferQueueViewProvider(
+			context.extensionUri,
+			transferService
+		);
+		context.subscriptions.push(
+			vscode.window.registerWebviewViewProvider('labonair.views.queue', transferQueueViewProvider)
+		);
+
 		console.log('Connectivity Extension Activated Successfully.');
 	} catch (e) {
 		console.error('Failed to activate Connectivity Extension:', e);
@@ -97,7 +137,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		private readonly _hostKeyService: HostKeyService,
 		private readonly _shellService: ShellService,
 		private readonly _sshConnectionService: SshConnectionService,
-		private readonly _sftpService: SftpService
+		private readonly _sftpService: SftpService,
+		private readonly _broadcastService: BroadcastService
 	) { }
 
 	public resolveWebviewView(
@@ -465,6 +506,29 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 					}
 					break;
 				}
+
+				// ============================================================
+				// BROADCAST (Subphase 3.5)
+				// ============================================================
+				case 'BROADCAST_COMMAND': {
+					const { hostIds, command } = message.payload;
+					vscode.window.showInformationMessage(`Broadcasting command to ${hostIds.length} host(s)...`);
+
+					await this._broadcastService.broadcast(
+						hostIds,
+						command,
+						(hostId: string, success: boolean, output?: string, error?: string) => {
+							// Send status update back to webview
+							webviewView.webview.postMessage({
+								command: 'BROADCAST_STATUS',
+								payload: { hostId, success, output, error }
+							});
+						}
+					);
+
+					vscode.window.showInformationMessage(`Broadcast completed`);
+					break;
+				}
 			}
 		});
 	}
@@ -549,6 +613,92 @@ function getNonce() {
 	return text;
 }
 
+/**
+ * Transfer Queue View Provider
+ * Manages the Transfer Queue webview in the sidebar
+ */
+class TransferQueueViewProvider implements vscode.WebviewViewProvider {
+	private _view?: vscode.WebviewView;
+
+	constructor(
+		private readonly _extensionUri: vscode.Uri,
+		private readonly _transferService: TransferService
+	) { }
+
+	public resolveWebviewView(
+		webviewView: vscode.WebviewView,
+		context: vscode.WebviewViewResolveContext,
+		_token: vscode.CancellationToken,
+	) {
+		this._view = webviewView;
+
+		webviewView.webview.options = {
+			enableScripts: true,
+			localResourceRoots: [this._extensionUri]
+		};
+
+		webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+
+		// Handle messages from webview
+		webviewView.webview.onDidReceiveMessage(async (message: Message) => {
+			switch (message.command) {
+				case 'FETCH_DATA': {
+					// Send initial queue state
+					const jobs = this._transferService.getAllJobs();
+					const summary = this._transferService.getSummary();
+					webviewView.webview.postMessage({
+						command: 'TRANSFER_QUEUE_STATE',
+						payload: { jobs, summary }
+					});
+					break;
+				}
+
+				case 'TRANSFER_QUEUE': {
+					if (message.payload.action === 'pause') {
+						this._transferService.pauseJob(message.payload.jobId);
+					} else if (message.payload.action === 'resume') {
+						this._transferService.resumeJob(message.payload.jobId);
+					} else if (message.payload.action === 'cancel') {
+						this._transferService.cancelJob(message.payload.jobId);
+					} else if (message.payload.action === 'clear_completed') {
+						this._transferService.clearCompleted();
+					} else if (message.payload.action === 'add' && message.payload.job) {
+						this._transferService.addJob(message.payload.job);
+					}
+					break;
+				}
+			}
+		});
+	}
+
+	/**
+	 * Posts a message to the webview
+	 */
+	public postMessage(message: Message): void {
+		this._view?.webview.postMessage(message);
+	}
+
+	private _getHtmlForWebview(webview: vscode.Webview): string {
+		const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.js'));
+		const nonce = getNonce();
+
+		return `<!DOCTYPE html>
+			<html lang="en">
+			<head>
+				<meta charset="UTF-8">
+				<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; font-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+				<meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<title>Transfer Queue</title>
+			</head>
+			<body>
+				<div id="root"></div>
+				<script nonce="${nonce}">window.LABONAIR_CONTEXT = 'queue';</script>
+				<script nonce="${nonce}" src="${scriptUri}"></script>
+			</body>
+			</html>`;
+	}
+}
+
 export function deactivate() {
 	// Clean up all active SSH sessions
 	if (sshConnectionServiceInstance) {
@@ -566,6 +716,18 @@ export function deactivate() {
 	if (editHandlerInstance) {
 		editHandlerInstance.dispose();
 		editHandlerInstance = undefined;
+	}
+
+	// Clean up Transfer Service
+	if (transferServiceInstance) {
+		transferServiceInstance.dispose();
+		transferServiceInstance = undefined;
+	}
+
+	// Clean up Broadcast Service
+	if (broadcastServiceInstance) {
+		broadcastServiceInstance.dispose();
+		broadcastServiceInstance = undefined;
 	}
 }
 

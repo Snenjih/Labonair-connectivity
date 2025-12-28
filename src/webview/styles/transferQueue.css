@@ -1,0 +1,407 @@
+/* ============================================================================
+   TRANSFER QUEUE STYLES - Subphase 3.5
+   ============================================================================ */
+
+.transfer-queue-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	overflow: hidden;
+}
+
+/* ============================================================================
+   HEADER & SUMMARY
+   ============================================================================ */
+
+.transfer-queue-header {
+	padding: 12px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	background: var(--vscode-sideBar-background);
+}
+
+.transfer-summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 8px;
+}
+
+.transfer-summary-text {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+	color: var(--vscode-foreground);
+}
+
+.transfer-summary-count {
+	font-weight: 500;
+	color: var(--vscode-terminal-ansiBlue);
+}
+
+.transfer-summary-speed {
+	font-family: var(--vscode-editor-font-family);
+	color: var(--vscode-terminal-ansiGreen);
+}
+
+.transfer-summary-separator {
+	opacity: 0.5;
+}
+
+.transfer-summary-idle {
+	color: var(--vscode-descriptionForeground);
+}
+
+.clear-completed-btn {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 8px;
+	background: transparent;
+	border: 1px solid var(--vscode-button-border);
+	color: var(--vscode-foreground);
+	font-size: 11px;
+	cursor: pointer;
+	border-radius: 2px;
+	transition: background-color 0.15s ease;
+}
+
+.clear-completed-btn:hover {
+	background: var(--vscode-button-hoverBackground);
+}
+
+.clear-completed-btn:active {
+	background: var(--vscode-button-background);
+}
+
+/* Global Progress Bar */
+.transfer-global-progress-container {
+	margin-top: 8px;
+}
+
+.transfer-global-progress {
+	width: 100%;
+	height: 4px;
+	-webkit-appearance: none;
+	appearance: none;
+	border: none;
+	background: var(--vscode-progressBar-background);
+	border-radius: 2px;
+	overflow: hidden;
+}
+
+.transfer-global-progress::-webkit-progress-bar {
+	background: var(--vscode-editorWidget-background);
+	border-radius: 2px;
+}
+
+.transfer-global-progress::-webkit-progress-value {
+	background: var(--vscode-progressBar-background);
+	border-radius: 2px;
+	transition: width 0.3s ease;
+}
+
+.transfer-global-progress::-moz-progress-bar {
+	background: var(--vscode-progressBar-background);
+	border-radius: 2px;
+}
+
+/* ============================================================================
+   TRANSFER LISTS
+   ============================================================================ */
+
+.transfer-lists {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+.transfer-section {
+	margin-bottom: 16px;
+}
+
+.transfer-section-header {
+	padding: 8px 12px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: var(--vscode-descriptionForeground);
+	background: var(--vscode-sideBarSectionHeader-background);
+	border-bottom: 1px solid var(--vscode-panel-border);
+	position: sticky;
+	top: 0;
+	z-index: 1;
+}
+
+.transfer-section-content {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	background: var(--vscode-panel-border);
+}
+
+/* ============================================================================
+   TRANSFER ITEM
+   ============================================================================ */
+
+.transfer-item {
+	display: flex;
+	flex-direction: column;
+	padding: 10px 12px;
+	background: var(--vscode-sideBar-background);
+	border-left: 3px solid transparent;
+	transition: border-color 0.15s ease;
+}
+
+.transfer-item[data-status="active"] {
+	border-left-color: var(--vscode-terminal-ansiBlue);
+}
+
+.transfer-item[data-status="completed"] {
+	border-left-color: var(--vscode-terminal-ansiGreen);
+}
+
+.transfer-item[data-status="error"],
+.transfer-item[data-status="cancelled"] {
+	border-left-color: var(--vscode-terminal-ansiRed);
+}
+
+.transfer-item[data-status="paused"] {
+	border-left-color: var(--vscode-terminal-ansiYellow);
+}
+
+.transfer-header {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.transfer-type-icon {
+	flex-shrink: 0;
+	margin-top: 2px;
+}
+
+.transfer-info {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.transfer-filename {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--vscode-foreground);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.transfer-paths {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	font-family: var(--vscode-editor-font-family);
+}
+
+.transfer-path {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 150px;
+}
+
+.transfer-arrow {
+	flex-shrink: 0;
+	opacity: 0.5;
+}
+
+.transfer-status-icon {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	margin-top: 2px;
+}
+
+/* Spinner Animation */
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.spinner {
+	animation: spin 1s linear infinite;
+}
+
+/* ============================================================================
+   PROGRESS BAR
+   ============================================================================ */
+
+.transfer-progress-container {
+	margin-bottom: 6px;
+}
+
+.transfer-progress {
+	width: 100%;
+	height: 6px;
+	-webkit-appearance: none;
+	appearance: none;
+	border: none;
+	border-radius: 3px;
+	overflow: hidden;
+	margin-bottom: 4px;
+}
+
+.transfer-progress::-webkit-progress-bar {
+	background: var(--vscode-editorWidget-background);
+	border-radius: 3px;
+}
+
+.transfer-progress::-webkit-progress-value {
+	background: var(--vscode-progressBar-background);
+	border-radius: 3px;
+	transition: width 0.3s ease;
+}
+
+.transfer-progress::-moz-progress-bar {
+	background: var(--vscode-progressBar-background);
+	border-radius: 3px;
+}
+
+.transfer-progress[data-status="completed"]::-webkit-progress-value {
+	background: var(--vscode-terminal-ansiGreen);
+}
+
+.transfer-progress[data-status="completed"]::-moz-progress-bar {
+	background: var(--vscode-terminal-ansiGreen);
+}
+
+.transfer-progress[data-status="error"]::-webkit-progress-value,
+.transfer-progress[data-status="cancelled"]::-webkit-progress-value {
+	background: var(--vscode-terminal-ansiRed);
+}
+
+.transfer-progress[data-status="error"]::-moz-progress-bar,
+.transfer-progress[data-status="cancelled"]::-moz-progress-bar {
+	background: var(--vscode-terminal-ansiRed);
+}
+
+.transfer-progress[data-status="paused"]::-webkit-progress-value {
+	background: var(--vscode-terminal-ansiYellow);
+}
+
+.transfer-progress[data-status="paused"]::-moz-progress-bar {
+	background: var(--vscode-terminal-ansiYellow);
+}
+
+/* ============================================================================
+   TRANSFER STATS
+   ============================================================================ */
+
+.transfer-stats {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 11px;
+	font-family: var(--vscode-editor-font-family);
+}
+
+.transfer-percentage {
+	font-weight: 500;
+	color: var(--vscode-foreground);
+	min-width: 35px;
+}
+
+.transfer-speed {
+	color: var(--vscode-terminal-ansiGreen);
+}
+
+.transfer-size {
+	color: var(--vscode-descriptionForeground);
+}
+
+.transfer-error {
+	color: var(--vscode-terminal-ansiRed);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* ============================================================================
+   CONTROLS
+   ============================================================================ */
+
+.transfer-controls {
+	display: flex;
+	gap: 4px;
+	margin-top: 4px;
+}
+
+.transfer-control-btn {
+	padding: 4px 8px;
+	background: transparent;
+	border: 1px solid var(--vscode-button-border);
+	color: var(--vscode-foreground);
+	cursor: pointer;
+	border-radius: 2px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background-color 0.15s ease;
+}
+
+.transfer-control-btn:hover {
+	background: var(--vscode-button-hoverBackground);
+}
+
+.transfer-control-btn:active {
+	background: var(--vscode-button-background);
+}
+
+.transfer-cancel-btn:hover {
+	background: var(--vscode-inputValidation-errorBackground);
+	border-color: var(--vscode-inputValidation-errorBorder);
+}
+
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================ */
+
+.transfer-empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 48px 24px;
+	text-align: center;
+	height: 100%;
+}
+
+.transfer-empty-icon {
+	font-size: 48px;
+	margin-bottom: 16px;
+	opacity: 0.5;
+}
+
+.transfer-empty-title {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--vscode-foreground);
+	margin-bottom: 8px;
+}
+
+.transfer-empty-description {
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+	max-width: 300px;
+}
