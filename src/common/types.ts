@@ -66,12 +66,6 @@ export interface Credential {
 	updatedAt?: string;
 }
 
-export interface Script {
-	id: string;
-	name: string;
-	content: string;
-	shell?: string;
-}
 
 export interface FileEntry {
 	name: string;
@@ -141,7 +135,6 @@ export interface WebviewState {
 	hosts: Host[];
 	selectedHost: Host | null;
 	credentials?: Credential[];
-	scripts?: Script[];
 	sshAgentAvailable?: boolean;
 	activeSessionHostIds?: string[];
 	availableShells?: string[];
@@ -167,7 +160,7 @@ export interface FolderConfig {
 export type Message =
 	// Data fetching
 	| { command: 'FETCH_DATA' }
-	| { command: 'UPDATE_DATA'; payload: { view?: ViewType; hosts?: Host[]; credentials?: Credential[]; scripts?: Script[]; activeSessionHostIds?: string[]; hostStatuses?: Record<string, 'online' | 'offline' | 'unknown'>; hostId?: string; currentPath?: string } }
+	| { command: 'UPDATE_DATA'; payload: { view?: ViewType; hosts?: Host[]; credentials?: Credential[]; activeSessionHostIds?: string[]; hostStatuses?: Record<string, 'online' | 'offline' | 'unknown'>; hostId?: string; currentPath?: string } }
 
 	// Host CRUD
 	| { command: 'SAVE_HOST'; payload: { host: Host; password?: string; keyPath?: string } }
@@ -210,11 +203,6 @@ export type Message =
 	| { command: 'SAVE_CREDENTIAL'; payload: { credential: Credential; secret: string } }
 	| { command: 'DELETE_CREDENTIAL'; payload: { id: string } }
 	| { command: 'RENAME_CREDENTIAL_FOLDER'; payload: { oldName: string; newName: string } }
-
-	// Scripts
-	| { command: 'RUN_SCRIPT'; payload: { scriptId: string; hostId: string } }
-	| { command: 'SAVE_SCRIPT'; payload: { script: Script } }
-	| { command: 'DELETE_SCRIPT'; payload: { id: string } }
 
 	// Configuration
 	| { command: 'GET_CONFIG'; payload: { hostId: string } }

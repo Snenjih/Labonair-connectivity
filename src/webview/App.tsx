@@ -11,7 +11,6 @@ import { FileManager } from './views/FileManager';
 import TerminalView from './views/TerminalView';
 import { TransferQueue } from './views/TransferQueue';
 import HostKeyDialog from './dialogs/HostKeyDialog';
-import ScriptList from './components/ScriptList';
 import SearchBar from './components/SearchBar';
 import TunnelDialog from './dialogs/TunnelDialog';
 import EmptyState from './components/EmptyState';
@@ -31,7 +30,6 @@ const App: React.FC = () => {
 		hosts: [],
 		selectedHost: null,
 		credentials: [],
-		scripts: [],
 		activeSessionHostIds: [],
 		hostStatuses: {},
 		selectedHostIds: [],
@@ -64,8 +62,7 @@ const App: React.FC = () => {
 						view: message.payload.view || prev.view,
 						hosts: message.payload.hosts || prev.hosts,
 						credentials: message.payload.credentials || prev.credentials,
-						scripts: message.payload.scripts || prev.scripts,
-						activeSessionHostIds: message.payload.activeSessionHostIds !== undefined ? message.payload.activeSessionHostIds : prev.activeSessionHostIds,
+							activeSessionHostIds: message.payload.activeSessionHostIds !== undefined ? message.payload.activeSessionHostIds : prev.activeSessionHostIds,
 						hostStatuses: message.payload.hostStatuses || prev.hostStatuses,
 						hostId: message.payload.hostId || prev.hostId,
 						currentPath: message.payload.currentPath || prev.currentPath
@@ -430,7 +427,6 @@ const App: React.FC = () => {
 							))
 						)}
 					</div>
-					<ScriptList scripts={state.scripts || []} />
 				</>
 			)}
 

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FileEntry, TransferStatus } from '../../common/types';
 import { Toolbar } from '../components/FileManager/Toolbar';
 import { FileList } from '../components/FileManager/FileList';
-import { Footer } from '../components/FileManager/Footer';
 import vscode from '../utils/vscode';
 import '../styles/fileManager.css';
 
@@ -629,13 +628,6 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					<div className="transfer-percentage">{transfer.progress}%</div>
 				</div>
 			)}
-
-			{/* F-Keys Footer (Commander mode only) */}
-			<Footer
-				layoutMode={layoutMode}
-				hasSelection={getActiveState().selection.length > 0}
-				hasFocusedFile={getActiveState().focusedFile !== null}
-			/>
 		</div>
 	);
 };

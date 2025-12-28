@@ -3,7 +3,6 @@ import { HostKeyService } from './security/hostKeyService';
 import * as vscode from 'vscode';
 import { HostService } from './hostService';
 import { CredentialService } from './credentialService';
-import { ScriptService } from './scriptService';
 import { SessionTracker } from './sessionTracker';
 import { SshAgentService } from './sshAgent';
 import { ShellService } from './system/shellService';
@@ -29,7 +28,6 @@ let broadcastServiceInstance: BroadcastService | undefined;
 export function activate(context: vscode.ExtensionContext) {
 	const hostService = new HostService(context);
 	const credentialService = new CredentialService(context);
-	const scriptService = new ScriptService(context);
 	const sessionTracker = new SessionTracker(context);
 	const sshAgentService = new SshAgentService(context);
 	const importerService = new ImporterService();
@@ -92,7 +90,6 @@ export function activate(context: vscode.ExtensionContext) {
 			context.extensionUri,
 			hostService,
 			credentialService,
-			scriptService,
 			sessionTracker,
 			sshAgentService,
 			importerService,
@@ -130,7 +127,6 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		private readonly _extensionUri: vscode.Uri,
 		private readonly _hostService: HostService,
 		private readonly _credentialService: CredentialService,
-		private readonly _scriptService: ScriptService,
 		private readonly _sessionTracker: SessionTracker,
 		private readonly _sshAgentService: SshAgentService,
 		private readonly _importerService: ImporterService,
@@ -167,11 +163,6 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 			webviewView.webview.postMessage({ command: 'UPDATE_DATA', payload: { credentials } });
 		});
 
-		// Listen for script updates
-		this._scriptService.onDidChangeScripts(scripts => {
-			webviewView.webview.postMessage({ command: 'UPDATE_DATA', payload: { scripts } });
-		});
-
 		// Listen for session updates
 		this._sessionTracker.onDidChangeSessions(activeHostIds => {
 			webviewView.webview.postMessage({ command: 'SESSION_UPDATE', payload: { activeHostIds } });
@@ -190,13 +181,12 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 				case 'FETCH_DATA': {
 					const hosts = this._hostService.getHosts();
 					const credentials = await this._credentialService.getCredentials();
-					const scripts = await this._scriptService.getScripts();
-					const activeHostIds = this._sessionTracker.getActiveHostIds();
+						const activeHostIds = this._sessionTracker.getActiveHostIds();
 					const hostStatuses = this._statusService?.getAllStatuses() || {};
 
 					webviewView.webview.postMessage({
 						command: 'UPDATE_DATA',
-						payload: { hosts, credentials, scripts, activeSessionHostIds: activeHostIds, hostStatuses }
+						payload: { hosts, credentials, activeSessionHostIds: activeHostIds, hostStatuses }
 					});
 
 					// Check SSH Agent
@@ -472,29 +462,6 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 					break;
 				}
 
-				// ============================================================
-				// SCRIPTS
-				// ============================================================
-				case 'RUN_SCRIPT': {
-					const scriptId = message.payload.scriptId;
-					const hostId = message.payload.hostId;
-					const allScripts = await this._scriptService.getScripts();
-					const script = allScripts.find(s => s.id === scriptId);
-					if (script) {
-						vscode.window.showInformationMessage(`Simulating sending script "${script.name}" to host ${hostId}`);
-						// TODO: Actual implementation will connect to host and send script
-					}
-					break;
-				}
-
-				case 'SAVE_SCRIPT':
-					await this._scriptService.saveScript(message.payload.script);
-					this.broadcastUpdate();
-					break;
-
-				case 'DELETE_SCRIPT':
-					await this._scriptService.deleteScript(message.payload.id);
-					break;
 
 				// ============================================================
 				// FILE PICKER
@@ -570,12 +537,11 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		if (this._view) {
 			const hosts = this._hostService.getHosts();
 			const credentials = await this._credentialService.getCredentials();
-			const scripts = await this._scriptService.getScripts();
 			const activeHostIds = this._sessionTracker.getActiveHostIds();
 			const hostStatuses = this._statusService?.getAllStatuses() || {};
 			this._view.webview.postMessage({
 				command: 'UPDATE_DATA',
-				payload: { hosts, credentials, scripts, activeSessionHostIds: activeHostIds, hostStatuses }
+				payload: { hosts, credentials, activeSessionHostIds: activeHostIds, hostStatuses }
 			});
 
 			// Restart status checking with updated hosts
