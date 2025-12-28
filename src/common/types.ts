@@ -42,6 +42,9 @@ export interface Host {
 	// Terminal settings
 	terminalCursorStyle?: 'bar' | 'block' | 'underline';
 	terminalCursorBlink?: boolean;
+	terminalCopyOnSelect?: boolean;    // Copy to clipboard when text is selected
+	terminalRightClickBehavior?: 'paste' | 'menu'; // Right-click behavior: paste or show context menu
+	postExecScript?: string[];         // Commands to execute after shell session starts
 	// File Manager settings
 	fileManagerLayout?: 'explorer' | 'commander';
 	fileManagerDefaultView?: 'grid' | 'list';
@@ -265,6 +268,8 @@ export type Message =
 	| { command: 'TRANSFER_QUEUE'; payload: { action: 'clear_completed' } }
 	| { command: 'TRANSFER_UPDATE'; payload: { job: TransferJob } }
 	| { command: 'TRANSFER_QUEUE_STATE'; payload: { jobs: TransferJob[]; summary: TransferQueueSummary } }
+	| { command: 'TRANSFER_CONFLICT'; payload: { transferId: string; sourceFile: string; targetStats: { size: number; modTime: Date } } }
+	| { command: 'RESOLVE_CONFLICT'; payload: { transferId: string; action: 'overwrite' | 'resume' | 'rename' | 'skip'; applyToAll?: boolean } }
 
 	// Media Preview (Subphase 3.5)
 	| { command: 'PREVIEW_FILE'; payload: { hostId: string; remotePath: string; fileType: 'image' | 'pdf' | 'binary' } }

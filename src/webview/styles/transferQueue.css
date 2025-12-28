@@ -405,3 +405,180 @@
 	color: var(--vscode-descriptionForeground);
 	max-width: 300px;
 }
+
+/* ============================================================================
+   CONFLICT DIALOG
+   ============================================================================ */
+
+.conflict-dialog-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.6);
+	backdrop-filter: blur(4px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 3000;
+}
+
+.conflict-dialog {
+	background-color: var(--vscode-editor-background);
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 8px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+	max-width: 600px;
+	width: 90%;
+	overflow: hidden;
+}
+
+.conflict-dialog-header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 16px 20px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+	background-color: var(--vscode-sideBar-background);
+}
+
+.conflict-icon {
+	color: var(--vscode-editorWarning-foreground);
+}
+
+.conflict-dialog-header h2 {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+	color: var(--vscode-foreground);
+}
+
+.conflict-dialog-body {
+	padding: 20px;
+}
+
+.conflict-message {
+	margin: 0 0 20px 0;
+	font-size: 13px;
+	color: var(--vscode-foreground);
+	line-height: 1.5;
+}
+
+.conflict-message strong {
+	color: var(--vscode-textLink-foreground);
+	font-weight: 600;
+}
+
+.conflict-comparison {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+	margin-bottom: 20px;
+}
+
+.conflict-file-info {
+	background-color: var(--vscode-textCodeBlock-background);
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.conflict-file-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	background-color: var(--vscode-sideBar-background);
+	border-bottom: 1px solid var(--vscode-panel-border);
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--vscode-foreground);
+}
+
+.conflict-file-details {
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.conflict-detail {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	font-size: 12px;
+}
+
+.conflict-label {
+	color: var(--vscode-descriptionForeground);
+	font-weight: 500;
+}
+
+.conflict-value {
+	color: var(--vscode-foreground);
+	font-weight: 500;
+}
+
+.conflict-value.highlight {
+	color: var(--vscode-textLink-foreground);
+	font-weight: 600;
+}
+
+.conflict-options {
+	padding: 12px 0;
+	border-top: 1px solid var(--vscode-panel-border);
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.conflict-checkbox {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	color: var(--vscode-foreground);
+	cursor: pointer;
+	user-select: none;
+}
+
+.conflict-checkbox input[type="checkbox"] {
+	width: 16px;
+	height: 16px;
+	cursor: pointer;
+}
+
+.conflict-dialog-actions {
+	display: flex;
+	gap: 8px;
+	padding: 16px 20px;
+	background-color: var(--vscode-sideBar-background);
+	justify-content: flex-end;
+}
+
+.conflict-button {
+	padding: 8px 16px;
+	border: none;
+	border-radius: 4px;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background-color 0.2s ease;
+}
+
+.conflict-button-primary {
+	background-color: var(--vscode-button-background);
+	color: var(--vscode-button-foreground);
+}
+
+.conflict-button-primary:hover {
+	background-color: var(--vscode-button-hoverBackground);
+}
+
+.conflict-button-secondary {
+	background-color: var(--vscode-button-secondaryBackground);
+	color: var(--vscode-button-secondaryForeground);
+}
+
+.conflict-button-secondary:hover {
+	background-color: var(--vscode-button-secondaryHoverBackground);
+}

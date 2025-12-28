@@ -99,11 +99,14 @@ export class TransferService {
 	private readonly maxConcurrentTransfersPerHost: number = 3;
 	private readonly maxConcurrentTransfersGlobal: number = 5;
 	private processingInterval: NodeJS.Timeout | null = null;
+	private conflictResolutions: Map<string, Promise<{ action: 'overwrite' | 'resume' | 'rename' | 'skip' }>> = new Map();
+	private conflictResolvers: Map<string, (value: { action: 'overwrite' | 'resume' | 'rename' | 'skip' }) => void> = new Map();
 
 	constructor(
 		private readonly sftpService: SftpService,
 		private readonly onUpdate: (job: TransferJob) => void,
-		private readonly onQueueChange: (jobs: TransferJob[], summary: TransferQueueSummary) => void
+		private readonly onQueueChange: (jobs: TransferJob[], summary: TransferQueueSummary) => void,
+		private readonly onConflict?: (transferId: string, sourceFile: string, targetStats: { size: number; modTime: Date }) => void
 	) {
 		// Start processing queue
 		this.startProcessing();
@@ -332,6 +335,70 @@ export class TransferService {
 		const stats = fs.statSync(job.localPath);
 		job.size = stats.size;
 
+		// Check if target file already exists
+		if (this.onConflict) {
+			try {
+				const targetStats = await this.sftpService.stat(job.hostId, job.remotePath);
+
+				// File exists - trigger conflict resolution
+				const conflictPromise = new Promise<{ action: 'overwrite' | 'resume' | 'rename' | 'skip' }>((resolve) => {
+					this.conflictResolvers.set(job.id, resolve);
+				});
+				this.conflictResolutions.set(job.id, conflictPromise);
+
+				// Notify about conflict
+				this.onConflict(job.id, job.filename, {
+					size: targetStats.size,
+					modTime: targetStats.modTime
+				});
+
+				// Wait for resolution
+				const resolution = await conflictPromise;
+
+				// Handle resolution
+				switch (resolution.action) {
+					case 'skip':
+						// Skip this file
+						return;
+					case 'rename':
+						// Auto-increment filename
+						const parts = job.remotePath.split('/');
+						const filename = parts[parts.length - 1];
+						const dotIndex = filename.lastIndexOf('.');
+						const name = dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
+						const ext = dotIndex > 0 ? filename.substring(dotIndex) : '';
+						let counter = 1;
+						let newPath = job.remotePath;
+
+						// Find available filename
+						while (true) {
+							const newFilename = `${name}_${counter}${ext}`;
+							parts[parts.length - 1] = newFilename;
+							newPath = parts.join('/');
+							try {
+								await this.sftpService.stat(job.hostId, newPath);
+								counter++;
+							} catch {
+								// File doesn't exist, use this name
+								break;
+							}
+						}
+						job.remotePath = newPath;
+						job.filename = parts[parts.length - 1];
+						break;
+					case 'resume':
+						// For resume, we would need to implement partial upload
+						// For now, treat as overwrite
+						break;
+					case 'overwrite':
+						// Continue with upload
+						break;
+				}
+			} catch (error) {
+				// File doesn't exist, continue with upload
+			}
+		}
+
 		await this.sftpService.putFile(
 			job.hostId,
 			job.localPath,
@@ -400,6 +467,18 @@ export class TransferService {
 	}
 
 	/**
+	 * Resolves a file conflict for a transfer
+	 */
+	public resolveConflict(transferId: string, action: 'overwrite' | 'resume' | 'rename' | 'skip'): void {
+		const resolver = this.conflictResolvers.get(transferId);
+		if (resolver) {
+			resolver({ action });
+			this.conflictResolvers.delete(transferId);
+			this.conflictResolutions.delete(transferId);
+		}
+	}
+
+	/**
 	 * Disposes the transfer service
 	 */
 	public dispose(): void {
@@ -416,5 +495,7 @@ export class TransferService {
 		this.activeTransfers.clear();
 		this.queue.clear();
 		this.completedJobs = [];
+		this.conflictResolutions.clear();
+		this.conflictResolvers.clear();
 	}
 }

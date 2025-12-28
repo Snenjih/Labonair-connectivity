@@ -101,6 +101,18 @@ export class SshSession {
 					this.onData(data.toString('utf8'));
 				});
 
+				// Execute post-exec scripts if configured
+				if (this.host.postExecScript && this.host.postExecScript.length > 0) {
+					// Wait for shell to be ready before executing commands
+					setTimeout(() => {
+						if (this.stream && this.isConnected) {
+							for (const command of this.host.postExecScript!) {
+								this.stream.write(command + '\n');
+							}
+						}
+					}, 500);
+				}
+
 				// Handle stream close
 				stream.on('close', () => {
 					this.isConnected = false;

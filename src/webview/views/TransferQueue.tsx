@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { TransferItem } from '../components/TransferItem';
 import { TransferJob, TransferQueueSummary, Message } from '../../common/types';
+import ConflictDialog from '../dialogs/ConflictDialog';
 import vscode from '../utils/vscode';
 
 /**
@@ -15,6 +16,11 @@ export const TransferQueue: React.FC = () => {
 		totalSpeed: 0,
 		queuedCount: 0
 	});
+	const [conflict, setConflict] = useState<{
+		transferId: string;
+		sourceFile: string;
+		targetStats: { size: number; modTime: Date };
+	} | null>(null);
 
 	useEffect(() => {
 		// Listen for messages from extension
@@ -39,6 +45,15 @@ export const TransferQueue: React.FC = () => {
 					// Update entire queue state
 					setJobs(message.payload.jobs);
 					setSummary(message.payload.summary);
+					break;
+
+				case 'TRANSFER_CONFLICT':
+					// Show conflict dialog
+					setConflict({
+						transferId: message.payload.transferId,
+						sourceFile: message.payload.sourceFile,
+						targetStats: message.payload.targetStats
+					});
 					break;
 			}
 		};
@@ -224,6 +239,16 @@ export const TransferQueue: React.FC = () => {
 					</div>
 				)}
 			</div>
+
+			{/* Conflict Dialog */}
+			{conflict && (
+				<ConflictDialog
+					transferId={conflict.transferId}
+					sourceFile={conflict.sourceFile}
+					targetStats={conflict.targetStats}
+					onClose={() => setConflict(null)}
+				/>
+			)}
 		</div>
 	);
 };

@@ -55,6 +55,13 @@ export function activate(context: vscode.ExtensionContext) {
 				command: 'TRANSFER_QUEUE_STATE',
 				payload: { jobs, summary }
 			});
+		},
+		(transferId: string, sourceFile: string, targetStats: { size: number; modTime: Date }) => {
+			// Send conflict notification to Queue View
+			transferQueueViewProvider?.postMessage({
+				command: 'TRANSFER_CONFLICT',
+				payload: { transferId, sourceFile, targetStats }
+			});
 		}
 	);
 
@@ -631,6 +638,11 @@ class TransferQueueViewProvider implements vscode.WebviewViewProvider {
 					} else if (message.payload.action === 'add' && message.payload.job) {
 						this._transferService.addJob(message.payload.job);
 					}
+					break;
+				}
+
+				case 'RESOLVE_CONFLICT': {
+					this._transferService.resolveConflict(message.payload.transferId, message.payload.action);
 					break;
 				}
 			}

@@ -2,12 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { SearchAddon } from '@xterm/addon-search';
 import '@xterm/xterm/css/xterm.css';
 import vscode from '../utils/vscode';
 import { Host } from '../../common/types';
 import TerminalHUD from '../components/Terminal/TerminalHUD';
 import PasteModal from '../components/Terminal/PasteModal';
 import { DropOverlay } from '../components/Terminal/DropOverlay';
+import SearchWidget, { SearchOptions } from '../components/Terminal/SearchWidget';
 import '../styles/terminal.css';
 
 interface TerminalViewProps {
@@ -22,6 +24,8 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 	const xterm2Ref = useRef<Terminal | null>(null);
 	const fitAddon1Ref = useRef<FitAddon | null>(null);
 	const fitAddon2Ref = useRef<FitAddon | null>(null);
+	const searchAddon1Ref = useRef<SearchAddon | null>(null);
+	const searchAddon2Ref = useRef<SearchAddon | null>(null);
 	const resizeObserver1Ref = useRef<ResizeObserver | null>(null);
 	const resizeObserver2Ref = useRef<ResizeObserver | null>(null);
 
@@ -31,6 +35,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 	const [statusMessage, setStatusMessage] = useState<string>('');
 	const [pasteData, setPasteData] = useState<string | null>(null);
 	const [fontSize, setFontSize] = useState<number>(14);
+	const [searchVisible, setSearchVisible] = useState<boolean>(false);
 
 	useEffect(() => {
 		// Initialize first terminal
@@ -68,6 +73,9 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 		const fitAddon1 = new FitAddon();
 		term1.loadAddon(fitAddon1);
 
+		const searchAddon1 = new SearchAddon();
+		term1.loadAddon(searchAddon1);
+
 		const webLinksAddon1 = new WebLinksAddon((event, uri) => {
 			if (uri.startsWith('/') || uri.match(/^~\//)) {
 				event.preventDefault();
@@ -84,6 +92,41 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 
 		xterm1Ref.current = term1;
 		fitAddon1Ref.current = fitAddon1;
+		searchAddon1Ref.current = searchAddon1;
+
+		// Copy on select behavior
+		if (host?.terminalCopyOnSelect) {
+			term1.onSelectionChange(() => {
+				const selection = term1.getSelection();
+				if (selection) {
+					navigator.clipboard.writeText(selection).catch(err => {
+						console.error('Failed to copy to clipboard:', err);
+					});
+				}
+			});
+		}
+
+		// Right-click behavior
+		if (terminal1Ref.current) {
+			const handleContextMenu = async (e: MouseEvent) => {
+				if (host?.terminalRightClickBehavior === 'paste') {
+					e.preventDefault();
+					try {
+						const text = await navigator.clipboard.readText();
+						if (text) {
+							vscode.postMessage({
+								command: 'TERM_INPUT',
+								payload: { data: text, splitId: 1 }
+							});
+						}
+					} catch (err) {
+						console.error('Failed to paste from clipboard:', err);
+					}
+				}
+				// Otherwise, let the default context menu show
+			};
+			terminal1Ref.current.addEventListener('contextmenu', handleContextMenu);
+		}
 
 		term1.onData((data) => {
 			if (data.includes('\n') && data.length > 10) {
@@ -196,6 +239,9 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 			const fitAddon2 = new FitAddon();
 			term2.loadAddon(fitAddon2);
 
+			const searchAddon2 = new SearchAddon();
+			term2.loadAddon(searchAddon2);
+
 			const webLinksAddon2 = new WebLinksAddon((event, uri) => {
 				if (uri.startsWith('/') || uri.match(/^~\//)) {
 					event.preventDefault();
@@ -212,6 +258,41 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 
 			xterm2Ref.current = term2;
 			fitAddon2Ref.current = fitAddon2;
+			searchAddon2Ref.current = searchAddon2;
+
+			// Copy on select behavior
+			if (host?.terminalCopyOnSelect) {
+				term2.onSelectionChange(() => {
+					const selection = term2.getSelection();
+					if (selection) {
+						navigator.clipboard.writeText(selection).catch(err => {
+							console.error('Failed to copy to clipboard:', err);
+						});
+					}
+				});
+			}
+
+			// Right-click behavior
+			if (terminal2Ref.current) {
+				const handleContextMenu = async (e: MouseEvent) => {
+					if (host?.terminalRightClickBehavior === 'paste') {
+						e.preventDefault();
+						try {
+							const text = await navigator.clipboard.readText();
+							if (text) {
+								vscode.postMessage({
+									command: 'TERM_INPUT',
+									payload: { data: text, splitId: 2 }
+								});
+							}
+						} catch (err) {
+							console.error('Failed to paste from clipboard:', err);
+						}
+					}
+					// Otherwise, let the default context menu show
+				};
+				terminal2Ref.current.addEventListener('contextmenu', handleContextMenu);
+			}
 
 			term2.onData((data) => {
 				if (data.includes('\n') && data.length > 10) {
@@ -369,18 +450,71 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 		});
 	};
 
+	const handleSearch = (term: string, options: SearchOptions) => {
+		const searchAddon = activeSplit === 1 ? searchAddon1Ref.current : searchAddon2Ref.current;
+		if (searchAddon && term) {
+			searchAddon.findNext(term, {
+				caseSensitive: options.caseSensitive,
+				wholeWord: options.wholeWord,
+				regex: options.regex
+			});
+		}
+	};
+
+	const handleSearchNext = () => {
+		const searchAddon = activeSplit === 1 ? searchAddon1Ref.current : searchAddon2Ref.current;
+		if (searchAddon) {
+			searchAddon.findNext('');
+		}
+	};
+
+	const handleSearchPrevious = () => {
+		const searchAddon = activeSplit === 1 ? searchAddon1Ref.current : searchAddon2Ref.current;
+		if (searchAddon) {
+			searchAddon.findPrevious('');
+		}
+	};
+
+	const handleSearchClose = () => {
+		setSearchVisible(false);
+	};
+
+	// Keyboard shortcuts
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			// Ctrl+F / Cmd+F to toggle search
+			if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+				e.preventDefault();
+				setSearchVisible(prev => !prev);
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, []);
+
 	return (
 		<div className="terminal-container">
-			<TerminalHUD
-				status={status}
-				hostName={host?.name || host?.host || 'Unknown'}
-				onReconnect={handleReconnect}
-				onOpenSftp={handleOpenSftp}
-				fontSize={fontSize}
-				onFontSizeChange={handleFontSizeChange}
-				onSplitVertical={handleSplitVertical}
-				onSplitHorizontal={handleSplitHorizontal}
-				splitMode={splitMode}
+			{!searchVisible && (
+				<TerminalHUD
+					status={status}
+					hostName={host?.name || host?.host || 'Unknown'}
+					onReconnect={handleReconnect}
+					onOpenSftp={handleOpenSftp}
+					fontSize={fontSize}
+					onFontSizeChange={handleFontSizeChange}
+					onSplitVertical={handleSplitVertical}
+					onSplitHorizontal={handleSplitHorizontal}
+					splitMode={splitMode}
+				/>
+			)}
+
+			<SearchWidget
+				visible={searchVisible}
+				onSearch={handleSearch}
+				onNext={handleSearchNext}
+				onPrevious={handleSearchPrevious}
+				onClose={handleSearchClose}
 			/>
 
 			<div className={`terminal-layout terminal-layout-${splitMode}`}>
