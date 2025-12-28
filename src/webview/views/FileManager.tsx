@@ -414,6 +414,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					selection={state.selection}
 					focusedFile={state.focusedFile}
 					searchQuery={state.searchQuery}
+					hostId={hostId}
 					panelId={panelId}
 					onFileSelect={handleFileSelect}
 					onFileOpen={handleFileOpen}

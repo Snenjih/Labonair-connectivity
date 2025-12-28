@@ -1,9 +1,11 @@
 import { Client } from 'ssh2';
 import * as fs from 'fs';
+import * as vscode from 'vscode';
 import { Host } from '../../common/types';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
 import { HostKeyService } from '../security/hostKeyService';
+import { SshAgentService } from '../security/sshAgentService';
 
 /**
  * Connection entry in the pool
@@ -21,8 +23,11 @@ interface PooledConnection {
 class ConnectionPoolImpl {
 	private static instance: ConnectionPoolImpl;
 	private connections: Map<string, PooledConnection> = new Map();
+	private sshAgentService: SshAgentService;
 
-	private constructor() {}
+	private constructor() {
+		this.sshAgentService = new SshAgentService();
+	}
 
 	public static getInstance(): ConnectionPoolImpl {
 		if (!ConnectionPoolImpl.instance) {
@@ -215,9 +220,61 @@ class ConnectionPoolImpl {
 			}
 
 			case 'agent': {
-				authConfig.agent = process.env.SSH_AUTH_SOCK;
-				if (!authConfig.agent) {
-					throw new Error('SSH agent authentication configured but SSH_AUTH_SOCK not found');
+				// Use SshAgentService to detect the agent socket (supports Windows named pipes)
+				const agentSocket = await this.sshAgentService.getAgentSocket();
+
+				if (agentSocket) {
+					authConfig.agent = agentSocket;
+					console.log('[ConnectionPool] Using SSH agent:', agentSocket);
+				} else {
+					// Fallback: prompt user for password or key
+					console.warn('[ConnectionPool] SSH agent not available, prompting for fallback authentication');
+
+					const choice = await vscode.window.showQuickPick(
+						['Enter Password', 'Select Private Key'],
+						{
+							placeHolder: 'SSH agent not available. Choose fallback authentication method:',
+							title: 'SSH Agent Fallback'
+						}
+					);
+
+					if (choice === 'Enter Password') {
+						const password = await vscode.window.showInputBox({
+							prompt: 'Enter SSH password',
+							password: true,
+							placeHolder: 'Password for ' + host.username + '@' + host.host
+						});
+
+						if (!password) {
+							throw new Error('Authentication cancelled');
+						}
+
+						authConfig.password = password;
+						authConfig.tryKeyboard = true;
+					} else if (choice === 'Select Private Key') {
+						const keyFiles = await vscode.window.showOpenDialog({
+							canSelectMany: false,
+							openLabel: 'Select Private Key',
+							title: 'Select SSH Private Key',
+							filters: {
+								'SSH Keys': ['pem', 'key', 'ppk', ''],
+								'All Files': ['*']
+							}
+						});
+
+						if (!keyFiles || keyFiles.length === 0) {
+							throw new Error('Authentication cancelled');
+						}
+
+						try {
+							const privateKey = fs.readFileSync(keyFiles[0].fsPath, 'utf8');
+							authConfig.privateKey = privateKey;
+						} catch (error) {
+							throw new Error(`Failed to read private key: ${error}`);
+						}
+					} else {
+						throw new Error('Authentication cancelled');
+					}
 				}
 				break;
 			}

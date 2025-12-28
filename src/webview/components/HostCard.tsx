@@ -1,11 +1,21 @@
 import React, { useState } from 'react';
 import { Host, HostStatus } from '../../common/types';
 
+interface TunnelStatus {
+	type: 'local' | 'remote';
+	srcPort: number;
+	dstHost: string;
+	dstPort: number;
+	status: 'active' | 'error';
+	error?: string;
+}
+
 interface HostCardProps {
 	host: Host;
 	isActive?: boolean;
 	isSelected?: boolean;
 	status?: HostStatus;
+	tunnelStatuses?: TunnelStatus[];
 	onConnect: () => void;
 	onEdit: () => void;
 	onDelete: () => void;
@@ -23,6 +33,7 @@ const HostCard: React.FC<HostCardProps> = ({
 	isActive,
 	isSelected,
 	status = 'unknown',
+	tunnelStatuses = [],
 	onConnect,
 	onEdit,
 	onDelete,
@@ -35,6 +46,18 @@ const HostCard: React.FC<HostCardProps> = ({
 	onMoveToFolder
 }) => {
 	const [showOptions, setShowOptions] = useState(false);
+
+	// Calculate active tunnels
+	const activeTunnels = tunnelStatuses.filter(t => t.status === 'active');
+	const hasActiveTunnels = activeTunnels.length > 0;
+
+	// Build tunnel tooltip
+	const tunnelTooltip = activeTunnels.length > 0
+		? activeTunnels.map(t => {
+			const prefix = t.type === 'local' ? 'L' : 'R';
+			return `${prefix}:${t.srcPort} → ${t.dstHost}:${t.dstPort}`;
+		}).join('\n')
+		: 'No active tunnels';
 
 	const handleDragStart = (e: React.DragEvent) => {
 		e.dataTransfer.setData('application/labonair-host', host.id);
@@ -178,9 +201,22 @@ const HostCard: React.FC<HostCardProps> = ({
 					</span>
 				)}
 				{host.tunnels && host.tunnels.length > 0 && (
-					<span className="feature-badge">
+					<span className="feature-badge" title={tunnelTooltip} style={{ position: 'relative' }}>
 						<i className="codicon codicon-plug"></i>
 						Tunnel ({host.tunnels.length})
+						{hasActiveTunnels && (
+							<span style={{
+								position: 'absolute',
+								top: '2px',
+								right: '2px',
+								width: '8px',
+								height: '8px',
+								borderRadius: '50%',
+								backgroundColor: '#4ec9b0',
+								border: '1px solid var(--vscode-editor-background)',
+								boxShadow: '0 0 4px rgba(78, 201, 176, 0.6)'
+							}} />
+						)}
 					</span>
 				)}
 				{host.enableFileManager !== false && (

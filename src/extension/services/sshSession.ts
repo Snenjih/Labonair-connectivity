@@ -1,9 +1,23 @@
 import { Client, ClientChannel } from 'ssh2';
-import { Host } from '../../common/types';
+import * as net from 'net';
+import { Host, Tunnel } from '../../common/types';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
 import { HostKeyService } from '../security/hostKeyService';
 import { ConnectionPool } from './connectionPool';
+
+/**
+ * Tunnel status information
+ */
+interface TunnelStatus {
+	type: 'local' | 'remote';
+	srcPort: number;
+	dstHost: string;
+	dstPort: number;
+	status: 'active' | 'error';
+	error?: string;
+	server?: net.Server; // For local forwarding
+}
 
 /**
  * SSH Session Manager
@@ -16,6 +30,7 @@ export class SshSession {
 	private isConnected: boolean = false;
 	private usePooledConnection: boolean = true;
 	private hostId: string;
+	private tunnelStatuses: TunnelStatus[] = [];
 
 	constructor(
 		private readonly host: Host,
@@ -23,7 +38,8 @@ export class SshSession {
 		private readonly credentialService: CredentialService,
 		private readonly hostKeyService: HostKeyService,
 		private readonly onData: (data: string) => void,
-		private readonly onStatus: (status: 'connecting' | 'connected' | 'disconnected' | 'error', message?: string) => void
+		private readonly onStatus: (status: 'connecting' | 'connected' | 'disconnected' | 'error', message?: string) => void,
+		private readonly onTunnelStatus?: (statuses: TunnelStatus[]) => void
 	) {
 		this.hostId = host.id;
 	}
@@ -42,6 +58,11 @@ export class SshSession {
 				this.credentialService,
 				this.hostKeyService
 			);
+
+			// Setup tunnels if configured
+			if (this.host.tunnels && this.host.tunnels.length > 0) {
+				await this.setupTunnels();
+			}
 
 			// Setup shell on the pooled connection
 			this.setupShell();
@@ -113,6 +134,165 @@ export class SshSession {
 	}
 
 	/**
+	 * Setup port forwarding tunnels
+	 */
+	private async setupTunnels(): Promise<void> {
+		if (!this.client || !this.host.tunnels) {
+			return;
+		}
+
+		for (const tunnel of this.host.tunnels) {
+			if (tunnel.autoStart !== false) {
+				try {
+					if (tunnel.type === 'local') {
+						await this.setupLocalForward(tunnel);
+					} else {
+						await this.setupRemoteForward(tunnel);
+					}
+				} catch (error: any) {
+					this.tunnelStatuses.push({
+						type: tunnel.type,
+						srcPort: tunnel.srcPort,
+						dstHost: tunnel.dstHost,
+						dstPort: tunnel.dstPort,
+						status: 'error',
+						error: error.message
+					});
+				}
+			}
+		}
+
+		// Report tunnel status
+		this.reportTunnelStatus();
+	}
+
+	/**
+	 * Setup local port forwarding (Local port -> Remote host:port)
+	 */
+	private async setupLocalForward(tunnel: Tunnel): Promise<void> {
+		if (!this.client) {
+			throw new Error('SSH client not connected');
+		}
+
+		return new Promise((resolve, reject) => {
+			const server = net.createServer((socket) => {
+				// Forward connection through SSH
+				this.client!.forwardOut(
+					socket.remoteAddress || '127.0.0.1',
+					socket.remotePort || 0,
+					tunnel.dstHost,
+					tunnel.dstPort,
+					(err, stream) => {
+						if (err) {
+							console.error('Local forward error:', err);
+							socket.end();
+							return;
+						}
+
+						// Pipe socket to SSH stream and vice versa
+						socket.pipe(stream);
+						stream.pipe(socket);
+
+						socket.on('error', (err: Error) => {
+							console.error('Socket error:', err);
+							stream.end();
+						});
+
+						stream.on('error', (err: Error) => {
+							console.error('Stream error:', err);
+							socket.end();
+						});
+					}
+				);
+			});
+
+			server.on('error', (err) => {
+				reject(err);
+			});
+
+			server.listen(tunnel.srcPort, '127.0.0.1', () => {
+				this.tunnelStatuses.push({
+					type: 'local',
+					srcPort: tunnel.srcPort,
+					dstHost: tunnel.dstHost,
+					dstPort: tunnel.dstPort,
+					status: 'active',
+					server
+				});
+				console.log(`Local forward active: localhost:${tunnel.srcPort} -> ${tunnel.dstHost}:${tunnel.dstPort}`);
+				resolve();
+			});
+		});
+	}
+
+	/**
+	 * Setup remote port forwarding (Remote port -> Local host:port)
+	 */
+	private async setupRemoteForward(tunnel: Tunnel): Promise<void> {
+		if (!this.client) {
+			throw new Error('SSH client not connected');
+		}
+
+		return new Promise((resolve, reject) => {
+			this.client!.forwardIn('0.0.0.0', tunnel.srcPort, (err) => {
+				if (err) {
+					reject(err);
+					return;
+				}
+
+				this.tunnelStatuses.push({
+					type: 'remote',
+					srcPort: tunnel.srcPort,
+					dstHost: tunnel.dstHost,
+					dstPort: tunnel.dstPort,
+					status: 'active'
+				});
+
+				console.log(`Remote forward active: remote:${tunnel.srcPort} -> ${tunnel.dstHost}:${tunnel.dstPort}`);
+				resolve();
+			});
+
+			// Handle incoming connections
+			this.client!.on('tcp connection', (info, accept) => {
+				if (info.destPort === tunnel.srcPort) {
+					const stream = accept();
+					const socket = net.createConnection(tunnel.dstPort, tunnel.dstHost);
+
+					// Pipe stream to socket and vice versa
+					stream.pipe(socket);
+					socket.pipe(stream);
+
+					stream.on('error', (err: Error) => {
+						console.error('Stream error:', err);
+						socket.end();
+					});
+
+					socket.on('error', (err: Error) => {
+						console.error('Socket error:', err);
+						stream.end();
+					});
+				}
+			});
+		});
+	}
+
+	/**
+	 * Report tunnel status to callback
+	 */
+	private reportTunnelStatus(): void {
+		if (this.onTunnelStatus) {
+			this.onTunnelStatus(this.tunnelStatuses);
+		}
+	}
+
+	/**
+	 * Gets current tunnel statuses
+	 */
+	public getTunnelStatuses(): TunnelStatus[] {
+		return this.tunnelStatuses;
+	}
+
+	/**
 	 * Dispose and clean up the session
 	 */
 	public dispose(): void {
@@ -120,12 +300,20 @@ export class SshSession {
 			this.stream.end();
 			this.stream = null;
 		}
-		
+
+		// Close all local forwarding servers
+		for (const tunnel of this.tunnelStatuses) {
+			if (tunnel.server) {
+				tunnel.server.close();
+			}
+		}
+		this.tunnelStatuses = [];
+
 		// Release the connection back to the pool
 		if (this.usePooledConnection && this.hostId) {
 			ConnectionPool.release(this.hostId);
 		}
-		
+
 		this.client = null;
 		this.isConnected = false;
 	}

@@ -400,6 +400,90 @@ export class EditHandler {
 	}
 
 	/**
+	 * Compares a remote file with a local file using VS Code's diff editor
+	 */
+	public async compareFile(hostId: string, remotePath: string, localPath?: string): Promise<void> {
+		try {
+			// Generate a unique temp file path for the remote file
+			const fileName = path.basename(remotePath);
+			const timestamp = Date.now();
+			const tempFilePath = path.join(this.tempDir, `remote_${timestamp}_${fileName}`);
+
+			// Download the remote file
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: `Downloading ${fileName} for comparison...`,
+				cancellable: false
+			}, async () => {
+				await this.sftpService.getFile(hostId, remotePath, tempFilePath);
+			});
+
+			const remoteUri = vscode.Uri.file(tempFilePath);
+			let localUri: vscode.Uri;
+
+			if (localPath) {
+				// Use provided local path
+				localUri = vscode.Uri.file(localPath);
+			} else {
+				// Check if there's an active editor
+				const activeEditor = vscode.window.activeTextEditor;
+				if (activeEditor && activeEditor.document.uri.scheme === 'file') {
+					// Ask if user wants to compare with active file
+					const useActive = await vscode.window.showQuickPick(
+						['Compare with active file', 'Select a different file'],
+						{ placeHolder: 'Choose comparison target' }
+					);
+
+					if (useActive === 'Compare with active file') {
+						localUri = activeEditor.document.uri;
+					} else if (useActive === 'Select a different file') {
+						// Prompt user to select local file
+						const selected = await vscode.window.showOpenDialog({
+							canSelectMany: false,
+							openLabel: 'Select file to compare',
+							title: 'Select local file for comparison'
+						});
+
+						if (!selected || selected.length === 0) {
+							// User cancelled
+							vscode.window.showInformationMessage('Comparison cancelled');
+							return;
+						}
+
+						localUri = selected[0];
+					} else {
+						// User cancelled
+						return;
+					}
+				} else {
+					// No active editor, directly prompt for file selection
+					const selected = await vscode.window.showOpenDialog({
+						canSelectMany: false,
+						openLabel: 'Select file to compare',
+						title: 'Select local file for comparison'
+					});
+
+					if (!selected || selected.length === 0) {
+						vscode.window.showInformationMessage('Comparison cancelled');
+						return;
+					}
+
+					localUri = selected[0];
+				}
+			}
+
+			// Open diff editor
+			const title = `${fileName} (Remote) ↔ ${path.basename(localUri.fsPath)} (Local)`;
+			await vscode.commands.executeCommand('vscode.diff', remoteUri, localUri, title);
+
+			vscode.window.showInformationMessage(`Comparing: ${remotePath}`);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to compare file: ${error}`);
+			throw error;
+		}
+	}
+
+	/**
 	 * Cleanup on extension deactivation
 	 */
 	public dispose(): void {

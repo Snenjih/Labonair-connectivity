@@ -6,7 +6,8 @@ import {
 	Info,
 	Copy,
 	GitCompare,
-	FileEdit
+	FileEdit,
+	ArrowRight
 } from 'lucide-react';
 import { FileEntry } from '../../../common/types';
 import { FileIcon } from '../FileIcon';
@@ -17,6 +18,7 @@ interface FileListProps {
 	selection: string[];
 	focusedFile: string | null;
 	searchQuery: string;
+	hostId: string;
 	panelId?: 'left' | 'right';
 	onFileSelect: (filePath: string, ctrlKey: boolean, shiftKey: boolean) => void;
 	onFileOpen: (file: FileEntry) => void;
@@ -41,6 +43,7 @@ export const FileList: React.FC<FileListProps> = ({
 	selection,
 	focusedFile,
 	searchQuery,
+	hostId,
 	panelId,
 	onFileSelect,
 	onFileOpen,
@@ -61,8 +64,15 @@ export const FileList: React.FC<FileListProps> = ({
 	} | null>(null);
 	const [dragOver, setDragOver] = useState(false);
 	const [dragging, setDragging] = useState(false);
+	const [scrollTop, setScrollTop] = useState(0);
 	const listRef = useRef<HTMLDivElement>(null);
+	const bodyRef = useRef<HTMLDivElement>(null);
 	const lastSelectedIndex = useRef<number>(-1);
+
+	// Virtual scrolling constants
+	const ITEM_HEIGHT = 32; // Height of each row in pixels
+	const BUFFER_SIZE = 10; // Number of extra items to render above/below viewport
+	const VIRTUAL_THRESHOLD = 1000; // Enable virtual scrolling for files > 1000
 
 	// Filter files based on search query
 	const filteredFiles = searchQuery
@@ -70,6 +80,24 @@ export const FileList: React.FC<FileListProps> = ({
 			f.name.toLowerCase().includes(searchQuery.toLowerCase())
 		)
 		: files;
+
+	// Virtual scrolling calculations
+	const useVirtualScrolling = viewMode === 'list' && filteredFiles.length > VIRTUAL_THRESHOLD;
+	const containerHeight = listRef.current?.clientHeight || 600;
+	const visibleCount = Math.ceil(containerHeight / ITEM_HEIGHT);
+	const startIndex = useVirtualScrolling ? Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE) : 0;
+	const endIndex = useVirtualScrolling ? Math.min(filteredFiles.length, startIndex + visibleCount + 2 * BUFFER_SIZE) : filteredFiles.length;
+	const visibleFiles = useVirtualScrolling ? filteredFiles.slice(startIndex, endIndex) : filteredFiles;
+	const totalHeight = useVirtualScrolling ? filteredFiles.length * ITEM_HEIGHT : 0;
+	const offsetY = useVirtualScrolling ? startIndex * ITEM_HEIGHT : 0;
+
+	// Handle scroll for virtual scrolling
+	const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+		if (useVirtualScrolling) {
+			const target = e.target as HTMLDivElement;
+			setScrollTop(target.scrollTop);
+		}
+	}, [useVirtualScrolling]);
 
 	/**
 	 * Handles file click with modifier keys
@@ -84,6 +112,21 @@ export const FileList: React.FC<FileListProps> = ({
 	 */
 	const handleFileDoubleClick = (file: FileEntry, event: React.MouseEvent) => {
 		event.stopPropagation();
+
+		// For symlinks, resolve and navigate to target
+		if (file.type === 'l' && file.symlinkTarget) {
+			// @ts-ignore - vscode is available in webview context
+			vscode.postMessage({
+				command: 'RESOLVE_SYMLINK',
+				payload: {
+					hostId,
+					symlinkPath: file.path,
+					panelId
+				}
+			});
+			return;
+		}
+
 		onFileOpen(file);
 	};
 
@@ -290,7 +333,7 @@ export const FileList: React.FC<FileListProps> = ({
 	 * Renders List View
 	 */
 	const renderListView = () => (
-		<div className="file-list-table">
+		<div className="file-list-table" onScroll={handleScroll}>
 			<div className="file-list-header">
 				<div className="col-name">Name</div>
 				<div className="col-size">Size</div>
@@ -298,8 +341,13 @@ export const FileList: React.FC<FileListProps> = ({
 				<div className="col-permissions">Permissions</div>
 				<div className="col-owner">Owner</div>
 			</div>
-			<div className="file-list-body">
-				{filteredFiles.map((file, index) => (
+			<div
+				className="file-list-body"
+				ref={bodyRef}
+				style={useVirtualScrolling ? { height: totalHeight, position: 'relative' } : undefined}
+			>
+				{useVirtualScrolling && <div style={{ height: offsetY }} />}
+				{visibleFiles.map((file, index) => (
 					<div
 						key={file.path}
 						className={`file-list-row ${selection.includes(file.path) ? 'selected' : ''} ${focusedFile === file.path ? 'focused' : ''}`}
@@ -314,8 +362,19 @@ export const FileList: React.FC<FileListProps> = ({
 						aria-selected={selection.includes(file.path)}
 					>
 						<div className="col-name">
-							<FileIcon file={file} size={18} />
-							<span className="file-name">
+							<div style={{ position: 'relative', display: 'inline-block' }}>
+								<FileIcon file={file} size={18} />
+								{file.type === 'l' && (
+									<ArrowRight size={10} style={{
+										position: 'absolute',
+										bottom: 0,
+										right: -2,
+										backgroundColor: 'var(--vscode-editor-background)',
+										borderRadius: '2px'
+									}} />
+								)}
+							</div>
+							<span className="file-name" style={file.type === 'l' ? { fontStyle: 'italic' } : undefined}>
 								{file.name}
 								{file.type === 'l' && file.symlinkTarget && (
 									<span className="symlink-target"> → {file.symlinkTarget}</span>
@@ -359,10 +418,19 @@ export const FileList: React.FC<FileListProps> = ({
 					role="button"
 					aria-selected={selection.includes(file.path)}
 				>
-					<div className="file-grid-icon">
+					<div className="file-grid-icon" style={{ position: 'relative' }}>
 						<FileIcon file={file} size={48} />
+						{file.type === 'l' && (
+							<ArrowRight size={16} style={{
+								position: 'absolute',
+								bottom: 4,
+								right: 4,
+								backgroundColor: 'var(--vscode-editor-background)',
+								borderRadius: '2px'
+							}} />
+						)}
 					</div>
-					<div className="file-grid-name" title={file.name}>
+					<div className="file-grid-name" title={file.name} style={file.type === 'l' ? { fontStyle: 'italic' } : undefined}>
 						{file.name}
 					</div>
 					{file.type !== 'd' && (

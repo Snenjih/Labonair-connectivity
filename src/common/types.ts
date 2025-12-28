@@ -35,6 +35,7 @@ export interface Host {
 	enableTerminal?: boolean;    // Enable SSH terminal
 	enableFileManager?: boolean; // Enable SFTP file manager
 	defaultPath?: string;        // Default path for connections
+	encoding?: string;           // Character encoding (default: UTF-8)
 	status?: 'online' | 'offline' | 'unknown';  // Connection status
 	createdAt?: string;
 	updatedAt?: string;
@@ -239,6 +240,7 @@ export type Message =
 	| { command: 'SFTP_TRANSFER_PROGRESS'; payload: TransferStatus }
 	| { command: 'SFTP_ERROR'; payload: { message: string } }
 	| { command: 'NAVIGATE'; payload: { path: string; panelId?: 'left' | 'right' } }
+	| { command: 'RESOLVE_SYMLINK'; payload: { hostId: string; symlinkPath: string; panelId?: 'left' | 'right' } }
 
 	// Edit-on-Fly
 	| { command: 'EDIT_FILE'; payload: { hostId: string; remotePath: string } }
@@ -283,7 +285,10 @@ export type Message =
 
 	// Broadcast (Subphase 3.5)
 	| { command: 'BROADCAST_COMMAND'; payload: { hostIds: string[]; command: string } }
-	| { command: 'BROADCAST_STATUS'; payload: { hostId: string; success: boolean; output?: string; error?: string } };
+	| { command: 'BROADCAST_STATUS'; payload: { hostId: string; success: boolean; output?: string; error?: string } }
+
+	// Tunnel Management (Subphase 3.6)
+	| { command: 'TUNNEL_STATUS'; payload: { hostId: string; tunnels: Array<{ type: 'local' | 'remote'; srcPort: number; dstHost: string; dstPort: number; status: 'active' | 'error'; error?: string }> } };
 
 // ============================================================================
 // UTILITY TYPES

@@ -1,6 +1,7 @@
 import { SFTPWrapper } from 'ssh2';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as iconv from 'iconv-lite';
 import { Host, FileEntry } from '../../common/types';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
@@ -71,6 +72,25 @@ export class SftpService {
 	}
 
 	/**
+	 * Decodes a filename using the host's configured encoding
+	 */
+	private decodeFilename(filename: string, encoding: string): string {
+		try {
+			// If encoding is UTF-8 or not specified, return as-is
+			if (!encoding || encoding.toLowerCase() === 'utf-8' || encoding.toLowerCase() === 'utf8') {
+				return filename;
+			}
+
+			// Convert filename to buffer and decode with specified encoding
+			const buffer = Buffer.from(filename, 'binary');
+			return iconv.decode(buffer, encoding);
+		} catch (error) {
+			console.warn(`Failed to decode filename with encoding ${encoding}:`, error);
+			return filename; // Fallback to original
+		}
+	}
+
+	/**
 	 * Lists files in a remote directory with caching
 	 */
 	public async listFiles(hostId: string, remotePath: string, useCache: boolean = true): Promise<FileEntry[]> {
@@ -84,6 +104,8 @@ export class SftpService {
 		}
 
 		const sftp = await this.getSftpSession(hostId);
+		const host = await this.getHost(hostId);
+		const encoding = host.encoding || 'utf-8';
 
 		return new Promise((resolve, reject) => {
 			sftp.readdir(remotePath, async (err, list) => {
@@ -114,9 +136,11 @@ export class SftpService {
 						type = 'l';
 					}
 
-					const filePath = path.posix.join(remotePath, item.filename);
+					// Decode filename using host's encoding
+					const decodedFilename = this.decodeFilename(item.filename, encoding);
+					const filePath = path.posix.join(remotePath, decodedFilename);
 					const fileEntry: FileEntry = {
-						name: item.filename,
+						name: decodedFilename,
 						path: filePath,
 						size: item.attrs.size || 0,
 						type,
