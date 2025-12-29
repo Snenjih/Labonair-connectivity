@@ -312,6 +312,12 @@ export class SftpPanel {
 				await this._handleArchiveOperation(message.payload);
 				break;
 			}
+
+			// Deep Search (Subphase 4.3)
+			case 'SEARCH_FILES': {
+				await this._handleSearch(message.payload);
+				break;
+			}
 		}
 	}
 
@@ -1111,6 +1117,172 @@ export class SftpPanel {
 			});
 			vscode.window.showErrorMessage(`Archive operation failed: ${error}`);
 		}
+	}
+
+	/**
+	 * Handles deep search operations
+	 */
+	private async _handleSearch(payload: any): Promise<void> {
+		try {
+			const { path, fileSystem, pattern, content, recursive } = payload;
+			let results: FileEntry[] = [];
+
+			if (fileSystem === 'local') {
+				// Local file search
+				results = await this._searchLocal(path, pattern, content, recursive);
+			} else {
+				// Remote file search via SSH
+				results = await this._searchRemote(path, pattern, content, recursive);
+			}
+
+			// Send results back to webview
+			this._panel.webview.postMessage({
+				command: 'SEARCH_RESULTS',
+				payload: {
+					results,
+					searchQuery: pattern || content || 'files'
+				}
+			});
+		} catch (error) {
+			this._panel.webview.postMessage({
+				command: 'SFTP_ERROR',
+				payload: {
+					message: `Search failed: ${error}`
+				}
+			});
+			vscode.window.showErrorMessage(`Search failed: ${error}`);
+		}
+	}
+
+	/**
+	 * Search local filesystem
+	 */
+	private async _searchLocal(basePath: string, pattern?: string, content?: string, recursive: boolean = true): Promise<FileEntry[]> {
+		const results: FileEntry[] = [];
+		const fs = require('fs').promises;
+		const pathModule = require('path');
+		const { minimatch } = require('minimatch');
+
+		const searchDirectory = async (dir: string) => {
+			try {
+				const entries = await fs.readdir(dir, { withFileTypes: true });
+
+				for (const entry of entries) {
+					const fullPath = pathModule.join(dir, entry.name);
+					const relativePath = pathModule.relative(basePath, fullPath);
+
+					// Check filename pattern match
+					const patternMatches = !pattern || minimatch(entry.name, pattern);
+
+					if (entry.isFile()) {
+						let contentMatches = !content;
+
+						// Check content match if content search is requested
+						if (content && patternMatches) {
+							try {
+								const fileContent = await fs.readFile(fullPath, 'utf8');
+								contentMatches = fileContent.includes(content);
+							} catch {
+								// Skip files that can't be read (binary, permissions, etc.)
+								contentMatches = false;
+							}
+						}
+
+						// Add to results if matches criteria
+						if (patternMatches && contentMatches) {
+							const stats = await fs.stat(fullPath);
+							results.push({
+								name: entry.name,
+								path: fullPath,
+								type: '-',
+								size: stats.size,
+								permissions: '',
+								owner: '',
+								group: '',
+								modTime: stats.mtime
+							});
+						}
+					} else if (entry.isDirectory() && recursive) {
+						// Recursively search subdirectories
+						await searchDirectory(fullPath);
+					}
+				}
+			} catch (error) {
+				// Skip directories we can't access
+			}
+		};
+
+		await searchDirectory(basePath);
+		return results;
+	}
+
+	/**
+	 * Search remote filesystem via SSH
+	 * Note: This is a simplified implementation that performs recursive directory traversal
+	 * using SFTP operations. For better performance with large directories,
+	 * consider implementing SSH command execution.
+	 */
+	private async _searchRemote(basePath: string, pattern?: string, content?: string, recursive: boolean = true): Promise<FileEntry[]> {
+		const results: FileEntry[] = [];
+
+		// Helper function to check if a filename matches the pattern
+		const matchesPattern = (filename: string, pattern?: string): boolean => {
+			if (!pattern) {return true;}
+			const regex = new RegExp('^' + pattern.replace(/\*/g, '.*').replace(/\?/g, '.') + '$', 'i');
+			return regex.test(filename);
+		};
+
+		// Recursive search function using SFTP
+		const searchDirectory = async (dirPath: string) => {
+			try {
+				const entries = await this._sftpService.listFiles(this._hostId, dirPath, false);
+
+				for (const entry of entries) {
+					// Skip . and ..
+					if (entry.name === '.' || entry.name === '..') {
+						continue;
+					}
+
+					const fullPath = `${dirPath}/${entry.name}`.replace(/\/+/g, '/');
+
+					if (entry.type === '-') {
+						// It's a file - check if it matches our criteria
+						const filenameMatches = matchesPattern(entry.name, pattern);
+
+						// For content search on remote files, we'd need to download and search
+						// For now, we only support filename pattern search
+						// Content search would require SSH command execution or downloading files
+						if (filenameMatches && !content) {
+							results.push({
+								name: entry.name,
+								path: fullPath,
+								type: '-',
+								size: entry.size,
+								permissions: entry.permissions,
+								owner: entry.owner,
+								group: entry.group,
+								modTime: entry.modTime
+							});
+						}
+					} else if (entry.type === 'd' && recursive) {
+						// Recursively search subdirectories
+						await searchDirectory(fullPath);
+					}
+				}
+			} catch (error) {
+				// Skip directories we can't access
+			}
+		};
+
+		// If content search is requested for remote, show a message
+		if (content) {
+			vscode.window.showWarningMessage(
+				'Content search on remote files is not yet supported. Searching by filename only.'
+			);
+		}
+
+		await searchDirectory(basePath);
+		return results;
 	}
 
 	// ========================================================================

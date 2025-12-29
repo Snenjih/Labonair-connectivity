@@ -13,7 +13,8 @@ import {
 	List,
 	Columns,
 	Link2,
-	Unlink
+	Unlink,
+	Search
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -35,6 +36,7 @@ interface ToolbarProps {
 	onNewFolder: () => void;
 	onNewFile: () => void;
 	onOpenTerminal?: () => void;
+	onDeepSearch?: () => void;
 	onViewModeChange: (mode: 'list' | 'grid') => void;
 	onLayoutModeChange: (mode: 'explorer' | 'commander') => void;
 	onSyncBrowsingChange?: (enabled: boolean) => void;
@@ -66,6 +68,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 	onNewFolder,
 	onNewFile,
 	onOpenTerminal,
+	onDeepSearch,
 	onViewModeChange,
 	onLayoutModeChange,
 	onSyncBrowsingChange,
@@ -318,6 +321,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 						aria-label="Open terminal in current directory"
 					>
 						<Terminal size={16} />
+					</button>
+				)}
+				{onDeepSearch && (
+					<button
+						className="toolbar-btn"
+						onClick={onDeepSearch}
+						disabled={isLoading}
+						title="Find files (deep search)"
+						aria-label="Search for files in current directory and subdirectories"
+					>
+						<Search size={16} />
 					</button>
 				)}
 			</div>

@@ -3,6 +3,7 @@ import { FileEntry, TransferStatus } from '../../common/types';
 import { Toolbar } from '../components/FileManager/Toolbar';
 import { FileList } from '../components/FileManager/FileList';
 import FilePropertiesDialog from '../dialogs/FilePropertiesDialog';
+import SearchDialog from '../dialogs/SearchDialog';
 import vscode from '../utils/vscode';
 import '../styles/fileManager.css';
 
@@ -44,6 +45,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	const [transfer, setTransfer] = useState<TransferStatus | null>(null);
 	const [propertiesFile, setPropertiesFile] = useState<FileEntry | null>(null);
 	const [stateLoaded, setStateLoaded] = useState<boolean>(false);
+	const [showSearchDialog, setShowSearchDialog] = useState<boolean>(false);
+	const [searchResults, setSearchResults] = useState<FileEntry[] | null>(null);
+	const [searchQuery, setSearchQuery] = useState<string>('');
 
 	// Panel states
 	const [leftPanel, setLeftPanel] = useState<PanelState>({
@@ -166,6 +170,12 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					}
 					// Mark state as loaded (even if no saved state exists)
 					setStateLoaded(true);
+					break;
+				}
+
+				case 'SEARCH_RESULTS': {
+					setSearchResults(message.payload.results);
+					setSearchQuery(message.payload.searchQuery);
 					break;
 				}
 			}
@@ -791,6 +801,33 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	};
 
 	/**
+	 * Deep search handlers
+	 */
+	const handleDeepSearch = () => {
+		setShowSearchDialog(true);
+	};
+
+	const handleSearch = (pattern: string, content: string, recursive: boolean) => {
+		const state = getActiveState();
+		vscode.postMessage({
+			command: 'SEARCH_FILES',
+			payload: {
+				hostId,
+				path: state.currentPath,
+				fileSystem: state.fileSystem,
+				pattern: pattern || undefined,
+				content: content || undefined,
+				recursive
+			}
+		});
+	};
+
+	const handleClearSearchResults = () => {
+		setSearchResults(null);
+		setSearchQuery('');
+	};
+
+	/**
 	 * View mode handlers
 	 */
 	const handleSearchChange = (query: string) => {
@@ -905,6 +942,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 				onNewFolder={handleNewFolder}
 				onNewFile={handleNewFile}
 				onOpenTerminal={handleOpenTerminal}
+				onDeepSearch={handleDeepSearch}
 				onViewModeChange={setViewMode}
 				onLayoutModeChange={handleLayoutModeChange}
 				onSyncBrowsingChange={setSyncBrowsing}
@@ -952,13 +990,64 @@ export const FileManager: React.FC<FileManagerProps> = ({
 				</div>
 			)}
 
+			{/* Search Results Panel */}
+			{searchResults && (
+				<div className="search-results-panel">
+					<div className="search-results-header">
+						<h3>Search Results: {searchQuery}</h3>
+						<button className="vscode-button secondary" onClick={handleClearSearchResults}>
+							Clear Results
+						</button>
+					</div>
+					<div className="search-results-list">
+						{searchResults.length === 0 ? (
+							<p style={{ padding: '20px', textAlign: 'center', color: 'var(--vscode-descriptionForeground)' }}>
+								No files found matching your search criteria.
+							</p>
+						) : (
+							searchResults.map((file, index) => (
+								<div
+									key={index}
+									className="search-result-item"
+									onClick={() => {
+										// Navigate to the directory containing the file
+										const dirPath = file.path.substring(0, file.path.lastIndexOf('/'));
+										navigateToPath(dirPath || '/');
+										handleClearSearchResults();
+									}}
+									style={{
+										padding: '8px 12px',
+										cursor: 'pointer',
+										borderBottom: '1px solid var(--vscode-panel-border)'
+									}}
+								>
+									<div style={{ fontWeight: 500 }}>{file.name}</div>
+									<div style={{ fontSize: '11px', color: 'var(--vscode-descriptionForeground)' }}>
+										{file.path}
+									</div>
+								</div>
+							))
+						)}
+					</div>
+				</div>
+			)}
+
 			{/* File Properties Dialog */}
 			{propertiesFile && (
 				<FilePropertiesDialog
 					file={propertiesFile}
 					hostId={hostId}
+					fileSystem={getActiveState().fileSystem}
 					onSave={handleSavePermissions}
 					onClose={() => setPropertiesFile(null)}
+				/>
+			)}
+
+			{/* Search Dialog */}
+			{showSearchDialog && (
+				<SearchDialog
+					onSearch={handleSearch}
+					onClose={() => setShowSearchDialog(false)}
 				/>
 			)}
 		</div>

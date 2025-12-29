@@ -7,13 +7,15 @@ import '../styles/fileProperties.css';
 interface FilePropertiesDialogProps {
 	file: FileEntry;
 	hostId: string;
+	fileSystem?: 'local' | 'remote';
 	onSave: (octal: string, recursive: boolean) => void;
 	onClose: () => void;
 }
 
-const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostId, onSave, onClose }) => {
+const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostId, fileSystem = 'remote', onSave, onClose }) => {
 	const [activeTab, setActiveTab] = useState<'general' | 'permissions'>('general');
 	const [recursive, setRecursive] = useState(false);
+	const isLocal = fileSystem === 'local';
 	const { octal, permissions, updatePermission, updateOctal } = usePermissions(
 		file.permissions?.slice(-3) || '644'
 	);
@@ -185,6 +187,27 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 	 */
 	const renderPermissionsTab = () => (
 		<div className="file-properties-permissions">
+			{isLocal && (
+				<div style={{
+					padding: '16px',
+					background: 'var(--vscode-textBlockQuote-background)',
+					border: '1px solid var(--vscode-textBlockQuote-border)',
+					borderRadius: '4px',
+					marginBottom: '16px'
+				}}>
+					<h4 style={{ marginTop: 0, marginBottom: '8px', fontSize: '13px' }}>
+						Local File Permissions
+					</h4>
+					<p style={{ margin: 0, fontSize: '12px', lineHeight: '1.5' }}>
+						Permissions for local files are managed by your operating system.
+						On Windows, file permissions use a different system (ACLs) than Unix permissions shown here.
+						On macOS/Linux, you can modify permissions using system tools or the command line.
+					</p>
+					<p style={{ margin: '8px 0 0 0', fontSize: '12px', lineHeight: '1.5', color: 'var(--vscode-descriptionForeground)' }}>
+						<strong>Note:</strong> Permission editing is only available for remote SFTP files.
+					</p>
+				</div>
+			)}
 			<div className="octal-input-section">
 				<label htmlFor="octal-input">Octal Notation:</label>
 				<input
@@ -195,6 +218,7 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 					onChange={(e) => updateOctal(e.target.value)}
 					maxLength={3}
 					pattern="[0-7]{3}"
+					disabled={isLocal}
 				/>
 				<span className="octal-help">3-digit octal (0-7)</span>
 			</div>
@@ -215,6 +239,7 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 							type="checkbox"
 							checked={permissions.owner.read}
 							onChange={(e) => updatePermission('owner', 'read', e.target.checked)}
+							disabled={isLocal}
 						/>
 					</div>
 					<div className="matrix-cell">
@@ -222,6 +247,7 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 							type="checkbox"
 							checked={permissions.owner.write}
 							onChange={(e) => updatePermission('owner', 'write', e.target.checked)}
+							disabled={isLocal}
 						/>
 					</div>
 					<div className="matrix-cell">
@@ -229,6 +255,7 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 							type="checkbox"
 							checked={permissions.owner.execute}
 							onChange={(e) => updatePermission('owner', 'execute', e.target.checked)}
+							disabled={isLocal}
 						/>
 					</div>
 				</div>
@@ -241,6 +268,7 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 							type="checkbox"
 							checked={permissions.group.read}
 							onChange={(e) => updatePermission('group', 'read', e.target.checked)}
+							disabled={isLocal}
 						/>
 					</div>
 					<div className="matrix-cell">
@@ -248,6 +276,7 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 							type="checkbox"
 							checked={permissions.group.write}
 							onChange={(e) => updatePermission('group', 'write', e.target.checked)}
+							disabled={isLocal}
 						/>
 					</div>
 					<div className="matrix-cell">
@@ -255,6 +284,7 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 							type="checkbox"
 							checked={permissions.group.execute}
 							onChange={(e) => updatePermission('group', 'execute', e.target.checked)}
+							disabled={isLocal}
 						/>
 					</div>
 				</div>
@@ -267,6 +297,7 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 							type="checkbox"
 							checked={permissions.public.read}
 							onChange={(e) => updatePermission('public', 'read', e.target.checked)}
+							disabled={isLocal}
 						/>
 					</div>
 					<div className="matrix-cell">
@@ -274,6 +305,7 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 							type="checkbox"
 							checked={permissions.public.write}
 							onChange={(e) => updatePermission('public', 'write', e.target.checked)}
+							disabled={isLocal}
 						/>
 					</div>
 					<div className="matrix-cell">
@@ -281,6 +313,7 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 							type="checkbox"
 							checked={permissions.public.execute}
 							onChange={(e) => updatePermission('public', 'execute', e.target.checked)}
+							disabled={isLocal}
 						/>
 					</div>
 				</div>
@@ -338,7 +371,7 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 					<button className="vscode-button secondary" onClick={onClose}>
 						Close
 					</button>
-					{activeTab === 'permissions' && (
+					{activeTab === 'permissions' && !isLocal && (
 						<button className="vscode-button" onClick={handleSave}>
 							Save Permissions
 						</button>
