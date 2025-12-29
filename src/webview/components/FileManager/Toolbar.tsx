@@ -70,11 +70,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 	onPathNavigate
 }) => {
 	const [pathInput, setPathInput] = useState(currentPath);
+	const [isEditMode, setIsEditMode] = useState(false);
+	const inputRef = React.useRef<HTMLInputElement>(null);
 
 	// Update path input when currentPath changes
 	React.useEffect(() => {
 		setPathInput(currentPath);
 	}, [currentPath]);
+
+	// Focus input when entering edit mode
+	React.useEffect(() => {
+		if (isEditMode && inputRef.current) {
+			inputRef.current.focus();
+			inputRef.current.select();
+		}
+	}, [isEditMode]);
 
 	/**
 	 * Generates breadcrumb segments from path
@@ -114,6 +124,35 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 		e.preventDefault();
 		if (onPathNavigate && pathInput !== currentPath) {
 			onPathNavigate(pathInput);
+		}
+		setIsEditMode(false);
+	};
+
+	/**
+	 * Handles clicking on the breadcrumb container to enter edit mode
+	 */
+	const handleContainerClick = (e: React.MouseEvent) => {
+		// Only enter edit mode if clicking on the container itself, not on breadcrumbs
+		if (e.target === e.currentTarget) {
+			setIsEditMode(true);
+		}
+	};
+
+	/**
+	 * Handles input blur (exit edit mode)
+	 */
+	const handleInputBlur = () => {
+		setIsEditMode(false);
+		setPathInput(currentPath); // Reset to current path if not submitted
+	};
+
+	/**
+	 * Handles keyboard events in input
+	 */
+	const handleInputKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === 'Escape') {
+			setIsEditMode(false);
+			setPathInput(currentPath);
 		}
 	};
 
@@ -168,35 +207,45 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 				</button>
 			</div>
 
-			{/* Breadcrumbs / Path Bar */}
+			{/* Breadcrumbs / Path Bar (Merged) */}
 			<div className="toolbar-section toolbar-path">
-				<div className="breadcrumbs">
-					{getBreadcrumbs().map((crumb, index) => (
-						<React.Fragment key={index}>
-							<button
-								className="breadcrumb"
-								onClick={() => handleBreadcrumbClick(crumb.path)}
-								disabled={isLoading}
-							>
-								{crumb.label}
-							</button>
-							{index < getBreadcrumbs().length - 1 && (
-								<span className="breadcrumb-separator">/</span>
-							)}
-						</React.Fragment>
-					))}
-				</div>
-				<form onSubmit={handlePathSubmit} className="path-input-form">
-					<input
-						type="text"
-						className="path-input"
-						value={pathInput}
-						onChange={(e) => setPathInput(e.target.value)}
-						disabled={isLoading}
-						placeholder="Enter path..."
-						title="Current path"
-					/>
-				</form>
+				{isEditMode ? (
+					<form onSubmit={handlePathSubmit} className="path-input-form">
+						<input
+							ref={inputRef}
+							type="text"
+							className="path-input"
+							value={pathInput}
+							onChange={(e) => setPathInput(e.target.value)}
+							onBlur={handleInputBlur}
+							onKeyDown={handleInputKeyDown}
+							disabled={isLoading}
+							placeholder="Enter path..."
+							title="Current path"
+						/>
+					</form>
+				) : (
+					<div
+						className="breadcrumbs"
+						onClick={handleContainerClick}
+						title="Click here to edit path"
+					>
+						{getBreadcrumbs().map((crumb, index) => (
+							<React.Fragment key={index}>
+								<button
+									className="breadcrumb"
+									onClick={() => handleBreadcrumbClick(crumb.path)}
+									disabled={isLoading}
+								>
+									{crumb.label}
+								</button>
+								{index < getBreadcrumbs().length - 1 && (
+									<span className="breadcrumb-separator">/</span>
+								)}
+							</React.Fragment>
+						))}
+					</div>
+				)}
 			</div>
 
 			{/* Action Buttons */}

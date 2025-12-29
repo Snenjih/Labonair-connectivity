@@ -115,6 +115,12 @@
 	background: var(--vscode-input-background);
 	border: 1px solid var(--vscode-input-border);
 	border-radius: 4px;
+	cursor: text;
+	transition: border-color 0.15s ease;
+}
+
+.breadcrumbs:hover {
+	border-color: var(--vscode-focusBorder);
 }
 
 .breadcrumbs::-webkit-scrollbar {

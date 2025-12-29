@@ -497,6 +497,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 
 	return (
 		<div className="terminal-container">
+			{/* Toolbar at the top */}
 			{!searchVisible && (
 				<TerminalHUD
 					status={status}
@@ -519,6 +520,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 				onClose={handleSearchClose}
 			/>
 
+			{/* Terminal content area */}
 			<div className={`terminal-layout terminal-layout-${splitMode}`}>
 				<div
 					className={`terminal-pane ${activeSplit === 1 ? 'active' : ''}`}

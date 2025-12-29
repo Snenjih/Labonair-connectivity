@@ -8,6 +8,8 @@
 	height: 100vh;
 	background-color: var(--vscode-editor-background);
 	overflow: hidden;
+	display: flex;
+	flex-direction: column;
 }
 
 .terminal-wrapper {
@@ -18,17 +20,16 @@
 }
 
 /* ============================================================================
-   TERMINAL HUD - FLOATING OVERLAY
+   TERMINAL HUD - FIXED TOOLBAR
    ============================================================================ */
 
 .terminal-hud {
-	position: absolute;
-	top: 12px;
-	right: 12px;
+	position: relative;
+	width: 100%;
 	z-index: 1000;
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	flex-shrink: 0;
 }
 
 .terminal-hud-main {
@@ -36,11 +37,10 @@
 	align-items: center;
 	gap: 12px;
 	padding: 8px 12px;
-	background-color: var(--vscode-editor-background);
-	border: 1px solid var(--vscode-panel-border);
-	border-radius: 6px;
-	backdrop-filter: blur(10px);
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	width: 100%;
+	background-color: var(--vscode-sideBar-background);
+	border-bottom: 1px solid var(--vscode-panel-border);
+	box-sizing: border-box;
 }
 
 /* Status Indicator */
@@ -120,8 +120,9 @@
 	padding: 12px;
 	background-color: var(--vscode-editor-background);
 	border: 1px solid var(--vscode-panel-border);
-	border-radius: 6px;
-	backdrop-filter: blur(10px);
+	border-bottom-left-radius: 6px;
+	border-bottom-right-radius: 6px;
+	border-top: none;
 	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 	min-width: 200px;
 }
@@ -400,10 +401,11 @@
 .terminal-layout {
 	position: relative;
 	width: 100%;
-	height: calc(100% - 60px); /* Account for HUD */
+	flex: 1;
 	display: grid;
 	gap: 2px;
 	background-color: var(--vscode-panel-border);
+	overflow: hidden;
 }
 
 .terminal-layout-none {
@@ -730,19 +732,17 @@
    ============================================================================ */
 
 .terminal-search-widget {
-	position: absolute;
-	top: 12px;
-	right: 12px;
+	position: relative;
+	width: 100%;
 	z-index: 1000;
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	padding: 8px 12px;
-	background-color: var(--vscode-editor-background);
-	border: 1px solid var(--vscode-panel-border);
-	border-radius: 6px;
-	backdrop-filter: blur(10px);
-	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	background-color: var(--vscode-sideBar-background);
+	border-bottom: 1px solid var(--vscode-panel-border);
+	box-sizing: border-box;
+	flex-shrink: 0;
 }
 
 .search-input-container {
