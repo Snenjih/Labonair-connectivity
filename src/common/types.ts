@@ -219,20 +219,23 @@ export type Message =
 	// Shell detection
 	| { command: 'AVAILABLE_SHELLS'; payload: { shells: string[] } }
 
-	// SFTP File Manager
-	| { command: 'SFTP_LS'; payload: { hostId: string; path: string; panelId?: 'left' | 'right' } }
-	| { command: 'SFTP_LS_RESPONSE'; payload: { files: FileEntry[]; currentPath: string; panelId?: 'left' | 'right' } }
-	| { command: 'SFTP_UPLOAD'; payload: { hostId: string; remotePath: string; localPath?: string } }
-	| { command: 'SFTP_DOWNLOAD'; payload: { hostId: string; remotePath: string; localPath?: string } }
-	| { command: 'SFTP_RM'; payload: { hostId: string; path: string } }
-	| { command: 'SFTP_MKDIR'; payload: { hostId: string; path: string } }
-	| { command: 'SFTP_RENAME'; payload: { hostId: string; oldPath: string; newPath: string } }
-	| { command: 'SFTP_STAT'; payload: { hostId: string; path: string } }
-	| { command: 'SFTP_STAT_RESPONSE'; payload: { file: FileEntry } }
+	// File Manager (Local & Remote)
+	| { command: 'SFTP_LS'; payload: { hostId: string; path: string; panelId?: 'left' | 'right'; fileSystem?: 'local' | 'remote' } }
+	| { command: 'SFTP_LS_RESPONSE'; payload: { files: FileEntry[]; currentPath: string; panelId?: 'left' | 'right'; fileSystem?: 'local' | 'remote' } }
+	| { command: 'SFTP_UPLOAD'; payload: { hostId: string; remotePath: string; localPath?: string; fileSystem?: 'local' | 'remote' } }
+	| { command: 'SFTP_DOWNLOAD'; payload: { hostId: string; remotePath: string; localPath?: string; fileSystem?: 'local' | 'remote' } }
+	| { command: 'SFTP_RM'; payload: { hostId: string; path: string; fileSystem?: 'local' | 'remote' } }
+	| { command: 'SFTP_MKDIR'; payload: { hostId: string; path: string; fileSystem?: 'local' | 'remote' } }
+	| { command: 'SFTP_RENAME'; payload: { hostId: string; oldPath: string; newPath: string; fileSystem?: 'local' | 'remote' } }
+	| { command: 'SFTP_STAT'; payload: { hostId: string; path: string; fileSystem?: 'local' | 'remote' } }
+	| { command: 'SFTP_STAT_RESPONSE'; payload: { file: FileEntry; fileSystem?: 'local' | 'remote' } }
 	| { command: 'SFTP_TRANSFER_PROGRESS'; payload: TransferStatus }
-	| { command: 'SFTP_ERROR'; payload: { message: string } }
-	| { command: 'NAVIGATE'; payload: { path: string; panelId?: 'left' | 'right' } }
-	| { command: 'RESOLVE_SYMLINK'; payload: { hostId: string; symlinkPath: string; panelId?: 'left' | 'right' } }
+	| { command: 'SFTP_ERROR'; payload: { message: string; panelId?: 'left' | 'right' } }
+	| { command: 'NAVIGATE'; payload: { path: string; panelId?: 'left' | 'right'; fileSystem?: 'local' | 'remote' } }
+	| { command: 'RESOLVE_SYMLINK'; payload: { hostId: string; symlinkPath: string; panelId?: 'left' | 'right'; fileSystem?: 'local' | 'remote' } }
+
+	// Local File System specific
+	| { command: 'OPEN_LOCAL_FILE'; payload: { path: string } }
 
 	// Edit-on-Fly
 	| { command: 'EDIT_FILE'; payload: { hostId: string; remotePath: string } }
@@ -244,11 +247,11 @@ export type Message =
 
 	// File Operations
 	| { command: 'COPY_PATH'; payload: { path: string } }
-	| { command: 'FILE_PROPERTIES'; payload: { hostId: string; path: string } }
-	| { command: 'DIFF_FILES'; payload: { hostId: string; remotePath: string; localPath?: string } }
-	| { command: 'SFTP_NEW_FILE'; payload: { hostId: string; path: string } }
-	| { command: 'SFTP_MOVE'; payload: { hostId: string; sourcePaths: string[]; targetPath: string; sourcePanel?: 'left' | 'right' } }
-	| { command: 'OPEN_TERMINAL'; payload: { hostId: string; path: string } }
+	| { command: 'FILE_PROPERTIES'; payload: { hostId: string; path: string; fileSystem?: 'local' | 'remote' } }
+	| { command: 'DIFF_FILES'; payload: { hostId: string; remotePath: string; localPath?: string; fileSystem?: 'local' | 'remote' } }
+	| { command: 'SFTP_NEW_FILE'; payload: { hostId: string; path: string; fileSystem?: 'local' | 'remote' } }
+	| { command: 'SFTP_MOVE'; payload: { hostId: string; sourcePaths: string[]; targetPath: string; sourcePanel?: 'left' | 'right'; fileSystem?: 'local' | 'remote' } }
+	| { command: 'OPEN_TERMINAL'; payload: { hostId: string; path: string; fileSystem?: 'local' | 'remote' } }
 
 	// SSH Terminal
 	| { command: 'TERM_DATA'; payload: { data: string; splitId?: number } }

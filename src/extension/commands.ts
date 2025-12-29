@@ -3,12 +3,14 @@ import * as vscode from 'vscode';
 import { Host } from '../common/types';
 import { HostService } from './hostService';
 import { SftpService } from './services/sftpService';
+import { LocalFsService } from './services/localFsService';
 import { SftpPanel } from './panels/sftpPanel';
 
 export function registerCommands(
 	context: vscode.ExtensionContext,
 	hostService: HostService,
-	sftpService: SftpService
+	sftpService: SftpService,
+	localFsService: LocalFsService
 ) {
 	context.subscriptions.push(
 		vscode.commands.registerCommand('labonair.quickConnect', async () => {
@@ -78,6 +80,7 @@ export function registerCommands(
 						context.extensionUri,
 						host.id,
 						sftpService,
+						localFsService,
 						hostService
 					);
 				}

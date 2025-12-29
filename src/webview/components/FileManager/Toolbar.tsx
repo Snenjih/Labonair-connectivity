@@ -25,6 +25,7 @@ interface ToolbarProps {
 	syncBrowsing?: boolean;
 	isLoading: boolean;
 	searchQuery: string;
+	fileSystem?: 'local' | 'remote';
 	onNavigateHome: () => void;
 	onNavigateUp: () => void;
 	onNavigateBack: () => void;
@@ -39,6 +40,7 @@ interface ToolbarProps {
 	onSyncBrowsingChange?: (enabled: boolean) => void;
 	onSearchChange: (query: string) => void;
 	onPathNavigate?: (path: string) => void;
+	onFileSystemChange?: (mode: 'local' | 'remote') => void;
 }
 
 /**
@@ -54,6 +56,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 	syncBrowsing = false,
 	isLoading,
 	searchQuery,
+	fileSystem = 'remote',
 	onNavigateHome,
 	onNavigateUp,
 	onNavigateBack,
@@ -67,7 +70,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 	onLayoutModeChange,
 	onSyncBrowsingChange,
 	onSearchChange,
-	onPathNavigate
+	onPathNavigate,
+	onFileSystemChange
 }) => {
 	const [pathInput, setPathInput] = useState(currentPath);
 	const [isEditMode, setIsEditMode] = useState(false);
@@ -158,6 +162,34 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
 	return (
 		<div className="file-manager-toolbar">
+			{/* Location Switcher (Local/Remote) */}
+			{onFileSystemChange && (
+				<div className="toolbar-section toolbar-location-switcher">
+					<div className="location-toggle" role="group" aria-label="File system mode">
+						<button
+							className={`toolbar-btn location-btn ${fileSystem === 'local' ? 'active' : ''}`}
+							onClick={() => onFileSystemChange('local')}
+							disabled={isLoading}
+							title="Local File System"
+							aria-label="Switch to local file system"
+							aria-pressed={fileSystem === 'local'}
+						>
+							💻 Local
+						</button>
+						<button
+							className={`toolbar-btn location-btn ${fileSystem === 'remote' ? 'active' : ''}`}
+							onClick={() => onFileSystemChange('remote')}
+							disabled={isLoading}
+							title="Remote File System (SFTP)"
+							aria-label="Switch to remote file system"
+							aria-pressed={fileSystem === 'remote'}
+						>
+							☁️ Remote
+						</button>
+					</div>
+				</div>
+			)}
+
 			{/* Navigation Controls */}
 			<div className="toolbar-section toolbar-nav">
 				<button
@@ -208,7 +240,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 			</div>
 
 			{/* Breadcrumbs / Path Bar (Merged) */}
-			<div className="toolbar-section toolbar-path">
+			<div className={`toolbar-section toolbar-path ${fileSystem === 'local' ? 'fs-local' : 'fs-remote'}`}>
 				{isEditMode ? (
 					<form onSubmit={handlePathSubmit} className="path-input-form">
 						<input

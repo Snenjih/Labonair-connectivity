@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { SftpService } from '../services/sftpService';
+import { LocalFsService } from '../services/localFsService';
 import { HostService } from '../hostService';
 import { SessionTracker } from '../sessionTracker';
 import { MediaPanel } from './MediaPanel';
@@ -26,6 +27,7 @@ export class SftpPanel {
 		extensionUri: vscode.Uri,
 		hostId: string,
 		sftpService: SftpService,
+		localFsService: LocalFsService,
 		hostService: HostService,
 		sessionTracker?: SessionTracker
 	): SftpPanel {
@@ -51,7 +53,7 @@ export class SftpPanel {
 			}
 		);
 
-		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, hostService, sessionTracker);
+		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, localFsService, hostService, sessionTracker);
 		return SftpPanel.currentPanel;
 	}
 
@@ -60,6 +62,7 @@ export class SftpPanel {
 		extensionUri: vscode.Uri,
 		hostId: string,
 		private readonly _sftpService: SftpService,
+		private readonly _localFsService: LocalFsService,
 		private readonly _hostService: HostService,
 		private readonly _sessionTracker?: SessionTracker
 	) {
@@ -137,7 +140,7 @@ export class SftpPanel {
 	private async _handleMessage(message: Message): Promise<void> {
 		switch (message.command) {
 			case 'SFTP_LS': {
-				await this._listFiles(message.payload.path, message.payload.panelId);
+				await this._listFiles(message.payload.path, message.payload.panelId, message.payload.fileSystem);
 				break;
 			}
 
@@ -231,15 +234,29 @@ export class SftpPanel {
 				await this._compressFiles(message.payload.paths, message.payload.archiveName, message.payload.archiveType);
 				break;
 			}
+
+			case 'OPEN_LOCAL_FILE': {
+				await this._openLocalFile(message.payload.path);
+				break;
+			}
 		}
 	}
 
 	/**
 	 * Lists files in a directory
 	 */
-	private async _listFiles(path: string, panelId?: 'left' | 'right'): Promise<void> {
+	private async _listFiles(path: string, panelId?: 'left' | 'right', fileSystem?: 'local' | 'remote'): Promise<void> {
 		try {
-			const files = await this._sftpService.listFiles(this._hostId, path);
+			let files: FileEntry[];
+
+			// Route to appropriate service based on fileSystem
+			if (fileSystem === 'local') {
+				files = await this._localFsService.listFiles(path);
+			} else {
+				// Default to remote (SFTP)
+				files = await this._sftpService.listFiles(this._hostId, path);
+			}
+
 			this._currentPath = path;
 
 			this._panel.webview.postMessage({
@@ -247,14 +264,16 @@ export class SftpPanel {
 				payload: {
 					files,
 					currentPath: path,
-					panelId
+					panelId,
+					fileSystem
 				}
 			});
 		} catch (error) {
 			this._panel.webview.postMessage({
 				command: 'SFTP_ERROR',
 				payload: {
-					message: `Failed to list directory: ${error}`
+					message: `Failed to list directory: ${error}`,
+					panelId
 				}
 			});
 		}
@@ -748,6 +767,18 @@ export class SftpPanel {
 			);
 		} catch (error) {
 			vscode.window.showErrorMessage(`Diff failed: ${error}`);
+		}
+	}
+
+	/**
+	 * Opens a local file in VS Code editor
+	 */
+	private async _openLocalFile(filePath: string): Promise<void> {
+		try {
+			const uri = vscode.Uri.file(filePath);
+			await vscode.window.showTextDocument(uri);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to open local file: ${error}`);
 		}
 	}
 

@@ -57,6 +57,46 @@
 	gap: 8px;
 }
 
+/* Location Switcher */
+.toolbar-location-switcher {
+	flex-shrink: 0;
+	border-right: 1px solid var(--vscode-panel-border);
+	padding-right: 8px;
+	margin-right: 4px;
+}
+
+.location-toggle {
+	display: flex;
+	gap: 2px;
+	background: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 4px;
+	padding: 2px;
+}
+
+.location-btn {
+	width: auto !important;
+	padding: 4px 12px !important;
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.location-toggle .location-btn.active {
+	background: var(--vscode-button-background);
+	color: var(--vscode-button-foreground);
+}
+
+/* Path bar styling based on file system mode */
+.toolbar-path.fs-local {
+	border-left: 2px solid #28a745;
+	padding-left: 8px;
+}
+
+.toolbar-path.fs-remote {
+	border-left: 2px solid #007acc;
+	padding-left: 8px;
+}
+
 .toolbar-btn {
 	display: flex;
 	align-items: center;

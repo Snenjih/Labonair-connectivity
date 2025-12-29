@@ -22,6 +22,7 @@ interface PanelState {
 	focusedFile: string | null;
 	searchQuery: string;
 	isLoading: boolean;
+	fileSystem: 'local' | 'remote';
 }
 
 /**
@@ -45,14 +46,15 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
 	// Panel states
 	const [leftPanel, setLeftPanel] = useState<PanelState>({
-		currentPath: initialPath,
+		currentPath: '~',
 		files: [],
-		history: [initialPath],
+		history: ['~'],
 		historyIndex: 0,
 		selection: [],
 		focusedFile: null,
 		searchQuery: '',
-		isLoading: false
+		isLoading: false,
+		fileSystem: 'local'
 	});
 
 	const [rightPanel, setRightPanel] = useState<PanelState>({
@@ -63,7 +65,8 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		selection: [],
 		focusedFile: null,
 		searchQuery: '',
-		isLoading: false
+		isLoading: false,
+		fileSystem: 'remote'
 	});
 
 	const getActiveState = (): PanelState => activePanel === 'left' ? leftPanel : rightPanel;
@@ -256,13 +259,14 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	 */
 	const loadDirectory = (path: string, panelId: 'left' | 'right' = activePanel) => {
 		const setState = panelId === 'left' ? setLeftPanel : setRightPanel;
+		const panel = panelId === 'left' ? leftPanel : rightPanel;
 
 		setState(prev => ({ ...prev, isLoading: true }));
 		setError(null);
 
 		vscode.postMessage({
 			command: 'SFTP_LS',
-			payload: { hostId, path, panelId }
+			payload: { hostId, path, panelId, fileSystem: panel.fileSystem }
 		});
 	};
 
@@ -404,15 +408,26 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	};
 
 	const handleFileOpen = (file: FileEntry) => {
+		const state = getActiveState();
+
 		if (file.type === 'd') {
 			// Navigate into directory
 			navigateToPath(file.path);
 		} else {
-			// Edit file (Edit-on-Fly)
-			vscode.postMessage({
-				command: 'EDIT_FILE',
-				payload: { hostId, remotePath: file.path }
-			});
+			// Open file based on file system mode
+			if (state.fileSystem === 'local') {
+				// Open local file directly in VS Code
+				vscode.postMessage({
+					command: 'OPEN_LOCAL_FILE',
+					payload: { path: file.path }
+				});
+			} else {
+				// Edit remote file (Edit-on-Fly)
+				vscode.postMessage({
+					command: 'EDIT_FILE',
+					payload: { hostId, remotePath: file.path }
+				});
+			}
 		}
 	};
 
@@ -558,6 +573,40 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	};
 
 	/**
+	 * File system mode handler
+	 */
+	const handleFileSystemChange = (mode: 'local' | 'remote') => {
+		const state = getActiveState();
+
+		// Don't switch if already in this mode
+		if (state.fileSystem === mode) {
+			return;
+		}
+
+		setActiveState(prev => {
+			const newPath = mode === 'local' ? '~' : (initialPath || '/');
+			return {
+				...prev,
+				fileSystem: mode,
+				currentPath: newPath,
+				history: [newPath],
+				historyIndex: 0,
+				files: [],
+				selection: [],
+				focusedFile: null
+			};
+		});
+
+		// Load the directory for the new file system
+		const newPath = mode === 'local' ? '~' : (initialPath || '/');
+
+		// We need to wait for state to update before loading
+		setTimeout(() => {
+			loadDirectory(newPath, activePanel);
+		}, 0);
+	};
+
+	/**
 	 * Renders a single panel
 	 */
 	const renderPanel = (panelId: 'left' | 'right') => {
@@ -612,6 +661,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 				syncBrowsing={syncBrowsing}
 				isLoading={getActiveState().isLoading}
 				searchQuery={getActiveState().searchQuery}
+				fileSystem={getActiveState().fileSystem}
 				onNavigateHome={handleNavigateHome}
 				onNavigateUp={handleNavigateUp}
 				onNavigateBack={handleNavigateBack}
@@ -626,6 +676,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 				onSyncBrowsingChange={setSyncBrowsing}
 				onSearchChange={handleSearchChange}
 				onPathNavigate={navigateToPath}
+				onFileSystemChange={handleFileSystemChange}
 			/>
 
 			{/* Error Message */}
