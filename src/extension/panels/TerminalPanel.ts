@@ -4,6 +4,7 @@ import { LocalPtyService } from '../services/localPtyService';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
 import { HostKeyService } from '../security/hostKeyService';
+import { SessionTracker } from '../sessionTracker';
 import { Message, Host } from '../../common/types';
 
 // Common interface for both SSH and Local sessions
@@ -42,7 +43,8 @@ export class TerminalPanel {
 		host: Host,
 		hostService: HostService,
 		credentialService: CredentialService,
-		hostKeyService: HostKeyService
+		hostKeyService: HostKeyService,
+		sessionTracker?: SessionTracker
 	): TerminalPanel {
 		const column = vscode.window.activeTextEditor
 			? vscode.window.activeTextEditor.viewColumn
@@ -79,7 +81,8 @@ export class TerminalPanel {
 			host,
 			hostService,
 			credentialService,
-			hostKeyService
+			hostKeyService,
+			sessionTracker
 		);
 
 		TerminalPanel.panels.set(hostId, terminalPanel);
@@ -93,7 +96,8 @@ export class TerminalPanel {
 		host: Host,
 		private readonly _hostService: HostService,
 		private readonly _credentialService: CredentialService,
-		private readonly _hostKeyService: HostKeyService
+		private readonly _hostKeyService: HostKeyService,
+		private readonly _sessionTracker?: SessionTracker
 	) {
 		this._panel = panel;
 		this._extensionUri = extensionUri;
@@ -114,6 +118,15 @@ export class TerminalPanel {
 			null,
 			this._disposables
 		);
+
+		// Register with session tracker
+		if (this._sessionTracker) {
+			this._sessionTracker.registerPanel(this._hostId, {
+				hostId: this._hostId,
+				splitMode: this._splitMode,
+				type: 'terminal'
+			});
+		}
 
 		// Initialize main SSH session (splitId = 1)
 		this._initializeSession(1);
@@ -248,6 +261,14 @@ export class TerminalPanel {
 							splitMode: this._splitMode
 						}
 					});
+					// Update session tracker with new split mode
+					if (this._sessionTracker) {
+						this._sessionTracker.registerPanel(this._hostId, {
+							hostId: this._hostId,
+							splitMode: this._splitMode,
+							type: 'terminal'
+						});
+					}
 				}
 				break;
 			}
@@ -262,6 +283,14 @@ export class TerminalPanel {
 				}
 				if (this._sessions.size === 1) {
 					this._splitMode = 'none';
+					// Update session tracker with new split mode
+					if (this._sessionTracker) {
+						this._sessionTracker.registerPanel(this._hostId, {
+							hostId: this._hostId,
+							splitMode: this._splitMode,
+							type: 'terminal'
+						});
+					}
 				}
 				break;
 			}
@@ -338,6 +367,11 @@ export class TerminalPanel {
 	 */
 	public dispose(): void {
 		TerminalPanel.panels.delete(this._hostId);
+
+		// Unregister from session tracker
+		if (this._sessionTracker) {
+			this._sessionTracker.unregisterPanel(this._hostId);
+		}
 
 		// Clean up resources
 		this._panel.dispose();

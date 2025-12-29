@@ -95,6 +95,36 @@ const App: React.FC = () => {
 		return () => window.removeEventListener('message', handleMessage);
 	}, []);
 
+	// Focus tracking for keybinding context
+	useEffect(() => {
+		const handleFocus = () => {
+			vscode.postMessage({
+				command: 'SET_CONTEXT',
+				payload: { key: 'labonairFocus', value: true }
+			});
+		};
+
+		const handleBlur = () => {
+			vscode.postMessage({
+				command: 'SET_CONTEXT',
+				payload: { key: 'labonairFocus', value: false }
+			});
+		};
+
+		window.addEventListener('focus', handleFocus);
+		window.addEventListener('blur', handleBlur);
+
+		// Set initial focus state
+		if (document.hasFocus()) {
+			handleFocus();
+		}
+
+		return () => {
+			window.removeEventListener('focus', handleFocus);
+			window.removeEventListener('blur', handleBlur);
+		};
+	}, []);
+
 	// ============================================================
 	// NAVIGATION
 	// ============================================================

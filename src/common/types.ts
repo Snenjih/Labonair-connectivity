@@ -295,7 +295,10 @@ export type Message =
 
 	// Sudo Save (Subphase 3.9)
 	| { command: 'PROMPT_SUDO'; payload: { remotePath: string; defaultPassword?: string } }
-	| { command: 'SUDO_RESPONSE'; payload: { password: string; remember?: boolean } };
+	| { command: 'SUDO_RESPONSE'; payload: { password: string; remember?: boolean } }
+
+	// Keybinding Context (Subphase 3.11)
+	| { command: 'SET_CONTEXT'; payload: { key: string; value: boolean } };
 
 // ============================================================================
 // UTILITY TYPES

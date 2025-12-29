@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { SftpService } from '../services/sftpService';
 import { HostService } from '../hostService';
+import { SessionTracker } from '../sessionTracker';
 import { MediaPanel } from './MediaPanel';
 import { Message, FileEntry } from '../../common/types';
 
@@ -25,7 +26,8 @@ export class SftpPanel {
 		extensionUri: vscode.Uri,
 		hostId: string,
 		sftpService: SftpService,
-		hostService: HostService
+		hostService: HostService,
+		sessionTracker?: SessionTracker
 	): SftpPanel {
 		const column = vscode.window.activeTextEditor
 			? vscode.window.activeTextEditor.viewColumn
@@ -49,7 +51,7 @@ export class SftpPanel {
 			}
 		);
 
-		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, hostService);
+		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, hostService, sessionTracker);
 		return SftpPanel.currentPanel;
 	}
 
@@ -58,7 +60,8 @@ export class SftpPanel {
 		extensionUri: vscode.Uri,
 		hostId: string,
 		private readonly _sftpService: SftpService,
-		private readonly _hostService: HostService
+		private readonly _hostService: HostService,
+		private readonly _sessionTracker?: SessionTracker
 	) {
 		this._panel = panel;
 		this._extensionUri = extensionUri;
@@ -78,6 +81,15 @@ export class SftpPanel {
 			null,
 			this._disposables
 		);
+
+		// Register with session tracker
+		if (this._sessionTracker) {
+			this._sessionTracker.registerPanel(this._hostId, {
+				hostId: this._hostId,
+				splitMode: 'none',
+				type: 'sftp'
+			});
+		}
 
 		// Initialize with home directory
 		this._initializeFileManager();
@@ -751,6 +763,11 @@ export class SftpPanel {
 	 */
 	public dispose(): void {
 		SftpPanel.currentPanel = undefined;
+
+		// Unregister from session tracker
+		if (this._sessionTracker) {
+			this._sessionTracker.unregisterPanel(this._hostId);
+		}
 
 		// Clean up resources
 		this._panel.dispose();

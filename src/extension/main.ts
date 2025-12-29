@@ -1,4 +1,5 @@
 import { HostKeyService } from './security/hostKeyService';
+import { SessionInfo } from './sessionTracker';
 
 import * as vscode from 'vscode';
 import { HostService } from './hostService';
@@ -14,6 +15,7 @@ import { SftpService } from './services/sftpService';
 import { EditHandler } from './services/editHandler';
 import { TransferService } from './services/transferService';
 import { BroadcastService } from './services/broadcastService';
+import { BadgeService } from './services/badgeService';
 import { SftpPanel } from './panels/sftpPanel';
 import { TerminalPanel } from './panels/TerminalPanel';
 import { Message, Host, HostStatus, TransferJob, TransferQueueSummary } from '../common/types';
@@ -24,8 +26,9 @@ let sftpServiceInstance: SftpService | undefined;
 let editHandlerInstance: EditHandler | undefined;
 let transferServiceInstance: TransferService | undefined;
 let broadcastServiceInstance: BroadcastService | undefined;
+let badgeServiceInstance: BadgeService | undefined;
 
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
 	const hostService = new HostService(context);
 	const credentialService = new CredentialService(context);
 	const sessionTracker = new SessionTracker(context);
@@ -37,6 +40,9 @@ export function activate(context: vscode.ExtensionContext) {
 	const sftpService = new SftpService(hostService, credentialService, hostKeyService);
 	const editHandler = new EditHandler(sftpService, hostService, credentialService, context);
 	const broadcastService = new BroadcastService();
+
+	// Session Restoration
+	await restoreSessions(context, sessionTracker, hostService, credentialService, hostKeyService, sftpService);
 
 	// Transfer Service with callbacks for webview updates
 	let transferQueueViewProvider: TransferQueueViewProvider | undefined;
@@ -65,12 +71,16 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 
+	// Badge Service
+	const badgeService = new BadgeService(sessionTracker, transferService);
+
 	// Store for cleanup
 	sshConnectionServiceInstance = sshConnectionService;
 	sftpServiceInstance = sftpService;
 	editHandlerInstance = editHandler;
 	transferServiceInstance = transferService;
 	broadcastServiceInstance = broadcastService;
+	badgeServiceInstance = badgeService;
 
 	// Register Commands
 	registerCommands(context, hostService, sftpService);
@@ -87,6 +97,19 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	);
 	context.subscriptions.push(editRemoteFileCommand);
+
+	// Register Backup All command
+	const backupAllCommand = vscode.commands.registerCommand(
+		'labonair.backupAll',
+		async () => {
+			try {
+				await performBackup(context, hostService, credentialService);
+			} catch (error) {
+				vscode.window.showErrorMessage(`Failed to create backup: ${error}`);
+			}
+		}
+	);
+	context.subscriptions.push(backupAllCommand);
 
 	// Register the Webview View Providers
 	try {
@@ -110,6 +133,10 @@ export function activate(context: vscode.ExtensionContext) {
 		context.subscriptions.push(
 			vscode.window.registerWebviewViewProvider('labonair.views.hosts', provider)
 		);
+
+		// NOTE: Badge service is ready but webview views don't support badges in VS Code API
+		// If we need badges, we'd need to convert to a TreeView or use a status bar item
+		// For now, the badge service tracks counts internally for future use
 
 		// Transfer Queue View
 		transferQueueViewProvider = new TransferQueueViewProvider(
@@ -357,7 +384,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 						hostToConnect,
 						this._hostService,
 						this._credentialService,
-						this._hostKeyService
+						this._hostKeyService,
+						this._sessionTracker
 					);
 
 					// Note: Session tracking is now handled by TerminalPanel lifecycle
@@ -401,7 +429,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 						this._extensionUri,
 						hostId,
 						this._sftpService,
-						this._hostService
+						this._hostService,
+						this._sessionTracker
 					);
 					break;
 				}
@@ -418,7 +447,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 								this._extensionUri,
 								hostId,
 								this._sftpService,
-								this._hostService
+								this._hostService,
+								this._sessionTracker
 							);
 							// Send navigate message to the panel
 							// Note: The panel will handle the NAVIGATE message internally
@@ -458,7 +488,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 							existingHost,
 							this._hostService,
 							this._credentialService,
-							this._hostKeyService
+							this._hostKeyService,
+							this._sessionTracker
 						);
 
 						// Update last used
@@ -532,6 +563,15 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 					);
 
 					vscode.window.showInformationMessage(`Broadcast completed`);
+					break;
+				}
+
+				// ============================================================
+				// KEYBINDING CONTEXT
+				// ============================================================
+				case 'SET_CONTEXT': {
+					const { key, value } = message.payload;
+					vscode.commands.executeCommand('setContext', key, value);
 					break;
 				}
 			}
@@ -708,6 +748,141 @@ class TransferQueueViewProvider implements vscode.WebviewViewProvider {
 	}
 }
 
+/**
+ * Backup All Settings
+ * Exports all hosts, credentials metadata, and configuration
+ * Note: Passwords and keys are NOT included (stored in OS Keychain)
+ */
+async function performBackup(
+	context: vscode.ExtensionContext,
+	hostService: HostService,
+	credentialService: CredentialService
+): Promise<void> {
+	// Get all data
+	const hosts = hostService.getHosts();
+	const credentials = await credentialService.getCredentials();
+
+	// Remove sensitive data from credentials (keep only metadata)
+	const credentialMetadata = credentials.map(cred => ({
+		id: cred.id,
+		name: cred.name,
+		username: cred.username,
+		type: cred.type,
+		folder: cred.folder,
+		description: cred.description,
+		tags: cred.tags,
+		keyType: cred.keyType,
+		usageCount: cred.usageCount,
+		lastUsed: cred.lastUsed,
+		createdAt: cred.createdAt,
+		updatedAt: cred.updatedAt
+	}));
+
+	// Create backup object
+	const backup = {
+		version: '1.0.0',
+		exportDate: new Date().toISOString(),
+		hosts: hosts,
+		credentials: credentialMetadata,
+		warning: {
+			message: 'This backup does NOT include passwords or SSH keys (stored securely in OS Keychain).',
+			action: 'You will need to re-enter passwords and select SSH key files when importing this backup.',
+			affectedHosts: hosts.filter(h => h.authType === 'password' || h.authType === 'key' || h.authType === 'credential').map(h => h.id),
+			affectedCredentials: credentials.map(c => c.id)
+		}
+	};
+
+	// Prompt user for save location
+	const uri = await vscode.window.showSaveDialog({
+		saveLabel: 'Export Backup',
+		filters: { 'JSON Files': ['json'] },
+		defaultUri: vscode.Uri.file(`labonair-backup-${new Date().toISOString().split('T')[0]}.json`)
+	});
+
+	if (!uri) {
+		return; // User cancelled
+	}
+
+	// Write backup file
+	const backupJson = JSON.stringify(backup, null, 2);
+	await vscode.workspace.fs.writeFile(uri, Buffer.from(backupJson, 'utf8'));
+
+	vscode.window.showInformationMessage(
+		`Backup created: ${uri.fsPath}\n\nNote: Passwords and SSH keys are NOT included. You will need to re-enter them when importing.`
+	);
+}
+
+/**
+ * Session Restoration Function
+ * Prompts user to restore previous sessions on extension activation
+ */
+async function restoreSessions(
+	context: vscode.ExtensionContext,
+	sessionTracker: SessionTracker,
+	hostService: HostService,
+	credentialService: CredentialService,
+	hostKeyService: HostKeyService,
+	sftpService: SftpService
+): Promise<void> {
+	const persistedSessions = sessionTracker.getPersistedSessions();
+
+	if (persistedSessions.length === 0) {
+		return;
+	}
+
+	// Prompt user to restore sessions
+	const tabCount = persistedSessions.length;
+	const answer = await vscode.window.showInformationMessage(
+		`Restore previous session? (${tabCount} tab${tabCount > 1 ? 's' : ''})`,
+		'Yes',
+		'No'
+	);
+
+	if (answer !== 'Yes') {
+		// Clear persisted sessions if user declines
+		sessionTracker.clearPersistedSessions();
+		return;
+	}
+
+	// Restore each session
+	for (const sessionInfo of persistedSessions) {
+		try {
+			const host = hostService.getHostById(sessionInfo.hostId);
+			if (!host) {
+				console.warn(`Host not found for session restoration: ${sessionInfo.hostId}`);
+				continue;
+			}
+
+			if (sessionInfo.type === 'terminal') {
+				// Restore terminal panel
+				TerminalPanel.createOrShow(
+					context.extensionUri,
+					sessionInfo.hostId,
+					host,
+					hostService,
+					credentialService,
+					hostKeyService,
+					sessionTracker
+				);
+			} else if (sessionInfo.type === 'sftp') {
+				// Restore SFTP panel
+				SftpPanel.createOrShow(
+					context.extensionUri,
+					sessionInfo.hostId,
+					sftpService,
+					hostService,
+					sessionTracker
+				);
+			}
+		} catch (error) {
+			console.error(`Failed to restore session for ${sessionInfo.hostId}:`, error);
+		}
+	}
+
+	// Clear persisted sessions after restoration
+	sessionTracker.clearPersistedSessions();
+}
+
 export function deactivate() {
 	// Clean up all active SSH sessions
 	if (sshConnectionServiceInstance) {
@@ -737,6 +912,12 @@ export function deactivate() {
 	if (broadcastServiceInstance) {
 		broadcastServiceInstance.dispose();
 		broadcastServiceInstance = undefined;
+	}
+
+	// Clean up Badge Service
+	if (badgeServiceInstance) {
+		badgeServiceInstance.dispose();
+		badgeServiceInstance = undefined;
 	}
 }
 
