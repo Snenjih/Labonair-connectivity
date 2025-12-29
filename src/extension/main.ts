@@ -13,6 +13,7 @@ import { registerCommands } from './commands';
 import { SshConnectionService } from './services/sshConnectionService';
 import { SftpService } from './services/sftpService';
 import { LocalFsService } from './services/localFsService';
+import { ClipboardService } from './services/clipboardService';
 import { EditHandler } from './services/editHandler';
 import { TransferService } from './services/transferService';
 import { BroadcastService } from './services/broadcastService';
@@ -40,11 +41,12 @@ export async function activate(context: vscode.ExtensionContext) {
 	const sshConnectionService = new SshConnectionService(hostService, credentialService);
 	const sftpService = new SftpService(hostService, credentialService, hostKeyService);
 	const localFsService = new LocalFsService();
+	const clipboardService = new ClipboardService();
 	const editHandler = new EditHandler(sftpService, hostService, credentialService, context);
 	const broadcastService = new BroadcastService();
 
 	// Session Restoration
-	await restoreSessions(context, sessionTracker, hostService, credentialService, hostKeyService, sftpService, localFsService);
+	await restoreSessions(context, sessionTracker, hostService, credentialService, hostKeyService, sftpService, localFsService, clipboardService);
 
 	// Transfer Service with callbacks for webview updates
 	let transferQueueViewProvider: TransferQueueViewProvider | undefined;
@@ -85,7 +87,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	badgeServiceInstance = badgeService;
 
 	// Register Commands
-	registerCommands(context, hostService, sftpService, localFsService);
+	registerCommands(context, hostService, sftpService, localFsService, clipboardService);
 
 	// Register Edit-on-Fly command
 	const editRemoteFileCommand = vscode.commands.registerCommand(
@@ -130,6 +132,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			sshConnectionService,
 			sftpService,
 			localFsService,
+			clipboardService,
 			broadcastService,
 			editHandler
 		);
@@ -173,6 +176,7 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		private readonly _sshConnectionService: SshConnectionService,
 		private readonly _sftpService: SftpService,
 		private readonly _localFsService: LocalFsService,
+		private readonly _clipboardService: ClipboardService,
 		private readonly _broadcastService: BroadcastService,
 		private readonly _editHandler: EditHandler
 	) { }
@@ -434,6 +438,7 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 						hostId,
 						this._sftpService,
 						this._localFsService,
+						this._clipboardService,
 						this._hostService,
 						this._sessionTracker
 					);
@@ -453,6 +458,7 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 								hostId,
 								this._sftpService,
 								this._localFsService,
+								this._clipboardService,
 								this._hostService,
 								this._sessionTracker
 							);
@@ -829,7 +835,8 @@ async function restoreSessions(
 	credentialService: CredentialService,
 	hostKeyService: HostKeyService,
 	sftpService: SftpService,
-	localFsService: LocalFsService
+	localFsService: LocalFsService,
+	clipboardService: ClipboardService
 ): Promise<void> {
 	const persistedSessions = sessionTracker.getPersistedSessions();
 
@@ -878,6 +885,7 @@ async function restoreSessions(
 					sessionInfo.hostId,
 					sftpService,
 					localFsService,
+					clipboardService,
 					hostService,
 					sessionTracker
 				);

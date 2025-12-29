@@ -129,10 +129,56 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		return () => window.removeEventListener('message', handleMessage);
 	}, []);
 
-	// Commander hotkeys (Tab, Space, Insert, F-Keys)
+	// Commander hotkeys (Tab, Space, Insert, F-Keys, Clipboard)
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
 			const state = getActiveState();
+
+			// Ctrl+C: Copy selected files to clipboard
+			if ((e.ctrlKey || e.metaKey) && e.key === 'c' && state.selection.length > 0) {
+				e.preventDefault();
+				const selectedFiles = state.files.filter(f => state.selection.includes(f.path));
+				vscode.postMessage({
+					command: 'CLIPBOARD_COPY',
+					payload: {
+						files: selectedFiles,
+						sourceHostId: hostId,
+						system: state.fileSystem,
+						operation: 'copy'
+					}
+				});
+				return;
+			}
+
+			// Ctrl+X: Cut selected files to clipboard
+			if ((e.ctrlKey || e.metaKey) && e.key === 'x' && state.selection.length > 0) {
+				e.preventDefault();
+				const selectedFiles = state.files.filter(f => state.selection.includes(f.path));
+				vscode.postMessage({
+					command: 'CLIPBOARD_COPY',
+					payload: {
+						files: selectedFiles,
+						sourceHostId: hostId,
+						system: state.fileSystem,
+						operation: 'cut'
+					}
+				});
+				return;
+			}
+
+			// Ctrl+V: Paste files from clipboard
+			if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+				e.preventDefault();
+				vscode.postMessage({
+					command: 'CLIPBOARD_PASTE',
+					payload: {
+						targetPath: state.currentPath,
+						targetSystem: state.fileSystem,
+						hostId
+					}
+				});
+				return;
+			}
 
 			// Tab: Toggle focus between panels (Commander mode only)
 			if (e.key === 'Tab' && layoutMode === 'commander') {
@@ -550,12 +596,79 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		});
 	};
 
-	const handleInternalDrop = (sourcePaths: string[], targetPath: string, sourcePanel?: 'left' | 'right') => {
-		// Handle move/copy between panels or within same panel
-		vscode.postMessage({
-			command: 'SFTP_MOVE',
-			payload: { hostId, sourcePaths, targetPath, sourcePanel }
-		});
+	const handleInternalDrop = (
+		sourcePaths: string[],
+		targetPath: string,
+		sourcePanel?: 'left' | 'right',
+		modifierKey?: 'ctrl' | 'alt' | 'none'
+	) => {
+		// Determine source and target systems
+		const sourcePanelState = sourcePanel === 'left' ? leftPanel : (sourcePanel === 'right' ? rightPanel : getActiveState());
+		const sourceSystem = sourcePanelState.fileSystem; // 'local' | 'remote'
+
+		// Determine target panel and system
+		// If dropping on the same panel, use the active panel's system
+		// Otherwise, determine from the drop target
+		let targetSystem: 'local' | 'remote' = getActiveState().fileSystem;
+
+		// Check if we can determine target system from panels
+		if (leftPanel.currentPath === targetPath || targetPath.startsWith(leftPanel.currentPath)) {
+			targetSystem = leftPanel.fileSystem;
+		} else if (rightPanel.currentPath === targetPath || targetPath.startsWith(rightPanel.currentPath)) {
+			targetSystem = rightPanel.fileSystem;
+		}
+
+		// Determine operation type (copy vs move) based on modifier keys
+		// Ctrl/Alt = copy, no modifier = move
+		const isCopy = modifierKey === 'ctrl' || modifierKey === 'alt';
+
+		// Universal Transfer Matrix Routing
+		if (sourceSystem === 'local' && targetSystem === 'local') {
+			// Local -> Local: Fast OS-level operations
+			if (isCopy) {
+				vscode.postMessage({
+					command: 'FS_LOCAL_COPY',
+					payload: { sourcePaths, targetPath }
+				});
+			} else {
+				vscode.postMessage({
+					command: 'FS_LOCAL_MOVE',
+					payload: { sourcePaths, targetPath }
+				});
+			}
+		} else if (sourceSystem === 'remote' && targetSystem === 'remote') {
+			// Remote -> Remote: Server-side operations
+			if (isCopy) {
+				vscode.postMessage({
+					command: 'SFTP_REMOTE_COPY',
+					payload: { hostId, sourcePaths, targetPath }
+				});
+			} else {
+				vscode.postMessage({
+					command: 'SFTP_REMOTE_MOVE',
+					payload: { hostId, sourcePaths, targetPath }
+				});
+			}
+		} else if (sourceSystem === 'local' && targetSystem === 'remote') {
+			// Local -> Remote: Upload (always copy, files remain local)
+			sourcePaths.forEach(localPath => {
+				vscode.postMessage({
+					command: 'SFTP_UPLOAD',
+					payload: { hostId, remotePath: targetPath, localPath, fileSystem: targetSystem }
+				});
+			});
+		} else if (sourceSystem === 'remote' && targetSystem === 'local') {
+			// Remote -> Local: Download (always copy, files remain remote)
+			sourcePaths.forEach(remotePath => {
+				vscode.postMessage({
+					command: 'SFTP_DOWNLOAD',
+					payload: { hostId, remotePath, localPath: targetPath, fileSystem: targetSystem }
+				});
+			});
+		}
+
+		// Clear selection after operation
+		setActiveState(prev => ({ ...prev, selection: [], focusedFile: null }));
 	};
 
 	/**

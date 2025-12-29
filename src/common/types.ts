@@ -253,6 +253,16 @@ export type Message =
 	| { command: 'SFTP_MOVE'; payload: { hostId: string; sourcePaths: string[]; targetPath: string; sourcePanel?: 'left' | 'right'; fileSystem?: 'local' | 'remote' } }
 	| { command: 'OPEN_TERMINAL'; payload: { hostId: string; path: string; fileSystem?: 'local' | 'remote' } }
 
+	// Universal Transfer Matrix Operations (Subphase 4.2)
+	| { command: 'FS_LOCAL_COPY'; payload: { sourcePaths: string[]; targetPath: string } }
+	| { command: 'FS_LOCAL_MOVE'; payload: { sourcePaths: string[]; targetPath: string } }
+	| { command: 'SFTP_REMOTE_COPY'; payload: { hostId: string; sourcePaths: string[]; targetPath: string } }
+	| { command: 'SFTP_REMOTE_MOVE'; payload: { hostId: string; sourcePaths: string[]; targetPath: string } }
+
+	// Clipboard Operations (Subphase 4.2)
+	| { command: 'CLIPBOARD_COPY'; payload: { files: FileEntry[]; sourceHostId: string; system: 'local' | 'remote'; operation: 'copy' | 'cut' } }
+	| { command: 'CLIPBOARD_PASTE'; payload: { targetPath: string; targetSystem: 'local' | 'remote'; hostId: string } }
+
 	// SSH Terminal
 	| { command: 'TERM_DATA'; payload: { data: string; splitId?: number } }
 	| { command: 'TERM_INPUT'; payload: { data: string; splitId?: number } }

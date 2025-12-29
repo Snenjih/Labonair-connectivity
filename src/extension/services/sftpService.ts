@@ -439,6 +439,186 @@ export class SftpService {
 	}
 
 	/**
+	 * Copies a file or directory on the remote server
+	 * Optimization: Uses SSH shell command 'cp -r' for instant speed if available
+	 * Fallback: Uses SFTP ReadStream -> WriteStream loop (server loopback)
+	 */
+	public async copy(hostId: string, sourcePath: string, destPath: string): Promise<void> {
+		const host = await this.getHost(hostId);
+
+		try {
+			// Try to use SSH shell for optimized copy (instant speed)
+			const client = await ConnectionPool.acquire(
+				host,
+				this.hostService,
+				this.credentialService,
+				this.hostKeyService
+			);
+
+			return new Promise((resolve, reject) => {
+				// Use 'cp -r' for recursive copy (works for both files and directories)
+				const command = `cp -r "${sourcePath}" "${destPath}"`;
+
+				client.exec(command, (err, stream) => {
+					if (err) {
+						// Shell not available, fall back to SFTP method
+						console.warn('SSH shell copy failed, falling back to SFTP method:', err);
+						this.copyViaSftp(hostId, sourcePath, destPath).then(resolve).catch(reject);
+						return;
+					}
+
+					let errorOutput = '';
+
+					stream.stderr.on('data', (data: Buffer) => {
+						errorOutput += data.toString();
+					});
+
+					stream.on('close', (code: number) => {
+						if (code === 0) {
+							// Clear cache for target directory
+							const parentPath = destPath.split('/').slice(0, -1).join('/') || '/';
+							this.directoryCache.delete(`${hostId}:${parentPath}`);
+							resolve();
+						} else {
+							// Shell command failed, try SFTP fallback
+							console.warn(`SSH shell copy failed with code ${code}, falling back to SFTP method:`, errorOutput);
+							this.copyViaSftp(hostId, sourcePath, destPath).then(resolve).catch(reject);
+						}
+					});
+				});
+			});
+		} catch (error) {
+			// Connection failed, try SFTP fallback
+			console.warn('Failed to acquire SSH connection for copy, falling back to SFTP method:', error);
+			return this.copyViaSftp(hostId, sourcePath, destPath);
+		}
+	}
+
+	/**
+	 * Copies a file or directory using SFTP (fallback method)
+	 * Uses ReadStream -> WriteStream loop for server-side loopback
+	 */
+	private async copyViaSftp(hostId: string, sourcePath: string, destPath: string): Promise<void> {
+		const sftp = await this.getSftpSession(hostId);
+
+		return new Promise((resolve, reject) => {
+			// Check if source is a directory or file
+			sftp.stat(sourcePath, async (err, stats) => {
+				if (err) {
+					reject(new Error(`Failed to stat source: ${err.message}`));
+					return;
+				}
+
+				if (stats.isDirectory()) {
+					// Recursive directory copy via SFTP
+					try {
+						await this.copyDirectoryViaSftp(sftp, sourcePath, destPath, hostId);
+						resolve();
+					} catch (error: any) {
+						reject(new Error(`Failed to copy directory: ${error.message}`));
+					}
+				} else {
+					// Single file copy via SFTP
+					const readStream = sftp.createReadStream(sourcePath);
+					const writeStream = sftp.createWriteStream(destPath);
+
+					readStream.on('error', (err: Error) => {
+						writeStream.end();
+						reject(new Error(`Read failed: ${err.message}`));
+					});
+
+					writeStream.on('error', (err: Error) => {
+						readStream.destroy();
+						reject(new Error(`Write failed: ${err.message}`));
+					});
+
+					writeStream.on('finish', () => {
+						// Clear cache for target directory
+						const parentPath = destPath.split('/').slice(0, -1).join('/') || '/';
+						this.directoryCache.delete(`${hostId}:${parentPath}`);
+						resolve();
+					});
+
+					readStream.pipe(writeStream);
+				}
+			});
+		});
+	}
+
+	/**
+	 * Recursively copies a directory via SFTP
+	 */
+	private async copyDirectoryViaSftp(sftp: SFTPWrapper, sourcePath: string, destPath: string, hostId: string): Promise<void> {
+		// Create destination directory
+		await new Promise<void>((resolve, reject) => {
+			sftp.mkdir(destPath, (err) => {
+				if (err) {
+					reject(new Error(`Failed to create directory: ${err.message}`));
+				} else {
+					resolve();
+				}
+			});
+		});
+
+		// Read all entries in source directory
+		const entries = await new Promise<any[]>((resolve, reject) => {
+			sftp.readdir(sourcePath, (err, list) => {
+				if (err) {
+					reject(new Error(`Failed to read directory: ${err.message}`));
+				} else {
+					resolve(list);
+				}
+			});
+		});
+
+		// Copy each entry
+		for (const entry of entries) {
+			const srcPath = path.posix.join(sourcePath, entry.filename);
+			const dstPath = path.posix.join(destPath, entry.filename);
+
+			if (entry.attrs.isDirectory()) {
+				// Recursively copy subdirectory
+				await this.copyDirectoryViaSftp(sftp, srcPath, dstPath, hostId);
+			} else {
+				// Copy file
+				await new Promise<void>((resolve, reject) => {
+					const readStream = sftp.createReadStream(srcPath);
+					const writeStream = sftp.createWriteStream(dstPath);
+
+					readStream.on('error', (err: Error) => {
+						writeStream.end();
+						reject(new Error(`Read failed: ${err.message}`));
+					});
+
+					writeStream.on('error', (err: Error) => {
+						readStream.destroy();
+						reject(new Error(`Write failed: ${err.message}`));
+					});
+
+					writeStream.on('finish', () => {
+						resolve();
+					});
+
+					readStream.pipe(writeStream);
+				});
+			}
+		}
+
+		// Clear cache for target directory
+		const parentPath = destPath.split('/').slice(0, -1).join('/') || '/';
+		this.directoryCache.delete(`${hostId}:${parentPath}`);
+	}
+
+	/**
+	 * Moves a file or directory on the remote server
+	 * This is the main move method for the Universal Transfer Matrix
+	 * Uses the existing rename method
+	 */
+	public async move(hostId: string, sourcePath: string, destPath: string): Promise<void> {
+		return this.rename(hostId, sourcePath, destPath);
+	}
+
+	/**
 	 * Clears the directory cache for a specific path or all paths
 	 */
 	public clearCache(hostId?: string, remotePath?: string): void {

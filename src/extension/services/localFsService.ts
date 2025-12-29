@@ -346,7 +346,65 @@ export class LocalFsService {
 	}
 
 	/**
+	 * Copies a file or directory from source to destination (recursive)
+	 * This is the main copy method for the Universal Transfer Matrix
+	 */
+	public async copy(sourcePath: string, destPath: string): Promise<void> {
+		const resolvedSource = this.resolvePath(sourcePath);
+		const resolvedDest = this.resolvePath(destPath);
+
+		// Get source stats to determine if it's a file or directory
+		const stats = await fs.promises.stat(resolvedSource);
+
+		if (stats.isDirectory()) {
+			// Recursive directory copy
+			await this.copyDirectory(resolvedSource, resolvedDest);
+		} else {
+			// Single file copy
+			await fs.promises.copyFile(resolvedSource, resolvedDest);
+		}
+	}
+
+	/**
+	 * Recursively copies a directory and all its contents
+	 */
+	private async copyDirectory(sourcePath: string, destPath: string): Promise<void> {
+		// Create destination directory
+		await fs.promises.mkdir(destPath, { recursive: true });
+
+		// Read all entries in source directory
+		const entries = await fs.promises.readdir(sourcePath, { withFileTypes: true });
+
+		// Copy each entry
+		for (const entry of entries) {
+			const srcPath = path.join(sourcePath, entry.name);
+			const dstPath = path.join(destPath, entry.name);
+
+			if (entry.isDirectory()) {
+				// Recursively copy subdirectory
+				await this.copyDirectory(srcPath, dstPath);
+			} else {
+				// Copy file
+				await fs.promises.copyFile(srcPath, dstPath);
+			}
+		}
+	}
+
+	/**
+	 * Moves a file or directory from source to destination
+	 * This is the main move method for the Universal Transfer Matrix
+	 */
+	public async move(sourcePath: string, destPath: string): Promise<void> {
+		const resolvedSource = this.resolvePath(sourcePath);
+		const resolvedDest = this.resolvePath(destPath);
+
+		// Use rename for native OS move operation
+		await fs.promises.rename(resolvedSource, resolvedDest);
+	}
+
+	/**
 	 * Copies a file from source to destination
+	 * @deprecated Use copy() instead for Universal Transfer Matrix
 	 */
 	public async copyFile(sourcePath: string, destPath: string): Promise<void> {
 		const resolvedSource = this.resolvePath(sourcePath);

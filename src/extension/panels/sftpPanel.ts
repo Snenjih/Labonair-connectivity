@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { SftpService } from '../services/sftpService';
 import { LocalFsService } from '../services/localFsService';
+import { ClipboardService } from '../services/clipboardService';
 import { HostService } from '../hostService';
 import { SessionTracker } from '../sessionTracker';
 import { MediaPanel } from './MediaPanel';
@@ -28,6 +29,7 @@ export class SftpPanel {
 		hostId: string,
 		sftpService: SftpService,
 		localFsService: LocalFsService,
+		clipboardService: ClipboardService,
 		hostService: HostService,
 		sessionTracker?: SessionTracker
 	): SftpPanel {
@@ -53,7 +55,7 @@ export class SftpPanel {
 			}
 		);
 
-		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, localFsService, hostService, sessionTracker);
+		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, localFsService, clipboardService, hostService, sessionTracker);
 		return SftpPanel.currentPanel;
 	}
 
@@ -63,6 +65,7 @@ export class SftpPanel {
 		hostId: string,
 		private readonly _sftpService: SftpService,
 		private readonly _localFsService: LocalFsService,
+		private readonly _clipboardService: ClipboardService,
 		private readonly _hostService: HostService,
 		private readonly _sessionTracker?: SessionTracker
 	) {
@@ -237,6 +240,53 @@ export class SftpPanel {
 
 			case 'OPEN_LOCAL_FILE': {
 				await this._openLocalFile(message.payload.path);
+				break;
+			}
+
+			// Universal Transfer Matrix Operations (Subphase 4.2)
+			case 'FS_LOCAL_COPY': {
+				await this._localCopy(message.payload.sourcePaths, message.payload.targetPath);
+				break;
+			}
+
+			case 'FS_LOCAL_MOVE': {
+				await this._localMove(message.payload.sourcePaths, message.payload.targetPath);
+				break;
+			}
+
+			case 'SFTP_REMOTE_COPY': {
+				await this._remoteCopy(message.payload.sourcePaths, message.payload.targetPath);
+				break;
+			}
+
+			case 'SFTP_REMOTE_MOVE': {
+				await this._remoteMove(message.payload.sourcePaths, message.payload.targetPath);
+				break;
+			}
+
+			// Clipboard Operations (Subphase 4.2)
+			case 'CLIPBOARD_COPY': {
+				await this._clipboardCopy(
+					message.payload.files,
+					message.payload.sourceHostId,
+					message.payload.system,
+					message.payload.operation
+				);
+				break;
+			}
+
+			case 'CLIPBOARD_PASTE': {
+				await this._clipboardPaste(
+					message.payload.targetPath,
+					message.payload.targetSystem,
+					message.payload.hostId
+				);
+				break;
+			}
+
+			// Context-Aware Terminal (Subphase 4.2)
+			case 'OPEN_TERMINAL': {
+				await this._openTerminal(message.payload.path, message.payload.fileSystem);
 				break;
 			}
 		}
@@ -779,6 +829,195 @@ export class SftpPanel {
 			await vscode.window.showTextDocument(uri);
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to open local file: ${error}`);
+		}
+	}
+
+	// ========================================================================
+	// Universal Transfer Matrix Operations (Subphase 4.2)
+	// ========================================================================
+
+	/**
+	 * Copies files/directories locally (Local -> Local)
+	 */
+	private async _localCopy(sourcePaths: string[], targetPath: string): Promise<void> {
+		try {
+			for (const sourcePath of sourcePaths) {
+				const fileName = sourcePath.split('/').pop() || 'file';
+				const destPath = targetPath + '/' + fileName;
+				await this._localFsService.copy(sourcePath, destPath);
+			}
+			vscode.window.showInformationMessage(`Copied ${sourcePaths.length} item(s)`);
+			// Refresh directory listing
+			await this._listFiles(this._currentPath);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Local copy failed: ${error}`);
+		}
+	}
+
+	/**
+	 * Moves files/directories locally (Local -> Local)
+	 */
+	private async _localMove(sourcePaths: string[], targetPath: string): Promise<void> {
+		try {
+			for (const sourcePath of sourcePaths) {
+				const fileName = sourcePath.split('/').pop() || 'file';
+				const destPath = targetPath + '/' + fileName;
+				await this._localFsService.move(sourcePath, destPath);
+			}
+			vscode.window.showInformationMessage(`Moved ${sourcePaths.length} item(s)`);
+			// Refresh directory listing
+			await this._listFiles(this._currentPath);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Local move failed: ${error}`);
+		}
+	}
+
+	/**
+	 * Copies files/directories remotely (Remote -> Remote)
+	 */
+	private async _remoteCopy(sourcePaths: string[], targetPath: string): Promise<void> {
+		try {
+			for (const sourcePath of sourcePaths) {
+				const fileName = sourcePath.split('/').pop() || 'file';
+				const destPath = targetPath + '/' + fileName;
+				await this._sftpService.copy(this._hostId, sourcePath, destPath);
+			}
+			vscode.window.showInformationMessage(`Copied ${sourcePaths.length} item(s)`);
+			// Refresh directory listing
+			await this._listFiles(this._currentPath);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Remote copy failed: ${error}`);
+		}
+	}
+
+	/**
+	 * Moves files/directories remotely (Remote -> Remote)
+	 */
+	private async _remoteMove(sourcePaths: string[], targetPath: string): Promise<void> {
+		try {
+			for (const sourcePath of sourcePaths) {
+				const fileName = sourcePath.split('/').pop() || 'file';
+				const destPath = targetPath + '/' + fileName;
+				await this._sftpService.move(this._hostId, sourcePath, destPath);
+			}
+			vscode.window.showInformationMessage(`Moved ${sourcePaths.length} item(s)`);
+			// Refresh directory listing
+			await this._listFiles(this._currentPath);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Remote move failed: ${error}`);
+		}
+	}
+
+	// ========================================================================
+	// Clipboard Operations (Subphase 4.2)
+	// ========================================================================
+
+	/**
+	 * Copies files to clipboard
+	 */
+	private async _clipboardCopy(
+		files: FileEntry[],
+		sourceHostId: string,
+		system: 'local' | 'remote',
+		operation: 'copy' | 'cut'
+	): Promise<void> {
+		try {
+			await this._clipboardService.copy(files, sourceHostId, system, operation);
+			const opLabel = operation === 'copy' ? 'Copied' : 'Cut';
+			vscode.window.showInformationMessage(`${opLabel} ${files.length} item(s) to clipboard`);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Clipboard operation failed: ${error}`);
+		}
+	}
+
+	/**
+	 * Pastes files from clipboard
+	 */
+	private async _clipboardPaste(
+		targetPath: string,
+		targetSystem: 'local' | 'remote',
+		hostId: string
+	): Promise<void> {
+		try {
+			const clipboard = this._clipboardService.getClipboard();
+			if (!clipboard) {
+				vscode.window.showInformationMessage('Clipboard is empty');
+				return;
+			}
+
+			const { files, sourceHostId, system: sourceSystem, operation } = clipboard;
+
+			// Use Universal Transfer Matrix to handle the paste operation
+			const sourcePaths = files.map(f => f.path);
+
+			if (sourceSystem === 'local' && targetSystem === 'local') {
+				// Local -> Local
+				if (operation === 'copy') {
+					await this._localCopy(sourcePaths, targetPath);
+				} else {
+					await this._localMove(sourcePaths, targetPath);
+					this._clipboardService.clear();
+				}
+			} else if (sourceSystem === 'remote' && targetSystem === 'remote') {
+				// Remote -> Remote
+				if (operation === 'copy') {
+					await this._remoteCopy(sourcePaths, targetPath);
+				} else {
+					await this._remoteMove(sourcePaths, targetPath);
+					this._clipboardService.clear();
+				}
+			} else if (sourceSystem === 'local' && targetSystem === 'remote') {
+				// Local -> Remote: Upload
+				for (const localPath of sourcePaths) {
+					await this._uploadFile(targetPath, localPath);
+				}
+			} else if (sourceSystem === 'remote' && targetSystem === 'local') {
+				// Remote -> Local: Download
+				for (const remotePath of sourcePaths) {
+					const fileName = remotePath.split('/').pop() || 'file';
+					const localPath = targetPath + '/' + fileName;
+					await this._sftpService.getFile(sourceHostId, remotePath, localPath);
+				}
+				vscode.window.showInformationMessage(`Downloaded ${sourcePaths.length} item(s)`);
+			}
+
+			// Refresh directory listing
+			await this._listFiles(this._currentPath);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Paste failed: ${error}`);
+		}
+	}
+
+	// ========================================================================
+	// Context-Aware Terminal (Subphase 4.2)
+	// ========================================================================
+
+	/**
+	 * Opens a terminal at the specified path
+	 * Context-aware: spawns Local PTY or SSH terminal based on fileSystem
+	 */
+	private async _openTerminal(path: string, fileSystem?: 'local' | 'remote'): Promise<void> {
+		try {
+			if (fileSystem === 'local') {
+				// Open local terminal
+				const terminal = vscode.window.createTerminal({
+					cwd: path,
+					name: 'Local Terminal'
+				});
+				terminal.show();
+			} else {
+				// Open remote SSH terminal
+				// This requires the NavigationService or SSH terminal panel to be available
+				// For now, show a message
+				vscode.window.showInformationMessage(
+					`Opening SSH terminal for remote path: ${path} (To be implemented with TerminalPanel integration)`
+				);
+				// TODO: Integrate with existing SSH terminal opening logic
+				// This would typically call something like:
+				// await vscode.commands.executeCommand('labonair.openTerminal', { hostId: this._hostId, path });
+			}
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to open terminal: ${error}`);
 		}
 	}
 
