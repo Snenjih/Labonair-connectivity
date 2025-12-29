@@ -28,6 +28,7 @@ export interface Host {
 	keepAlive?: boolean;
 	authType?: 'password' | 'key' | 'agent' | 'credential';
 	credentialId?: string;
+	maxAuthTries?: number;           // Maximum authentication attempts (default: 3)
 	lastUsed?: number;
 	protocol?: 'ssh' | 'local' | 'wsl';
 	shell?: string;              // Shell to use for local connections
@@ -257,6 +258,7 @@ export type Message =
 	| { command: 'TERM_RECONNECT'; payload: { hostId: string } }
 	| { command: 'CHECK_FILE'; payload: { path: string; hostId: string } }
 	| { command: 'OPEN_REMOTE_FILE'; payload: { hostId: string; remotePath: string; content: string } }
+	| { command: 'OPEN_REMOTE_RESOURCE'; payload: { path: string; hostId: string } }
 	| { command: 'TERMINAL_SPLIT'; payload: { mode: 'vertical' | 'horizontal' } }
 	| { command: 'TERMINAL_CLOSE_SPLIT'; payload: { splitId: number } }
 	| { command: 'SAVE_TERMINAL_CONFIG'; payload: { fontSize: number; encoding: string; colorScheme: string } }

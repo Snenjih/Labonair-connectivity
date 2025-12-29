@@ -104,7 +104,8 @@ export function activate(context: vscode.ExtensionContext) {
 			shellService,
 			sshConnectionService,
 			sftpService,
-			broadcastService
+			broadcastService,
+			editHandler
 		);
 		context.subscriptions.push(
 			vscode.window.registerWebviewViewProvider('labonair.views.hosts', provider)
@@ -141,7 +142,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		private readonly _shellService: ShellService,
 		private readonly _sshConnectionService: SshConnectionService,
 		private readonly _sftpService: SftpService,
-		private readonly _broadcastService: BroadcastService
+		private readonly _broadcastService: BroadcastService,
+		private readonly _editHandler: EditHandler
 	) { }
 
 	public resolveWebviewView(
@@ -401,6 +403,35 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 						this._sftpService,
 						this._hostService
 					);
+					break;
+				}
+
+				case 'OPEN_REMOTE_RESOURCE': {
+					const { path, hostId } = message.payload;
+					try {
+						// Check if resource exists and get its type
+						const stats = await this._sftpService.stat(hostId, path);
+
+						if (stats.type === 'd') {
+							// It's a directory - open/navigate SFTP panel
+							const panel = SftpPanel.createOrShow(
+								this._extensionUri,
+								hostId,
+								this._sftpService,
+								this._hostService
+							);
+							// Send navigate message to the panel
+							// Note: The panel will handle the NAVIGATE message internally
+							// We could enhance SftpPanel to expose a navigate method if needed
+							vscode.window.showInformationMessage(`Directory: ${path}`);
+						} else {
+							// It's a file - open with Edit-on-Fly
+							await this._editHandler.openRemoteFile(hostId, path);
+						}
+					} catch (error) {
+						// Resource not found or error accessing it
+						vscode.window.showWarningMessage(`Cannot open ${path}: ${error}`);
+					}
 					break;
 				}
 

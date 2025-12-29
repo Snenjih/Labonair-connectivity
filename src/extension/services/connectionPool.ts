@@ -143,9 +143,31 @@ class ConnectionPoolImpl {
 		hostKeyService: HostKeyService
 	): Promise<Client> {
 		const authConfig = await this.getAuthConfig(host, hostService, credentialService);
+		const maxAuthTries = host.maxAuthTries || 3; // Default to 3 attempts
+		let authAttempts = 0;
 
 		return new Promise((resolve, reject) => {
 			const client = new Client();
+
+			// Track authentication attempts
+			client.on('keyboard-interactive', (name, instructions, lang, prompts, finish) => {
+				authAttempts++;
+				console.log(`[ConnectionPool] Authentication attempt ${authAttempts}/${maxAuthTries} for ${host.id}`);
+
+				if (authAttempts > maxAuthTries) {
+					console.error(`[ConnectionPool] Max authentication attempts (${maxAuthTries}) reached for ${host.id}`);
+					client.end();
+					reject(new Error(`Max authentication attempts reached. Please check your credentials.`));
+					return;
+				}
+
+				// Handle keyboard-interactive with the password if available
+				if (authConfig.password) {
+					finish([authConfig.password]);
+				} else {
+					finish([]);
+				}
+			});
 
 			client.on('ready', () => {
 				console.log(`[ConnectionPool] Connection ready for ${host.id}`);
@@ -162,6 +184,7 @@ class ConnectionPoolImpl {
 				port: host.port,
 				username: host.username,
 				...authConfig,
+				tryKeyboard: true, // Enable keyboard-interactive auth
 				keepaliveInterval: host.keepAlive ? 30000 : undefined,
 				readyTimeout: 20000,
 				// Security: If host verification is critical, we should implement a strict verifier.
@@ -171,11 +194,11 @@ class ConnectionPoolImpl {
 					// We can log the hash here for debugging
 					const fingerprint = keyHash.toString('base64');
 					console.log(`[ConnectionPool] Server Host Key Fingerprint: ${fingerprint}`);
-					
+
 					// Future TODO: Verify against HostKeyService
-					// const status = hostKeyService.verifyHostKey(host.host, host.port, 'ssh-rsa', keyHash); 
+					// const status = hostKeyService.verifyHostKey(host.host, host.port, 'ssh-rsa', keyHash);
 					// if status === 'invalid' -> return false;
-					
+
 					return true; // Accept all for now (fixes loop issue)
 				}
 			});

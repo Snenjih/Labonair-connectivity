@@ -65,6 +65,7 @@ export const FileList: React.FC<FileListProps> = ({
 	const [dragOver, setDragOver] = useState(false);
 	const [dragging, setDragging] = useState(false);
 	const [scrollTop, setScrollTop] = useState(0);
+	const [ignorePatterns, setIgnorePatterns] = useState<string[]>(['.git', '.DS_Store', 'node_modules', 'Thumbs.db']);
 	const listRef = useRef<HTMLDivElement>(null);
 	const bodyRef = useRef<HTMLDivElement>(null);
 	const lastSelectedIndex = useRef<number>(-1);
@@ -73,6 +74,30 @@ export const FileList: React.FC<FileListProps> = ({
 	const ITEM_HEIGHT = 32; // Height of each row in pixels
 	const BUFFER_SIZE = 10; // Number of extra items to render above/below viewport
 	const VIRTUAL_THRESHOLD = 1000; // Enable virtual scrolling for files > 1000
+
+	// Listen for config updates
+	useEffect(() => {
+		const handleMessage = (event: MessageEvent) => {
+			const message = event.data;
+			if (message.command === 'UPDATE_CONFIG' && message.payload?.ignorePatterns) {
+				setIgnorePatterns(message.payload.ignorePatterns);
+			}
+		};
+
+		window.addEventListener('message', handleMessage);
+		return () => window.removeEventListener('message', handleMessage);
+	}, []);
+
+	// Check if a file should be ignored
+	const isFileIgnored = (fileName: string): boolean => {
+		return ignorePatterns.some(pattern => {
+			// Simple glob matching - exact match or ends with for extensions
+			if (pattern.startsWith('*')) {
+				return fileName.endsWith(pattern.slice(1));
+			}
+			return fileName === pattern || fileName.startsWith(pattern + '/');
+		});
+	};
 
 	// Filter files based on search query
 	const filteredFiles = searchQuery
@@ -347,7 +372,9 @@ export const FileList: React.FC<FileListProps> = ({
 				style={useVirtualScrolling ? { height: totalHeight, position: 'relative' } : undefined}
 			>
 				{useVirtualScrolling && <div style={{ height: offsetY }} />}
-				{visibleFiles.map((file, index) => (
+				{visibleFiles.map((file, index) => {
+					const ignored = isFileIgnored(file.name);
+					return (
 					<div
 						key={file.path}
 						className={`file-list-row ${selection.includes(file.path) ? 'selected' : ''} ${focusedFile === file.path ? 'focused' : ''}`}
@@ -360,6 +387,7 @@ export const FileList: React.FC<FileListProps> = ({
 						tabIndex={0}
 						role="button"
 						aria-selected={selection.includes(file.path)}
+						style={ignored ? { opacity: 0.5, filter: 'grayscale(1)' } : undefined}
 					>
 						<div className="col-name">
 							<div style={{ position: 'relative', display: 'inline-block' }}>
@@ -394,7 +422,8 @@ export const FileList: React.FC<FileListProps> = ({
 							{file.owner || '—'}
 						</div>
 					</div>
-				))}
+					);
+				})}
 			</div>
 		</div>
 	);
@@ -404,7 +433,9 @@ export const FileList: React.FC<FileListProps> = ({
 	 */
 	const renderGridView = () => (
 		<div className="file-grid">
-			{filteredFiles.map((file) => (
+			{filteredFiles.map((file) => {
+				const ignored = isFileIgnored(file.name);
+				return (
 				<div
 					key={file.path}
 					className={`file-grid-item ${selection.includes(file.path) ? 'selected' : ''} ${focusedFile === file.path ? 'focused' : ''}`}
@@ -417,6 +448,7 @@ export const FileList: React.FC<FileListProps> = ({
 					tabIndex={0}
 					role="button"
 					aria-selected={selection.includes(file.path)}
+					style={ignored ? { opacity: 0.5, filter: 'grayscale(1)' } : undefined}
 				>
 					<div className="file-grid-icon" style={{ position: 'relative' }}>
 						<FileIcon file={file} size={48} />
@@ -439,7 +471,8 @@ export const FileList: React.FC<FileListProps> = ({
 						</div>
 					)}
 				</div>
-			))}
+				);
+			})}
 		</div>
 	);
 

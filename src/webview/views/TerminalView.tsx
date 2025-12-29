@@ -77,10 +77,11 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 		term1.loadAddon(searchAddon1);
 
 		const webLinksAddon1 = new WebLinksAddon((event, uri) => {
-			if (uri.startsWith('/') || uri.match(/^~\//)) {
+			// Detect file paths (starts with / or ./)
+			if (uri.startsWith('/') || uri.startsWith('./') || uri.match(/^~\//)) {
 				event.preventDefault();
 				vscode.postMessage({
-					command: 'CHECK_FILE',
+					command: 'OPEN_REMOTE_RESOURCE',
 					payload: { path: uri, hostId }
 				});
 			}
@@ -243,10 +244,11 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 			term2.loadAddon(searchAddon2);
 
 			const webLinksAddon2 = new WebLinksAddon((event, uri) => {
-				if (uri.startsWith('/') || uri.match(/^~\//)) {
+				// Detect file paths (starts with / or ./)
+				if (uri.startsWith('/') || uri.startsWith('./') || uri.match(/^~\//)) {
 					event.preventDefault();
 					vscode.postMessage({
-						command: 'CHECK_FILE',
+						command: 'OPEN_REMOTE_RESOURCE',
 						payload: { path: uri, hostId }
 					});
 				}

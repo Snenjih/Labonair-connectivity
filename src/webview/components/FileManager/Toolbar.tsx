@@ -11,7 +11,9 @@ import {
 	Terminal,
 	Grid3x3,
 	List,
-	Columns
+	Columns,
+	Link2,
+	Unlink
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -20,6 +22,7 @@ interface ToolbarProps {
 	canGoForward: boolean;
 	viewMode: 'list' | 'grid';
 	layoutMode: 'explorer' | 'commander';
+	syncBrowsing?: boolean;
 	isLoading: boolean;
 	searchQuery: string;
 	onNavigateHome: () => void;
@@ -33,6 +36,7 @@ interface ToolbarProps {
 	onOpenTerminal?: () => void;
 	onViewModeChange: (mode: 'list' | 'grid') => void;
 	onLayoutModeChange: (mode: 'explorer' | 'commander') => void;
+	onSyncBrowsingChange?: (enabled: boolean) => void;
 	onSearchChange: (query: string) => void;
 	onPathNavigate?: (path: string) => void;
 }
@@ -47,6 +51,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 	canGoForward,
 	viewMode,
 	layoutMode,
+	syncBrowsing = false,
 	isLoading,
 	searchQuery,
 	onNavigateHome,
@@ -60,6 +65,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 	onOpenTerminal,
 	onViewModeChange,
 	onLayoutModeChange,
+	onSyncBrowsingChange,
 	onSearchChange,
 	onPathNavigate
 }) => {
@@ -283,6 +289,20 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 				>
 					<Columns size={16} />
 				</button>
+
+				{/* Synchronized Browsing Toggle (Commander mode only) */}
+				{layoutMode === 'commander' && onSyncBrowsingChange && (
+					<button
+						className={`toolbar-btn ${syncBrowsing ? 'active' : ''}`}
+						onClick={() => onSyncBrowsingChange(!syncBrowsing)}
+						disabled={isLoading}
+						title={syncBrowsing ? 'Disable synchronized browsing' : 'Enable synchronized browsing'}
+						aria-label={syncBrowsing ? 'Disable panel synchronization' : 'Enable panel synchronization'}
+						aria-pressed={syncBrowsing}
+					>
+						{syncBrowsing ? <Link2 size={16} /> : <Unlink size={16} />}
+					</button>
+				)}
 			</div>
 		</div>
 	);

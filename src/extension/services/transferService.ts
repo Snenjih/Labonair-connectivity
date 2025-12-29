@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { minimatch } from 'minimatch';
 import { TransferJob, UploadJob, DownloadJob, TransferJobStatus, TransferQueueSummary } from '../../common/types';
 import { SftpService } from './sftpService';
 
@@ -113,6 +114,37 @@ export class TransferService {
 	}
 
 	/**
+	 * Checks if a file should be ignored based on configured patterns
+	 */
+	private isFileIgnored(filename: string): boolean {
+		const config = vscode.workspace.getConfiguration('labonair');
+		const ignorePatterns: string[] = config.get('sftp.ignorePatterns', ['.git', '.DS_Store', 'node_modules', 'Thumbs.db']);
+
+		return ignorePatterns.some(pattern => {
+			// Use minimatch for glob pattern matching
+			return minimatch(filename, pattern, { matchBase: true });
+		});
+	}
+
+	/**
+	 * Filters a list of job data and returns non-ignored jobs and count of ignored
+	 */
+	public filterIgnoredJobs(jobs: Partial<TransferJob>[]): { filtered: Partial<TransferJob>[]; ignoredCount: number } {
+		const filtered: Partial<TransferJob>[] = [];
+		let ignoredCount = 0;
+
+		for (const job of jobs) {
+			if (job.filename && this.isFileIgnored(job.filename)) {
+				ignoredCount++;
+			} else {
+				filtered.push(job);
+			}
+		}
+
+		return { filtered, ignoredCount };
+	}
+
+	/**
 	 * Adds a new transfer job to the queue
 	 */
 	public addJob(jobData: Partial<TransferJob>): TransferJob {
@@ -140,6 +172,28 @@ export class TransferService {
 		this.queue.enqueue(job);
 		this.notifyQueueChange();
 		return job;
+	}
+
+	/**
+	 * Adds multiple jobs to the queue with ignore pattern filtering
+	 * Returns the number of files that were ignored
+	 */
+	public addBulkJobs(jobs: Partial<TransferJob>[]): number {
+		const { filtered, ignoredCount } = this.filterIgnoredJobs(jobs);
+
+		// Add all non-ignored jobs
+		for (const jobData of filtered) {
+			this.addJob(jobData);
+		}
+
+		// Show notification if files were ignored
+		if (ignoredCount > 0) {
+			vscode.window.showInformationMessage(
+				`Skipped ${ignoredCount} ignored file${ignoredCount > 1 ? 's' : ''} during transfer.`
+			);
+		}
+
+		return ignoredCount;
 	}
 
 	/**

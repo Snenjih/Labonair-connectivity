@@ -38,6 +38,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	const [layoutMode, setLayoutMode] = useState<'explorer' | 'commander'>(initialLayout);
 	const [viewMode, setViewMode] = useState<'list' | 'grid'>(initialView);
 	const [activePanel, setActivePanel] = useState<'left' | 'right'>('left');
+	const [syncBrowsing, setSyncBrowsing] = useState<boolean>(false);
 	const [error, setError] = useState<string | null>(null);
 	const [transfer, setTransfer] = useState<TransferStatus | null>(null);
 	const [propertiesFile, setPropertiesFile] = useState<FileEntry | null>(null);
@@ -284,6 +285,26 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		});
 
 		loadDirectory(path, panelId);
+
+		// Mirror navigation to other panel if sync browsing is enabled
+		if (syncBrowsing && layoutMode === 'commander') {
+			const otherPanelId: 'left' | 'right' = panelId === 'left' ? 'right' : 'left';
+			const otherSetState = otherPanelId === 'left' ? setLeftPanel : setRightPanel;
+
+			otherSetState(prev => {
+				const newHistory = [...prev.history.slice(0, prev.historyIndex + 1), path];
+				return {
+					...prev,
+					currentPath: path,
+					history: newHistory,
+					historyIndex: newHistory.length - 1,
+					selection: [],
+					focusedFile: null
+				};
+			});
+
+			loadDirectory(path, otherPanelId);
+		}
 	};
 
 	/**
@@ -588,6 +609,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 				canGoForward={getActiveState().historyIndex < getActiveState().history.length - 1}
 				viewMode={viewMode}
 				layoutMode={layoutMode}
+				syncBrowsing={syncBrowsing}
 				isLoading={getActiveState().isLoading}
 				searchQuery={getActiveState().searchQuery}
 				onNavigateHome={handleNavigateHome}
@@ -601,6 +623,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 				onOpenTerminal={handleOpenTerminal}
 				onViewModeChange={setViewMode}
 				onLayoutModeChange={handleLayoutModeChange}
+				onSyncBrowsingChange={setSyncBrowsing}
 				onSearchChange={handleSearchChange}
 				onPathNavigate={navigateToPath}
 			/>

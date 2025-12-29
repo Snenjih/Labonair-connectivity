@@ -49,7 +49,20 @@
 				"title": "Open SFTP File Manager",
 				"category": "Labonair"
 			}
-		]
+		],
+		"configuration": {
+			"title": "Labonair Connectivity",
+			"properties": {
+				"labonair.sftp.ignorePatterns": {
+					"type": "array",
+					"default": [".git", ".DS_Store", "node_modules", "Thumbs.db"],
+					"description": "File and folder patterns to ignore during SFTP transfers",
+					"items": {
+						"type": "string"
+					}
+				}
+			}
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run package",
@@ -70,6 +83,7 @@
 		"clsx": "^2.1.0",
 		"iconv-lite": "^0.6.3",
 		"lucide-react": "^0.300.0",
+		"minimatch": "^9.0.3",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",
 		"ssh2": "^1.15.0",
