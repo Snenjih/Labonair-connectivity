@@ -43,6 +43,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	const [error, setError] = useState<string | null>(null);
 	const [transfer, setTransfer] = useState<TransferStatus | null>(null);
 	const [propertiesFile, setPropertiesFile] = useState<FileEntry | null>(null);
+	const [stateLoaded, setStateLoaded] = useState<boolean>(false);
 
 	// Panel states
 	const [leftPanel, setLeftPanel] = useState<PanelState>({
@@ -80,11 +81,22 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
 	// Load directory on mount and when path changes
 	useEffect(() => {
-		loadDirectory(leftPanel.currentPath, 'left');
-		if (layoutMode === 'commander') {
-			loadDirectory(rightPanel.currentPath, 'right');
+		// First, request saved state
+		vscode.postMessage({
+			command: 'GET_PANEL_STATE',
+			payload: { hostId }
+		});
+	}, [hostId]);
+
+	// Load directories after state is loaded or if no saved state
+	useEffect(() => {
+		if (stateLoaded) {
+			loadDirectory(leftPanel.currentPath, 'left');
+			if (layoutMode === 'commander') {
+				loadDirectory(rightPanel.currentPath, 'right');
+			}
 		}
-	}, []);
+	}, [stateLoaded]);
 
 	// Listen for messages from extension
 	useEffect(() => {
@@ -122,12 +134,87 @@ export const FileManager: React.FC<FileManagerProps> = ({
 						setLeftPanel(prev => ({ ...prev, currentPath: message.payload.currentPath }));
 					}
 					break;
+
+				case 'PANEL_STATE_RESPONSE': {
+					if (message.payload.state) {
+						// Hydrate panel states from saved data
+						const savedState = message.payload.state;
+
+						setLeftPanel(prev => ({
+							...prev,
+							currentPath: savedState.left.path,
+							fileSystem: savedState.left.system,
+							history: [savedState.left.path],
+							historyIndex: 0
+						}));
+
+						setRightPanel(prev => ({
+							...prev,
+							currentPath: savedState.right.path,
+							fileSystem: savedState.right.system,
+							history: [savedState.right.path],
+							historyIndex: 0
+						}));
+
+						setActivePanel(savedState.active);
+						if (savedState.layoutMode) {
+							setLayoutMode(savedState.layoutMode);
+						}
+						if (savedState.viewMode) {
+							setViewMode(savedState.viewMode);
+						}
+					}
+					// Mark state as loaded (even if no saved state exists)
+					setStateLoaded(true);
+					break;
+				}
 			}
 		};
 
 		window.addEventListener('message', handleMessage);
 		return () => window.removeEventListener('message', handleMessage);
 	}, []);
+
+	// Auto-save panel state (debounced)
+	useEffect(() => {
+		// Only save if state has been loaded (to avoid overwriting with default state)
+		if (!stateLoaded) {
+			return;
+		}
+
+		const timeoutId = setTimeout(() => {
+			const state = {
+				left: {
+					system: leftPanel.fileSystem,
+					path: leftPanel.currentPath
+				},
+				right: {
+					system: rightPanel.fileSystem,
+					path: rightPanel.currentPath
+				},
+				active: activePanel,
+				layoutMode,
+				viewMode
+			};
+
+			vscode.postMessage({
+				command: 'SAVE_PANEL_STATE',
+				payload: { hostId, state }
+			});
+		}, 500); // Debounce for 500ms
+
+		return () => clearTimeout(timeoutId);
+	}, [
+		leftPanel.currentPath,
+		leftPanel.fileSystem,
+		rightPanel.currentPath,
+		rightPanel.fileSystem,
+		activePanel,
+		layoutMode,
+		viewMode,
+		stateLoaded,
+		hostId
+	]);
 
 	// Commander hotkeys (Tab, Space, Insert, F-Keys, Clipboard)
 	useEffect(() => {
@@ -672,6 +759,38 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	};
 
 	/**
+	 * Archive operation handlers
+	 */
+	const handleArchiveExtract = (file: FileEntry) => {
+		const state = getActiveState();
+		vscode.postMessage({
+			command: 'ARCHIVE_OP',
+			payload: {
+				operation: 'extract',
+				files: [file.path],
+				panelId: activePanel,
+				hostId,
+				fileSystem: state.fileSystem,
+				archivePath: file.path
+			}
+		});
+	};
+
+	const handleArchiveCompress = (files: FileEntry[]) => {
+		const state = getActiveState();
+		vscode.postMessage({
+			command: 'ARCHIVE_OP',
+			payload: {
+				operation: 'compress',
+				files: files.map(f => f.path),
+				panelId: activePanel,
+				hostId,
+				fileSystem: state.fileSystem
+			}
+		});
+	};
+
+	/**
 	 * View mode handlers
 	 */
 	const handleSearchChange = (query: string) => {
@@ -750,6 +869,8 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					onCompareFile={handleCompareFile}
 					onDrop={handleDrop}
 					onInternalDrop={handleInternalDrop}
+					onArchiveExtract={handleArchiveExtract}
+					onArchiveCompress={handleArchiveCompress}
 				/>
 
 				{state.isLoading && (

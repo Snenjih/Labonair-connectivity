@@ -7,7 +7,9 @@ import {
 	Copy,
 	GitCompare,
 	FileEdit,
-	ArrowRight
+	ArrowRight,
+	Archive,
+	FolderArchive
 } from 'lucide-react';
 import { FileEntry } from '../../../common/types';
 import { FileIcon } from '../FileIcon';
@@ -31,6 +33,8 @@ interface FileListProps {
 	onCompareFile: (file: FileEntry) => void;
 	onDrop?: (files: FileList, targetPath: string) => void;
 	onInternalDrop?: (sourcePaths: string[], targetPath: string, sourcePanel?: 'left' | 'right') => void;
+	onArchiveExtract?: (file: FileEntry) => void;
+	onArchiveCompress?: (files: FileEntry[]) => void;
 }
 
 /**
@@ -55,7 +59,9 @@ export const FileList: React.FC<FileListProps> = ({
 	onCopyPath,
 	onCompareFile,
 	onDrop,
-	onInternalDrop
+	onInternalDrop,
+	onArchiveExtract,
+	onArchiveCompress
 }) => {
 	const [contextMenu, setContextMenu] = useState<{
 		x: number;
@@ -486,6 +492,9 @@ export const FileList: React.FC<FileListProps> = ({
 		const selectedFiles = filteredFiles.filter(f => selection.includes(f.path));
 		const isMultiSelect = selectedFiles.length > 1;
 
+		// Check if file is an archive
+		const isArchive = file.type === '-' && /\.(zip|tar|gz|tgz)$/i.test(file.name);
+
 		return (
 			<div
 				className="context-menu"
@@ -523,6 +532,38 @@ export const FileList: React.FC<FileListProps> = ({
 						>
 							<GitCompare size={14} />
 							<span>Compare with...</span>
+						</button>
+						<div className="context-menu-separator" />
+					</>
+				)}
+
+				{/* Archive Operations */}
+				{isArchive && onArchiveExtract && (
+					<>
+						<button
+							className="context-menu-item"
+							onClick={() => {
+								onArchiveExtract(file);
+								closeContextMenu();
+							}}
+						>
+							<Archive size={14} />
+							<span>Extract Here...</span>
+						</button>
+						<div className="context-menu-separator" />
+					</>
+				)}
+				{selectedFiles.length > 0 && onArchiveCompress && (
+					<>
+						<button
+							className="context-menu-item"
+							onClick={() => {
+								onArchiveCompress(selectedFiles);
+								closeContextMenu();
+							}}
+						>
+							<FolderArchive size={14} />
+							<span>Compress to...</span>
 						</button>
 						<div className="context-menu-separator" />
 					</>

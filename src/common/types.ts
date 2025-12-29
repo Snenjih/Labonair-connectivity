@@ -311,7 +311,19 @@ export type Message =
 	| { command: 'SUDO_RESPONSE'; payload: { password: string; remember?: boolean } }
 
 	// Keybinding Context (Subphase 3.11)
-	| { command: 'SET_CONTEXT'; payload: { key: string; value: boolean } };
+	| { command: 'SET_CONTEXT'; payload: { key: string; value: boolean } }
+
+	// Panel State Persistence (Subphase 4.3)
+	| { command: 'SAVE_PANEL_STATE'; payload: { hostId: string; state: { left: { system: 'local' | 'remote'; path: string }; right: { system: 'local' | 'remote'; path: string }; active: 'left' | 'right'; layoutMode?: 'explorer' | 'commander'; viewMode?: 'list' | 'grid' } } }
+	| { command: 'GET_PANEL_STATE'; payload: { hostId: string } }
+	| { command: 'PANEL_STATE_RESPONSE'; payload: { state?: { left: { system: 'local' | 'remote'; path: string }; right: { system: 'local' | 'remote'; path: string }; active: 'left' | 'right'; layoutMode?: 'explorer' | 'commander'; viewMode?: 'list' | 'grid' } } }
+
+	// Universal Archive Operations (Subphase 4.3)
+	| { command: 'ARCHIVE_OP'; payload: { operation: 'extract' | 'compress'; files: string[]; panelId: 'left' | 'right'; hostId: string; fileSystem: 'local' | 'remote'; archivePath?: string; archiveName?: string; archiveType?: 'zip' | 'tar' | 'tar.gz' } }
+
+	// Universal Deep Search (Subphase 4.3)
+	| { command: 'SEARCH_FILES'; payload: { hostId: string; path: string; fileSystem: 'local' | 'remote'; pattern?: string; content?: string; recursive: boolean } }
+	| { command: 'SEARCH_RESULTS'; payload: { results: FileEntry[]; searchQuery: string } };
 
 // ============================================================================
 // UTILITY TYPES

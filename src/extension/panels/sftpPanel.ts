@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { SftpService } from '../services/sftpService';
 import { LocalFsService } from '../services/localFsService';
 import { ClipboardService } from '../services/clipboardService';
+import { StateService, FileManagerState } from '../services/stateService';
+import { ArchiveService } from '../services/archiveService';
 import { HostService } from '../hostService';
 import { SessionTracker } from '../sessionTracker';
 import { MediaPanel } from './MediaPanel';
@@ -30,6 +32,8 @@ export class SftpPanel {
 		sftpService: SftpService,
 		localFsService: LocalFsService,
 		clipboardService: ClipboardService,
+		stateService: StateService,
+		archiveService: ArchiveService,
 		hostService: HostService,
 		sessionTracker?: SessionTracker
 	): SftpPanel {
@@ -55,7 +59,7 @@ export class SftpPanel {
 			}
 		);
 
-		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, localFsService, clipboardService, hostService, sessionTracker);
+		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, localFsService, clipboardService, stateService, archiveService, hostService, sessionTracker);
 		return SftpPanel.currentPanel;
 	}
 
@@ -66,6 +70,8 @@ export class SftpPanel {
 		private readonly _sftpService: SftpService,
 		private readonly _localFsService: LocalFsService,
 		private readonly _clipboardService: ClipboardService,
+		private readonly _stateService: StateService,
+		private readonly _archiveService: ArchiveService,
 		private readonly _hostService: HostService,
 		private readonly _sessionTracker?: SessionTracker
 	) {
@@ -287,6 +293,23 @@ export class SftpPanel {
 			// Context-Aware Terminal (Subphase 4.2)
 			case 'OPEN_TERMINAL': {
 				await this._openTerminal(message.payload.path, message.payload.fileSystem);
+				break;
+			}
+
+			// Panel State Persistence (Subphase 4.3)
+			case 'SAVE_PANEL_STATE': {
+				await this._savePanelState(message.payload.state);
+				break;
+			}
+
+			case 'GET_PANEL_STATE': {
+				await this._getPanelState();
+				break;
+			}
+
+			// Archive Operations (Subphase 4.3)
+			case 'ARCHIVE_OP': {
+				await this._handleArchiveOperation(message.payload);
 				break;
 			}
 		}
@@ -985,6 +1008,108 @@ export class SftpPanel {
 			await this._listFiles(this._currentPath);
 		} catch (error) {
 			vscode.window.showErrorMessage(`Paste failed: ${error}`);
+		}
+	}
+
+	// ========================================================================
+	// Panel State Persistence (Subphase 4.3)
+	// ========================================================================
+
+	/**
+	 * Saves the panel state to persistent storage
+	 */
+	private async _savePanelState(state: FileManagerState): Promise<void> {
+		try {
+			await this._stateService.saveState(this._hostId, state);
+		} catch (error) {
+			console.error('[SftpPanel] Failed to save panel state:', error);
+		}
+	}
+
+	/**
+	 * Retrieves and sends the saved panel state to the webview
+	 */
+	private async _getPanelState(): Promise<void> {
+		try {
+			const state = this._stateService.getState(this._hostId);
+			this._panel.webview.postMessage({
+				command: 'PANEL_STATE_RESPONSE',
+				payload: { state }
+			});
+		} catch (error) {
+			console.error('[SftpPanel] Failed to get panel state:', error);
+			// Send empty response to trigger default initialization
+			this._panel.webview.postMessage({
+				command: 'PANEL_STATE_RESPONSE',
+				payload: { state: undefined }
+			});
+		}
+	}
+
+	// ========================================================================
+	// Archive Operations (Subphase 4.3)
+	// ========================================================================
+
+	/**
+	 * Handles archive operations (extract/compress)
+	 */
+	private async _handleArchiveOperation(payload: any): Promise<void> {
+		try {
+			const { operation, files, fileSystem, archivePath } = payload;
+
+			if (operation === 'extract') {
+				// Extract archive
+				await this._archiveService.extract(
+					archivePath || files[0],
+					undefined,
+					fileSystem,
+					fileSystem === 'remote' ? this._hostId : undefined
+				);
+				vscode.window.showInformationMessage(`Extracted archive successfully`);
+			} else if (operation === 'compress') {
+				// Prompt for archive name and type
+				const archiveName = await vscode.window.showInputBox({
+					prompt: 'Enter archive name',
+					placeHolder: 'archive.zip',
+					value: 'archive.zip'
+				});
+
+				if (!archiveName) {
+					return;
+				}
+
+				// Determine archive type from extension
+				let archiveType: 'zip' | 'tar' | 'tar.gz' = 'zip';
+				if (archiveName.endsWith('.tar.gz') || archiveName.endsWith('.tgz')) {
+					archiveType = 'tar.gz';
+				} else if (archiveName.endsWith('.tar')) {
+					archiveType = 'tar';
+				}
+
+				// Get target directory (same as first file's directory)
+				const targetDir = files[0].substring(0, files[0].lastIndexOf('/'));
+				const archiveFullPath = `${targetDir}/${archiveName}`;
+
+				await this._archiveService.compress(
+					files,
+					archiveFullPath,
+					archiveType,
+					fileSystem,
+					fileSystem === 'remote' ? this._hostId : undefined
+				);
+				vscode.window.showInformationMessage(`Created archive: ${archiveName}`);
+			}
+
+			// Refresh directory listing
+			await this._listFiles(this._currentPath);
+		} catch (error) {
+			this._panel.webview.postMessage({
+				command: 'SFTP_ERROR',
+				payload: {
+					message: `Archive operation failed: ${error}`
+				}
+			});
+			vscode.window.showErrorMessage(`Archive operation failed: ${error}`);
 		}
 	}
 
