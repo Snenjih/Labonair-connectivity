@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FileEntry, TransferStatus } from '../../common/types';
 import { Toolbar } from '../components/FileManager/Toolbar';
 import { FileList } from '../components/FileManager/FileList';
+import FilePropertiesDialog from '../dialogs/FilePropertiesDialog';
 import vscode from '../utils/vscode';
 import '../styles/fileManager.css';
 
@@ -39,6 +40,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	const [activePanel, setActivePanel] = useState<'left' | 'right'>('left');
 	const [error, setError] = useState<string | null>(null);
 	const [transfer, setTransfer] = useState<TransferStatus | null>(null);
+	const [propertiesFile, setPropertiesFile] = useState<FileEntry | null>(null);
 
 	// Panel states
 	const [leftPanel, setLeftPanel] = useState<PanelState>({
@@ -431,10 +433,23 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	};
 
 	const handleFileProperties = (file: FileEntry) => {
-		vscode.postMessage({
-			command: 'FILE_PROPERTIES',
-			payload: { hostId, path: file.path }
-		});
+		setPropertiesFile(file);
+	};
+
+	const handleSavePermissions = (octal: string, recursive: boolean) => {
+		if (propertiesFile) {
+			vscode.postMessage({
+				command: 'SAVE_FILE_PERMISSIONS',
+				payload: {
+					hostId,
+					path: propertiesFile.path,
+					octal,
+					recursive
+				}
+			});
+			// Reload directory to see updated permissions
+			loadDirectory(getActiveState().currentPath, activePanel);
+		}
 	};
 
 	const handleCopyPath = (path: string) => {
@@ -627,6 +642,16 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					</div>
 					<div className="transfer-percentage">{transfer.progress}%</div>
 				</div>
+			)}
+
+			{/* File Properties Dialog */}
+			{propertiesFile && (
+				<FilePropertiesDialog
+					file={propertiesFile}
+					hostId={hostId}
+					onSave={handleSavePermissions}
+					onClose={() => setPropertiesFile(null)}
+				/>
 			)}
 		</div>
 	);

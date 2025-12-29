@@ -174,6 +174,15 @@ export class SftpPanel {
 				break;
 			}
 
+			case 'SAVE_FILE_PERMISSIONS': {
+				await this._saveFilePermissions(
+					message.payload.path,
+					message.payload.octal,
+					message.payload.recursive
+				);
+				break;
+			}
+
 			case 'DIFF_FILES': {
 				await this._diffFile(message.payload.remotePath, message.payload.localPath);
 				break;
@@ -521,6 +530,64 @@ export class SftpPanel {
 			vscode.window.showInformationMessage(message, { modal: true });
 		} catch (error) {
 			vscode.window.showErrorMessage(`Failed to get file properties: ${error}`);
+		}
+	}
+
+	/**
+	 * Saves file permissions
+	 */
+	private async _saveFilePermissions(path: string, octal: string, recursive: boolean): Promise<void> {
+		try {
+			const fileName = path.split('/').pop() || 'file';
+
+			if (recursive) {
+				// Show progress for recursive permission changes
+				await vscode.window.withProgress({
+					location: vscode.ProgressLocation.Notification,
+					title: `Changing permissions for ${fileName}...`,
+					cancellable: false
+				}, async (progress) => {
+					await this._sftpService.chmodRecursive(
+						this._hostId,
+						path,
+						octal,
+						(current, total, itemPath) => {
+							const percent = Math.round((current / total) * 100);
+							progress.report({
+								message: `${current}/${total} files`,
+								increment: (1 / total) * 100
+							});
+
+							// Also send progress to webview
+							this._panel.webview.postMessage({
+								command: 'PERMISSIONS_PROGRESS',
+								payload: {
+									current,
+									total,
+									path: itemPath
+								}
+							});
+						}
+					);
+				});
+
+				vscode.window.showInformationMessage(`Permissions changed for ${fileName} and all enclosed files`);
+			} else {
+				// Single file/directory permission change
+				await this._sftpService.chmod(this._hostId, path, octal);
+				vscode.window.showInformationMessage(`Permissions changed for ${fileName}`);
+			}
+
+			// Refresh directory listing to see updated permissions
+			await this._listFiles(this._currentPath);
+		} catch (error) {
+			this._panel.webview.postMessage({
+				command: 'SFTP_ERROR',
+				payload: {
+					message: `Failed to change permissions: ${error}`
+				}
+			});
+			vscode.window.showErrorMessage(`Failed to change permissions: ${error}`);
 		}
 	}
 

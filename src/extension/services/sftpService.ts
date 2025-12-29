@@ -635,4 +635,106 @@ export class SftpService {
 			});
 		});
 	}
+
+	/**
+	 * Changes file/directory permissions
+	 */
+	public async chmod(hostId: string, path: string, mode: string): Promise<void> {
+		const sftp = await this.getSftpSession(hostId);
+
+		// Convert octal string to number
+		const modeNum = parseInt(mode, 8);
+
+		return new Promise((resolve, reject) => {
+			sftp.chmod(path, modeNum, (err) => {
+				if (err) {
+					reject(new Error(`Failed to change permissions: ${err.message}`));
+				} else {
+					// Invalidate cache for parent directory
+					const parentPath = path.split('/').slice(0, -1).join('/') || '/';
+					this.directoryCache.delete(`${hostId}:${parentPath}`);
+					resolve();
+				}
+			});
+		});
+	}
+
+	/**
+	 * Changes permissions recursively for a directory
+	 */
+	public async chmodRecursive(
+		hostId: string,
+		dirPath: string,
+		mode: string,
+		onProgress?: (current: number, total: number, path: string) => void
+	): Promise<void> {
+		const sftp = await this.getSftpSession(hostId);
+		const modeNum = parseInt(mode, 8);
+
+		// First, collect all paths to change
+		const allPaths: string[] = [];
+
+		const walkDirectory = async (currentPath: string): Promise<void> => {
+			return new Promise((resolve, reject) => {
+				sftp.readdir(currentPath, async (err, list) => {
+					if (err) {
+						reject(new Error(`Failed to read directory ${currentPath}: ${err.message}`));
+						return;
+					}
+
+					allPaths.push(currentPath);
+
+					for (const item of list) {
+						const itemPath = path.posix.join(currentPath, item.filename);
+						const isDirectory = item.attrs.isDirectory();
+
+						if (isDirectory) {
+							try {
+								await walkDirectory(itemPath);
+							} catch (error) {
+								console.warn(`Failed to walk directory ${itemPath}:`, error);
+							}
+						} else {
+							allPaths.push(itemPath);
+						}
+					}
+
+					resolve();
+				});
+			});
+		};
+
+		// Walk the directory tree
+		await walkDirectory(dirPath);
+
+		// Apply chmod to all collected paths
+		let current = 0;
+		const total = allPaths.length;
+
+		for (const itemPath of allPaths) {
+			try {
+				await new Promise<void>((resolve, reject) => {
+					sftp.chmod(itemPath, modeNum, (err) => {
+						if (err) {
+							console.warn(`Failed to chmod ${itemPath}:`, err);
+							// Continue even if one fails
+							resolve();
+						} else {
+							resolve();
+						}
+					});
+				});
+
+				current++;
+				if (onProgress) {
+					onProgress(current, total, itemPath);
+				}
+			} catch (error) {
+				console.warn(`Error changing permissions for ${itemPath}:`, error);
+			}
+		}
+
+		// Clear cache for the entire directory tree
+		this.clearCache(hostId);
+	}
 }

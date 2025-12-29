@@ -285,7 +285,15 @@ export type Message =
 	| { command: 'BROADCAST_STATUS'; payload: { hostId: string; success: boolean; output?: string; error?: string } }
 
 	// Tunnel Management (Subphase 3.6)
-	| { command: 'TUNNEL_STATUS'; payload: { hostId: string; tunnels: Array<{ type: 'local' | 'remote'; srcPort: number; dstHost: string; dstPort: number; status: 'active' | 'error'; error?: string }> } };
+	| { command: 'TUNNEL_STATUS'; payload: { hostId: string; tunnels: Array<{ type: 'local' | 'remote'; srcPort: number; dstHost: string; dstPort: number; status: 'active' | 'error'; error?: string }> } }
+
+	// File Permissions (Subphase 3.9)
+	| { command: 'SAVE_FILE_PERMISSIONS'; payload: { hostId: string; path: string; octal: string; recursive: boolean } }
+	| { command: 'PERMISSIONS_PROGRESS'; payload: { current: number; total: number; path: string } }
+
+	// Sudo Save (Subphase 3.9)
+	| { command: 'PROMPT_SUDO'; payload: { remotePath: string; defaultPassword?: string } }
+	| { command: 'SUDO_RESPONSE'; payload: { password: string; remember?: boolean } };
 
 // ============================================================================
 // UTILITY TYPES
