@@ -1,0 +1,72 @@
+name: Cleanup Old Artifacts
+
+on:
+  schedule:
+    # Run every Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Delete old artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Get all artifacts
+            const artifacts = await github.rest.actions.listArtifactsForRepo({
+              owner,
+              repo,
+              per_page: 100
+            });
+
+            // Current time
+            const now = new Date();
+            const twoDaysAgo = new Date(now.getTime() - (2 * 24 * 60 * 60 * 1000));
+
+            console.log(`Total artifacts: ${artifacts.data.artifacts.length}`);
+            console.log(`Deleting artifacts older than: ${twoDaysAgo.toISOString()}`);
+
+            let deletedCount = 0;
+            let keptCount = 0;
+
+            // Delete artifacts older than 2 days
+            for (const artifact of artifacts.data.artifacts) {
+              const createdAt = new Date(artifact.created_at);
+
+              if (createdAt < twoDaysAgo) {
+                console.log(`Deleting artifact: ${artifact.name} (created: ${artifact.created_at})`);
+                try {
+                  await github.rest.actions.deleteArtifact({
+                    owner,
+                    repo,
+                    artifact_id: artifact.id
+                  });
+                  deletedCount++;
+                } catch (error) {
+                  console.error(`Failed to delete artifact ${artifact.name}: ${error.message}`);
+                }
+              } else {
+                console.log(`Keeping artifact: ${artifact.name} (created: ${artifact.created_at})`);
+                keptCount++;
+              }
+            }
+
+            console.log(`\nCleanup summary:`);
+            console.log(`- Deleted: ${deletedCount} artifacts`);
+            console.log(`- Kept: ${keptCount} artifacts`);
+
+      - name: Summary
+        run: |
+          echo "### Artifact Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "Cleanup completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "Artifacts older than 2 days have been removed." >> $GITHUB_STEP_SUMMARY
