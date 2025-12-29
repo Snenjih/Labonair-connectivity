@@ -35,6 +35,9 @@ interface FileListProps {
 	onInternalDrop?: (sourcePaths: string[], targetPath: string, sourcePanel?: 'left' | 'right') => void;
 	onArchiveExtract?: (file: FileEntry) => void;
 	onArchiveCompress?: (files: FileEntry[]) => void;
+	compareMode?: boolean;
+	missingFiles?: Set<string>;
+	newerFiles?: Set<string>;
 }
 
 /**
@@ -48,6 +51,9 @@ export const FileList: React.FC<FileListProps> = ({
 	focusedFile,
 	searchQuery,
 	hostId,
+	compareMode = false,
+	missingFiles = new Set(),
+	newerFiles = new Set(),
 	panelId,
 	onFileSelect,
 	onFileOpen,
@@ -383,7 +389,7 @@ export const FileList: React.FC<FileListProps> = ({
 					return (
 					<div
 						key={file.path}
-						className={`file-list-row ${selection.includes(file.path) ? 'selected' : ''} ${focusedFile === file.path ? 'focused' : ''}`}
+						className={`file-list-row ${selection.includes(file.path) ? 'selected' : ''} ${focusedFile === file.path ? 'focused' : ''} ${compareMode && missingFiles.has(file.path) ? 'compare-missing' : ''} ${compareMode && newerFiles.has(file.path) ? 'compare-newer' : ''}`}
 						onClick={(e) => handleFileClick(file, e)}
 						onDoubleClick={(e) => handleFileDoubleClick(file, e)}
 						onContextMenu={(e) => handleContextMenu(e, file)}
@@ -444,7 +450,7 @@ export const FileList: React.FC<FileListProps> = ({
 				return (
 				<div
 					key={file.path}
-					className={`file-grid-item ${selection.includes(file.path) ? 'selected' : ''} ${focusedFile === file.path ? 'focused' : ''}`}
+					className={`file-grid-item ${selection.includes(file.path) ? 'selected' : ''} ${focusedFile === file.path ? 'focused' : ''} ${compareMode && missingFiles.has(file.path) ? 'compare-missing' : ''} ${compareMode && newerFiles.has(file.path) ? 'compare-newer' : ''}`}
 					onClick={(e) => handleFileClick(file, e)}
 					onDoubleClick={(e) => handleFileDoubleClick(file, e)}
 					onContextMenu={(e) => handleContextMenu(e, file)}

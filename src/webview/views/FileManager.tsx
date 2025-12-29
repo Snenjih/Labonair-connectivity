@@ -4,6 +4,8 @@ import { Toolbar } from '../components/FileManager/Toolbar';
 import { FileList } from '../components/FileManager/FileList';
 import FilePropertiesDialog from '../dialogs/FilePropertiesDialog';
 import SearchDialog from '../dialogs/SearchDialog';
+import BulkRenameDialog from '../dialogs/BulkRenameDialog';
+import { Console } from '../components/FileManager/Console';
 import vscode from '../utils/vscode';
 import '../styles/fileManager.css';
 
@@ -48,6 +50,10 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	const [showSearchDialog, setShowSearchDialog] = useState<boolean>(false);
 	const [searchResults, setSearchResults] = useState<FileEntry[] | null>(null);
 	const [searchQuery, setSearchQuery] = useState<string>('');
+	const [consoleVisible, setConsoleVisible] = useState<boolean>(false);
+	const [consoleHeight, setConsoleHeight] = useState<number>(200);
+	const [compareMode, setCompareMode] = useState<boolean>(false);
+	const [showBulkRenameDialog, setShowBulkRenameDialog] = useState<boolean>(false);
 
 	// Panel states
 	const [leftPanel, setLeftPanel] = useState<PanelState>({
@@ -231,6 +237,27 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		const handleKeyDown = (e: KeyboardEvent) => {
 			const state = getActiveState();
 
+			// Shift+F2: Toggle directory comparison
+			if (e.shiftKey && e.key === 'F2') {
+				e.preventDefault();
+				setCompareMode(prev => !prev);
+				return;
+			}
+
+			// F2: Bulk rename (if multiple files selected)
+			if (e.key === 'F2' && !e.shiftKey && state.selection.length > 1) {
+				e.preventDefault();
+				setShowBulkRenameDialog(true);
+				return;
+			}
+
+			// Ctrl+` or Ctrl+Shift+C: Toggle console
+			if ((e.ctrlKey || e.metaKey) && (e.key === '`' || (e.shiftKey && e.key === 'c'))) {
+				e.preventDefault();
+				setConsoleVisible(prev => !prev);
+				return;
+			}
+
 			// Ctrl+C: Copy selected files to clipboard
 			if ((e.ctrlKey || e.metaKey) && e.key === 'c' && state.selection.length > 0) {
 				e.preventDefault();
@@ -396,6 +423,100 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		window.addEventListener('keydown', handleKeyDown);
 		return () => window.removeEventListener('keydown', handleKeyDown);
 	}, [layoutMode, activePanel, leftPanel, rightPanel]);
+
+	/**
+	 * Directory comparison logic
+	 * Returns file differences between left and right panels
+	 */
+	const getFileDifferences = () => {
+		if (!compareMode || layoutMode !== 'commander') {
+			return { missing: new Set<string>(), newer: new Set<string>() };
+		}
+
+		const leftFiles = new Map(leftPanel.files.map(f => [f.name, f]));
+		const rightFiles = new Map(rightPanel.files.map(f => [f.name, f]));
+
+		const missing = new Set<string>();
+		const newer = new Set<string>();
+
+		// Check for files in left but not in right
+		leftFiles.forEach((file, name) => {
+			if (!rightFiles.has(name)) {
+				missing.add(file.path);
+			} else {
+				const rightFile = rightFiles.get(name)!;
+				// Compare modification times
+				if (file.modTime > rightFile.modTime) {
+					newer.add(file.path);
+				}
+			}
+		});
+
+		// Check for files in right but not in left
+		rightFiles.forEach((file, name) => {
+			if (!leftFiles.has(name)) {
+				missing.add(file.path);
+			}
+		});
+
+		return { missing, newer };
+	};
+
+	/**
+	 * Select all different files (for syncing)
+	 */
+	const handleSelectDifferent = () => {
+		const { missing, newer } = getFileDifferences();
+		const state = getActiveState();
+
+		const differentFiles = state.files
+			.filter(f => missing.has(f.path) || newer.has(f.path))
+			.map(f => f.path);
+
+		setActiveState(prev => ({
+			...prev,
+			selection: differentFiles
+		}));
+	};
+
+	/**
+	 * Handle bulk rename
+	 */
+	const handleBulkRename = (operations: { oldPath: string; newPath: string }[]) => {
+		const state = getActiveState();
+
+		vscode.postMessage({
+			command: 'BULK_RENAME',
+			payload: {
+				hostId,
+				operations,
+				fileSystem: state.fileSystem
+			}
+		});
+
+		// Clear selection after rename
+		setActiveState(prev => ({ ...prev, selection: [], focusedFile: null }));
+
+		// Refresh after a short delay
+		setTimeout(() => handleRefresh(), 500);
+	};
+
+	/**
+	 * Handle console navigation (auto-cd when directory changes)
+	 */
+	useEffect(() => {
+		if (consoleVisible) {
+			const state = getActiveState();
+			vscode.postMessage({
+				command: 'CONSOLE_NAVIGATE',
+				payload: {
+					hostId,
+					path: state.currentPath,
+					fileSystem: state.fileSystem
+				}
+			});
+		}
+	}, [leftPanel.currentPath, rightPanel.currentPath, activePanel, consoleVisible]);
 
 	/**
 	 * Loads a directory listing
@@ -881,10 +1002,11 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	const renderPanel = (panelId: 'left' | 'right') => {
 		const state = panelId === 'left' ? leftPanel : rightPanel;
 		const isActive = activePanel === panelId;
+		const { missing, newer } = getFileDifferences();
 
 		return (
 			<div
-				className={`file-manager-panel ${isActive ? 'active' : 'inactive'}`}
+				className={`file-manager-panel ${isActive ? 'active' : 'inactive'} ${compareMode ? 'compare-mode' : ''}`}
 				onClick={() => setActivePanel(panelId)}
 			>
 				<FileList
@@ -908,6 +1030,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					onInternalDrop={handleInternalDrop}
 					onArchiveExtract={handleArchiveExtract}
 					onArchiveCompress={handleArchiveCompress}
+					compareMode={compareMode}
+					missingFiles={missing}
+					newerFiles={newer}
 				/>
 
 				{state.isLoading && (
@@ -1050,6 +1175,24 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					onClose={() => setShowSearchDialog(false)}
 				/>
 			)}
+
+			{/* Bulk Rename Dialog */}
+			{showBulkRenameDialog && (
+				<BulkRenameDialog
+					files={getActiveState().files.filter(f => getActiveState().selection.includes(f.path))}
+					onRename={handleBulkRename}
+					onClose={() => setShowBulkRenameDialog(false)}
+				/>
+			)}
+
+			{/* Integrated Console */}
+			<Console
+				hostId={hostId}
+				visible={consoleVisible}
+				height={consoleHeight}
+				onHeightChange={setConsoleHeight}
+				onToggle={() => setConsoleVisible(false)}
+			/>
 		</div>
 	);
 };

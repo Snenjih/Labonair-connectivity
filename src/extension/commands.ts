@@ -2,6 +2,8 @@
 import * as vscode from 'vscode';
 import { Host } from '../common/types';
 import { HostService } from './hostService';
+import { CredentialService } from './credentialService';
+import { HostKeyService } from './security/hostKeyService';
 import { SftpService } from './services/sftpService';
 import { LocalFsService } from './services/localFsService';
 import { ClipboardService } from './services/clipboardService';
@@ -12,6 +14,8 @@ import { SftpPanel } from './panels/sftpPanel';
 export function registerCommands(
 	context: vscode.ExtensionContext,
 	hostService: HostService,
+	credentialService: CredentialService,
+	hostKeyService: HostKeyService,
 	sftpService: SftpService,
 	localFsService: LocalFsService,
 	clipboardService: ClipboardService,
@@ -90,7 +94,9 @@ export function registerCommands(
 						clipboardService,
 						stateService,
 						archiveService,
-						hostService
+						hostService,
+						credentialService,
+						hostKeyService
 					);
 				}
 			}

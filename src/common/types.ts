@@ -323,7 +323,17 @@ export type Message =
 
 	// Universal Deep Search (Subphase 4.3)
 	| { command: 'SEARCH_FILES'; payload: { hostId: string; path: string; fileSystem: 'local' | 'remote'; pattern?: string; content?: string; recursive: boolean } }
-	| { command: 'SEARCH_RESULTS'; payload: { results: FileEntry[]; searchQuery: string } };
+	| { command: 'SEARCH_RESULTS'; payload: { results: FileEntry[]; searchQuery: string } }
+
+	// Integrated Console (Subphase 4.4)
+	| { command: 'CONSOLE_NAVIGATE'; payload: { hostId: string; path: string; fileSystem: 'local' | 'remote' } }
+	| { command: 'CONSOLE_INPUT'; payload: { hostId: string; data: string } }
+	| { command: 'CONSOLE_RESIZE'; payload: { hostId: string; cols: number; rows: number } }
+	| { command: 'CONSOLE_DATA'; payload: { data: string } }
+	| { command: 'CONSOLE_STATUS'; payload: { status: 'connecting' | 'connected' | 'disconnected' | 'error'; message?: string } }
+
+	// Bulk Rename (Subphase 4.4)
+	| { command: 'BULK_RENAME'; payload: { hostId: string; operations: { oldPath: string; newPath: string }[]; fileSystem: 'local' | 'remote' } };
 
 // ============================================================================
 // UTILITY TYPES

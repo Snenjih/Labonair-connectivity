@@ -91,7 +91,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	badgeServiceInstance = badgeService;
 
 	// Register Commands
-	registerCommands(context, hostService, sftpService, localFsService, clipboardService, stateService, archiveService);
+	registerCommands(context, hostService, credentialService, hostKeyService, sftpService, localFsService, clipboardService, stateService, archiveService);
 
 	// Register Edit-on-Fly command
 	const editRemoteFileCommand = vscode.commands.registerCommand(
@@ -450,6 +450,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 						this._stateService,
 						this._archiveService,
 						this._hostService,
+						this._credentialService,
+						this._hostKeyService,
 						this._sessionTracker
 					);
 					break;
@@ -472,6 +474,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 								this._stateService,
 								this._archiveService,
 								this._hostService,
+								this._credentialService,
+								this._hostKeyService,
 								this._sessionTracker
 							);
 							// Send navigate message to the panel
@@ -903,6 +907,8 @@ async function restoreSessions(
 					stateService,
 					archiveService,
 					hostService,
+					credentialService,
+					hostKeyService,
 					sessionTracker
 				);
 			}

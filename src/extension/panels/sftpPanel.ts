@@ -5,6 +5,9 @@ import { ClipboardService } from '../services/clipboardService';
 import { StateService, FileManagerState } from '../services/stateService';
 import { ArchiveService } from '../services/archiveService';
 import { HostService } from '../hostService';
+import { CredentialService } from '../credentialService';
+import { HostKeyService } from '../security/hostKeyService';
+import { ConsoleService } from '../services/consoleService';
 import { SessionTracker } from '../sessionTracker';
 import { MediaPanel } from './MediaPanel';
 import { Message, FileEntry } from '../../common/types';
@@ -35,6 +38,8 @@ export class SftpPanel {
 		stateService: StateService,
 		archiveService: ArchiveService,
 		hostService: HostService,
+		credentialService: CredentialService,
+		hostKeyService: HostKeyService,
 		sessionTracker?: SessionTracker
 	): SftpPanel {
 		const column = vscode.window.activeTextEditor
@@ -59,9 +64,11 @@ export class SftpPanel {
 			}
 		);
 
-		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, localFsService, clipboardService, stateService, archiveService, hostService, sessionTracker);
+		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, localFsService, clipboardService, stateService, archiveService, hostService, credentialService, hostKeyService, sessionTracker);
 		return SftpPanel.currentPanel;
 	}
+
+	private _consoleService: ConsoleService | undefined;
 
 	private constructor(
 		panel: vscode.WebviewPanel,
@@ -73,6 +80,8 @@ export class SftpPanel {
 		private readonly _stateService: StateService,
 		private readonly _archiveService: ArchiveService,
 		private readonly _hostService: HostService,
+		private readonly _credentialService: CredentialService,
+		private readonly _hostKeyService: HostKeyService,
 		private readonly _sessionTracker?: SessionTracker
 	) {
 		this._panel = panel;
@@ -316,6 +325,28 @@ export class SftpPanel {
 			// Deep Search (Subphase 4.3)
 			case 'SEARCH_FILES': {
 				await this._handleSearch(message.payload);
+				break;
+			}
+
+			// Integrated Console (Subphase 4.4)
+			case 'CONSOLE_NAVIGATE': {
+				await this._handleConsoleNavigate(message.payload.path, message.payload.fileSystem);
+				break;
+			}
+
+			case 'CONSOLE_INPUT': {
+				await this._handleConsoleInput(message.payload.data);
+				break;
+			}
+
+			case 'CONSOLE_RESIZE': {
+				await this._handleConsoleResize(message.payload.cols, message.payload.rows);
+				break;
+			}
+
+			// Bulk Rename (Subphase 4.4)
+			case 'BULK_RENAME': {
+				await this._handleBulkRename(message.payload.operations, message.payload.fileSystem);
 				break;
 			}
 		}
@@ -1336,6 +1367,12 @@ export class SftpPanel {
 			this._sessionTracker.unregisterPanel(this._hostId);
 		}
 
+		// Dispose console service
+		if (this._consoleService) {
+			this._consoleService.dispose();
+			this._consoleService = undefined;
+		}
+
 		// Clean up resources
 		this._panel.dispose();
 
@@ -1373,6 +1410,80 @@ export class SftpPanel {
 				<script nonce="${nonce}" src="${scriptUri}"></script>
 			</body>
 			</html>`;
+	}
+
+	/**
+	 * Handle console navigation (auto-cd when directory changes)
+	 */
+	private async _handleConsoleNavigate(path: string, fileSystem: 'local' | 'remote'): Promise<void> {
+		try {
+			const host = this._hostService.getHostById(this._hostId);
+			if (!host) {
+				return;
+			}
+
+			// Initialize console service if not exists
+			if (!this._consoleService) {
+				this._consoleService = new ConsoleService(
+					this._hostId,
+					host,
+					this._panel.webview,
+					this._hostService,
+					this._credentialService,
+					this._hostKeyService
+				);
+			}
+
+			// Switch mode and navigate
+			await this._consoleService.switchMode(fileSystem, path);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Console navigation failed: ${error}`);
+		}
+	}
+
+	/**
+	 * Handle console input (user typing in terminal)
+	 */
+	private async _handleConsoleInput(data: string): Promise<void> {
+		if (this._consoleService) {
+			this._consoleService.write(data);
+		}
+	}
+
+	/**
+	 * Handle console resize
+	 */
+	private async _handleConsoleResize(cols: number, rows: number): Promise<void> {
+		if (this._consoleService) {
+			this._consoleService.resize(cols, rows);
+		}
+	}
+
+	/**
+	 * Handle bulk rename operations
+	 */
+	private async _handleBulkRename(operations: { oldPath: string; newPath: string }[], fileSystem: 'local' | 'remote'): Promise<void> {
+		try {
+			for (const op of operations) {
+				if (fileSystem === 'local') {
+					// Local file rename
+					await this._localFsService.rename(op.oldPath, op.newPath);
+				} else {
+					// Remote file rename
+					await this._sftpService.rename(this._hostId, op.oldPath, op.newPath);
+				}
+			}
+
+			vscode.window.showInformationMessage(`Successfully renamed ${operations.length} file(s)`);
+		} catch (error) {
+			this._panel.webview.postMessage({
+				command: 'SFTP_ERROR',
+				payload: {
+					message: `Bulk rename failed: ${error}`
+				}
+			});
+			vscode.window.showErrorMessage(`Bulk rename failed: ${error}`);
+		}
 	}
 
 	/**
