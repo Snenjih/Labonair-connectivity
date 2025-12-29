@@ -205,6 +205,19 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					setDiskSpaceLoading(false);
 					break;
 				}
+
+				case 'CHECKSUM_RESULT': {
+					const { checksum, algorithm, filename } = message.payload;
+					// Create a modal/dialog showing the checksum with copy button
+					const result = `${algorithm.toUpperCase()} Checksum for ${filename}:\n\n${checksum}`;
+
+					// Copy to clipboard
+					navigator.clipboard.writeText(checksum);
+
+					// Show result (you can replace this with a proper dialog later)
+					alert(`${result}\n\n(Checksum copied to clipboard)`);
+					break;
+				}
 			}
 		};
 
@@ -824,6 +837,55 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		});
 	};
 
+	const handleOpenInExplorer = (file: FileEntry) => {
+		vscode.postMessage({
+			command: 'OPEN_IN_EXPLORER',
+			payload: { hostId, path: file.path, fileSystem: getActiveState().fileSystem }
+		});
+	};
+
+	const handleOpenWithDefault = (file: FileEntry) => {
+		vscode.postMessage({
+			command: 'OPEN_WITH_DEFAULT',
+			payload: { hostId, path: file.path, fileSystem: getActiveState().fileSystem }
+		});
+	};
+
+	const handleCalculateChecksum = (file: FileEntry, algorithm: 'md5' | 'sha1' | 'sha256') => {
+		vscode.postMessage({
+			command: 'CALCULATE_CHECKSUM',
+			payload: { hostId, path: file.path, fileSystem: getActiveState().fileSystem, algorithm }
+		});
+	};
+
+	const handleCopyPathAdvanced = (file: FileEntry, type: 'name' | 'fullPath' | 'url') => {
+		vscode.postMessage({
+			command: 'COPY_PATH_ADVANCED',
+			payload: { path: file.path, type, hostId }
+		});
+	};
+
+	const handleCreateSymlink = (file: FileEntry) => {
+		const currentPath = getActiveState().currentPath;
+		const linkName = prompt(`Enter name for symbolic link to ${file.name}:`, `${file.name}_link`);
+
+		if (linkName) {
+			const targetPath = `${currentPath}/${linkName}`;
+			vscode.postMessage({
+				command: 'CREATE_SYMLINK',
+				payload: {
+					hostId,
+					sourcePath: file.path,
+					targetPath,
+					fileSystem: getActiveState().fileSystem
+				}
+			});
+
+			// Refresh after a short delay
+			setTimeout(() => handleRefresh(), 500);
+		}
+	};
+
 	/**
 	 * Upload handlers
 	 */
@@ -1136,6 +1198,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					searchQuery={state.searchQuery}
 					hostId={hostId}
 					panelId={panelId}
+					fileSystem={state.fileSystem}
 					onFileSelect={handleFileSelect}
 					onFileOpen={handleFileOpen}
 					onFileEdit={handleFileEdit}
@@ -1149,6 +1212,11 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					onInternalDrop={handleInternalDrop}
 					onArchiveExtract={handleArchiveExtract}
 					onArchiveCompress={handleArchiveCompress}
+					onOpenInExplorer={handleOpenInExplorer}
+					onOpenWithDefault={handleOpenWithDefault}
+					onCalculateChecksum={handleCalculateChecksum}
+					onCopyPathAdvanced={handleCopyPathAdvanced}
+					onCreateSymlink={handleCreateSymlink}
 					compareMode={compareMode}
 					missingFiles={missing}
 					newerFiles={newer}

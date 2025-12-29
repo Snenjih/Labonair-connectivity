@@ -961,4 +961,46 @@ export class SftpService {
 			});
 		});
 	}
+
+	/**
+	 * Calculates checksum for a remote file using SSH commands
+	 * @param hostId - The host identifier
+	 * @param remotePath - Path to the remote file
+	 * @param algorithm - Hash algorithm (md5, sha1, sha256)
+	 * @returns The hex-encoded checksum string
+	 */
+	public async calculateChecksum(hostId: string, remotePath: string, algorithm: 'md5' | 'sha1' | 'sha256'): Promise<string> {
+		// Map algorithm to command
+		const commandMap = {
+			'md5': 'md5sum',
+			'sha1': 'sha1sum',
+			'sha256': 'sha256sum'
+		};
+
+		const command = `${commandMap[algorithm]} '${remotePath}'`;
+		const output = await this.executeCommand(hostId, command);
+
+		// Parse output: "checksum  filename"
+		const match = output.match(/^([a-f0-9]+)/i);
+		if (!match) {
+			throw new Error(`Failed to parse checksum output: ${output}`);
+		}
+
+		return match[1].toLowerCase();
+	}
+
+	/**
+	 * Creates a symbolic link on the remote server
+	 * @param hostId - The host identifier
+	 * @param sourcePath - Path to the source file/directory (what the symlink points to)
+	 * @param targetPath - Path where the symlink should be created
+	 */
+	public async createSymlink(hostId: string, sourcePath: string, targetPath: string): Promise<void> {
+		const command = `ln -s '${sourcePath}' '${targetPath}'`;
+		await this.executeCommand(hostId, command);
+
+		// Invalidate cache for parent directory
+		const parentPath = targetPath.split('/').slice(0, -1).join('/') || '/';
+		this.directoryCache.delete(`${hostId}:${parentPath}`);
+	}
 }

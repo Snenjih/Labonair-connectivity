@@ -672,6 +672,130 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 					}
 					break;
 				}
+
+				// ============================================================
+				// ADVANCED CONTEXT ACTIONS (Subphase 4.4.2)
+				// ============================================================
+				case 'OPEN_IN_EXPLORER': {
+					try {
+						const { path, fileSystem } = message.payload;
+
+						if (fileSystem === 'local') {
+							// For local files, reveal in OS file explorer
+							const uri = vscode.Uri.file(path);
+							await vscode.commands.executeCommand('revealFileInOS', uri);
+						} else {
+							// For remote files, download to temp and reveal
+							const remotePath = path;
+							const tempPath = require('path').join(require('os').tmpdir(), require('path').basename(remotePath));
+
+							await this._sftpService.getFile(message.payload.hostId, remotePath, tempPath);
+							const uri = vscode.Uri.file(tempPath);
+							await vscode.commands.executeCommand('revealFileInOS', uri);
+						}
+					} catch (error) {
+						vscode.window.showErrorMessage(`Failed to open in explorer: ${error}`);
+					}
+					break;
+				}
+
+				case 'OPEN_WITH_DEFAULT': {
+					try {
+						const { path, fileSystem } = message.payload;
+
+						if (fileSystem === 'local') {
+							// For local files, open with default application
+							const uri = vscode.Uri.file(path);
+							await vscode.env.openExternal(uri);
+						} else {
+							// For remote files, download to temp and open
+							const remotePath = path;
+							const tempPath = require('path').join(require('os').tmpdir(), require('path').basename(remotePath));
+
+							await this._sftpService.getFile(message.payload.hostId, remotePath, tempPath);
+							const uri = vscode.Uri.file(tempPath);
+							await vscode.env.openExternal(uri);
+						}
+					} catch (error) {
+						vscode.window.showErrorMessage(`Failed to open with default application: ${error}`);
+					}
+					break;
+				}
+
+				case 'CALCULATE_CHECKSUM': {
+					try {
+						const { path, fileSystem, algorithm } = message.payload;
+						let checksum: string;
+						const filename = require('path').basename(path);
+
+						if (fileSystem === 'local') {
+							checksum = await this._localFsService.calculateChecksum(path, algorithm);
+						} else {
+							checksum = await this._sftpService.calculateChecksum(message.payload.hostId, path, algorithm);
+						}
+
+						// Send result back to webview
+						webviewView.webview.postMessage({
+							command: 'CHECKSUM_RESULT',
+							payload: { checksum, algorithm, filename }
+						});
+					} catch (error) {
+						vscode.window.showErrorMessage(`Failed to calculate checksum: ${error}`);
+					}
+					break;
+				}
+
+				case 'COPY_PATH_ADVANCED': {
+					try {
+						const { path, type, hostId } = message.payload;
+						let textToCopy: string;
+
+						if (type === 'name') {
+							// Copy just the filename
+							textToCopy = require('path').basename(path);
+						} else if (type === 'fullPath') {
+							// Copy full path
+							textToCopy = path;
+						} else if (type === 'url') {
+							// Copy as SFTP URL (sftp://user@host/path)
+							if (hostId) {
+								const host = this._hostService.getHostById(hostId);
+								if (host) {
+									textToCopy = `sftp://${host.username}@${host.host}:${host.port}${path}`;
+								} else {
+									textToCopy = path;
+								}
+							} else {
+								textToCopy = `file://${path}`;
+							}
+						} else {
+							textToCopy = path;
+						}
+
+						await vscode.env.clipboard.writeText(textToCopy);
+						vscode.window.showInformationMessage(`Copied to clipboard: ${textToCopy}`);
+					} catch (error) {
+						vscode.window.showErrorMessage(`Failed to copy path: ${error}`);
+					}
+					break;
+				}
+
+				case 'CREATE_SYMLINK': {
+					try {
+						const { sourcePath, targetPath, fileSystem } = message.payload;
+
+						if (fileSystem === 'local') {
+							await this._localFsService.createSymlink(sourcePath, targetPath);
+						} else {
+							await this._sftpService.createSymlink(message.payload.hostId, sourcePath, targetPath);
+						}
+
+						vscode.window.showInformationMessage(`Symbolic link created successfully`);
+					} catch (error) {
+						vscode.window.showErrorMessage(`Failed to create symbolic link: ${error}`);
+					}
+					break;
+				}
 			}
 		});
 	}

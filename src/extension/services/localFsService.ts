@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as crypto from 'crypto';
 import { FileEntry } from '../../common/types';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -426,5 +427,54 @@ export class LocalFsService {
 	public async writeFile(filePath: string, content: string, encoding: BufferEncoding = 'utf-8'): Promise<void> {
 		const resolvedPath = this.resolvePath(filePath);
 		await fs.promises.writeFile(resolvedPath, content, encoding);
+	}
+
+	/**
+	 * Calculates checksum for a file using the specified algorithm
+	 * @param filePath - Path to the file
+	 * @param algorithm - Hash algorithm (md5, sha1, sha256)
+	 * @returns The hex-encoded checksum string
+	 */
+	public async calculateChecksum(filePath: string, algorithm: 'md5' | 'sha1' | 'sha256'): Promise<string> {
+		const resolvedPath = this.resolvePath(filePath);
+
+		return new Promise((resolve, reject) => {
+			const hash = crypto.createHash(algorithm);
+			const stream = fs.createReadStream(resolvedPath);
+
+			stream.on('data', (chunk) => {
+				hash.update(chunk);
+			});
+
+			stream.on('end', () => {
+				resolve(hash.digest('hex'));
+			});
+
+			stream.on('error', (error) => {
+				reject(new Error(`Failed to calculate checksum: ${error.message}`));
+			});
+		});
+	}
+
+	/**
+	 * Creates a symbolic link
+	 * @param sourcePath - Path to the source file/directory (what the symlink points to)
+	 * @param targetPath - Path where the symlink should be created
+	 */
+	public async createSymlink(sourcePath: string, targetPath: string): Promise<void> {
+		if (process.platform === 'win32') {
+			// On Windows, determine if source is a directory or file
+			const resolvedSource = this.resolvePath(sourcePath);
+			const stats = await fs.promises.stat(resolvedSource);
+			const type = stats.isDirectory() ? 'dir' : 'file';
+
+			const resolvedTarget = this.resolvePath(targetPath);
+			await fs.promises.symlink(resolvedSource, resolvedTarget, type);
+		} else {
+			// On Unix/Mac, symlink type is not required
+			const resolvedSource = this.resolvePath(sourcePath);
+			const resolvedTarget = this.resolvePath(targetPath);
+			await fs.promises.symlink(resolvedSource, resolvedTarget);
+		}
 	}
 }

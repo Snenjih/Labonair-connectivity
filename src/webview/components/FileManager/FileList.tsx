@@ -9,7 +9,11 @@ import {
 	FileEdit,
 	ArrowRight,
 	Archive,
-	FolderArchive
+	FolderArchive,
+	ExternalLink,
+	Hash,
+	Link2,
+	FolderOpen
 } from 'lucide-react';
 import { FileEntry } from '../../../common/types';
 import { FileIcon } from '../FileIcon';
@@ -22,6 +26,7 @@ interface FileListProps {
 	searchQuery: string;
 	hostId: string;
 	panelId?: 'left' | 'right';
+	fileSystem?: 'local' | 'remote';
 	onFileSelect: (filePath: string, ctrlKey: boolean, shiftKey: boolean) => void;
 	onFileOpen: (file: FileEntry) => void;
 	onFileEdit: (file: FileEntry) => void;
@@ -35,6 +40,11 @@ interface FileListProps {
 	onInternalDrop?: (sourcePaths: string[], targetPath: string, sourcePanel?: 'left' | 'right') => void;
 	onArchiveExtract?: (file: FileEntry) => void;
 	onArchiveCompress?: (files: FileEntry[]) => void;
+	onOpenInExplorer?: (file: FileEntry) => void;
+	onOpenWithDefault?: (file: FileEntry) => void;
+	onCalculateChecksum?: (file: FileEntry, algorithm: 'md5' | 'sha1' | 'sha256') => void;
+	onCopyPathAdvanced?: (file: FileEntry, type: 'name' | 'fullPath' | 'url') => void;
+	onCreateSymlink?: (file: FileEntry) => void;
 	compareMode?: boolean;
 	missingFiles?: Set<string>;
 	newerFiles?: Set<string>;
@@ -55,6 +65,7 @@ export const FileList: React.FC<FileListProps> = ({
 	missingFiles = new Set(),
 	newerFiles = new Set(),
 	panelId,
+	fileSystem = 'remote',
 	onFileSelect,
 	onFileOpen,
 	onFileEdit,
@@ -67,13 +78,19 @@ export const FileList: React.FC<FileListProps> = ({
 	onDrop,
 	onInternalDrop,
 	onArchiveExtract,
-	onArchiveCompress
+	onArchiveCompress,
+	onOpenInExplorer,
+	onOpenWithDefault,
+	onCalculateChecksum,
+	onCopyPathAdvanced,
+	onCreateSymlink
 }) => {
 	const [contextMenu, setContextMenu] = useState<{
 		x: number;
 		y: number;
 		file: FileEntry;
 	} | null>(null);
+	const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
 	const [dragOver, setDragOver] = useState(false);
 	const [dragging, setDragging] = useState(false);
 	const [scrollTop, setScrollTop] = useState(0);
@@ -247,6 +264,7 @@ export const FileList: React.FC<FileListProps> = ({
 	 */
 	const closeContextMenu = useCallback(() => {
 		setContextMenu(null);
+		setActiveSubmenu(null);
 	}, []);
 
 	// Close context menu on click outside
@@ -543,6 +561,50 @@ export const FileList: React.FC<FileListProps> = ({
 					</>
 				)}
 
+				{/* Open With... submenu */}
+				{(onOpenInExplorer || onOpenWithDefault) && (
+					<>
+						<div
+							className="context-menu-item submenu-trigger"
+							onMouseEnter={() => setActiveSubmenu('openWith')}
+							onMouseLeave={() => setActiveSubmenu(null)}
+						>
+							<ExternalLink size={14} />
+							<span>Open With...</span>
+							<ArrowRight size={12} style={{ marginLeft: 'auto' }} />
+							{activeSubmenu === 'openWith' && (
+								<div className="context-submenu">
+									{onOpenInExplorer && (
+										<button
+											className="context-menu-item"
+											onClick={() => {
+												onOpenInExplorer(file);
+												closeContextMenu();
+											}}
+										>
+											<FolderOpen size={14} />
+											<span>Open in System Explorer</span>
+										</button>
+									)}
+									{onOpenWithDefault && file.type !== 'd' && (
+										<button
+											className="context-menu-item"
+											onClick={() => {
+												onOpenWithDefault(file);
+												closeContextMenu();
+											}}
+										>
+											<ExternalLink size={14} />
+											<span>Open with System Default</span>
+										</button>
+									)}
+								</div>
+							)}
+						</div>
+						<div className="context-menu-separator" />
+					</>
+				)}
+
 				{/* Archive Operations */}
 				{isArchive && onArchiveExtract && (
 					<>
@@ -585,16 +647,101 @@ export const FileList: React.FC<FileListProps> = ({
 					<Edit size={14} />
 					<span>Rename</span>
 				</button>
-				<button
-					className="context-menu-item"
-					onClick={() => {
-						onCopyPath(file.path);
-						closeContextMenu();
-					}}
-				>
-					<Copy size={14} />
-					<span>Copy Path</span>
-				</button>
+
+				{/* Copy Path submenu */}
+				{onCopyPathAdvanced && (
+					<div
+						className="context-menu-item submenu-trigger"
+						onMouseEnter={() => setActiveSubmenu('copyPath')}
+						onMouseLeave={() => setActiveSubmenu(null)}
+					>
+						<Copy size={14} />
+						<span>Copy Path</span>
+						<ArrowRight size={12} style={{ marginLeft: 'auto' }} />
+						{activeSubmenu === 'copyPath' && (
+							<div className="context-submenu">
+								<button
+									className="context-menu-item"
+									onClick={() => {
+										onCopyPathAdvanced(file, 'name');
+										closeContextMenu();
+									}}
+								>
+									<Copy size={14} />
+									<span>Copy Name</span>
+								</button>
+								<button
+									className="context-menu-item"
+									onClick={() => {
+										onCopyPathAdvanced(file, 'fullPath');
+										closeContextMenu();
+									}}
+								>
+									<Copy size={14} />
+									<span>Copy Full Path</span>
+								</button>
+								<button
+									className="context-menu-item"
+									onClick={() => {
+										onCopyPathAdvanced(file, 'url');
+										closeContextMenu();
+									}}
+								>
+									<Copy size={14} />
+									<span>Copy URL</span>
+								</button>
+							</div>
+						)}
+					</div>
+				)}
+
+				{/* Calculate Checksum submenu - only for files */}
+				{file.type !== 'd' && onCalculateChecksum && (
+					<div
+						className="context-menu-item submenu-trigger"
+						onMouseEnter={() => setActiveSubmenu('checksum')}
+						onMouseLeave={() => setActiveSubmenu(null)}
+					>
+						<Hash size={14} />
+						<span>Calculate Checksum</span>
+						<ArrowRight size={12} style={{ marginLeft: 'auto' }} />
+						{activeSubmenu === 'checksum' && (
+							<div className="context-submenu">
+								<button
+									className="context-menu-item"
+									onClick={() => {
+										onCalculateChecksum(file, 'md5');
+										closeContextMenu();
+									}}
+								>
+									<Hash size={14} />
+									<span>MD5</span>
+								</button>
+								<button
+									className="context-menu-item"
+									onClick={() => {
+										onCalculateChecksum(file, 'sha1');
+										closeContextMenu();
+									}}
+								>
+									<Hash size={14} />
+									<span>SHA1</span>
+								</button>
+								<button
+									className="context-menu-item"
+									onClick={() => {
+										onCalculateChecksum(file, 'sha256');
+										closeContextMenu();
+									}}
+								>
+									<Hash size={14} />
+									<span>SHA256</span>
+								</button>
+							</div>
+						)}
+					</div>
+				)}
+
 				<button
 					className="context-menu-item"
 					onClick={() => {
@@ -606,6 +753,21 @@ export const FileList: React.FC<FileListProps> = ({
 					<Info size={14} />
 					<span>Properties</span>
 				</button>
+
+				{/* Create Link */}
+				{onCreateSymlink && !isMultiSelect && (
+					<button
+						className="context-menu-item"
+						onClick={() => {
+							onCreateSymlink(file);
+							closeContextMenu();
+						}}
+					>
+						<Link2 size={14} />
+						<span>Create Link</span>
+					</button>
+				)}
+
 				<div className="context-menu-separator" />
 				<button
 					className="context-menu-item danger"

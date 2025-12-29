@@ -358,7 +358,15 @@ export type Message =
 
 	// Disk Space (Subphase 4.4.1)
 	| { command: 'GET_DISK_SPACE'; payload: { hostId: string; path: string; fileSystem: 'local' | 'remote' } }
-	| { command: 'DISK_SPACE_RESPONSE'; payload: { diskSpace: DiskSpaceInfo; fileSystem: 'local' | 'remote' } };
+	| { command: 'DISK_SPACE_RESPONSE'; payload: { diskSpace: DiskSpaceInfo; fileSystem: 'local' | 'remote' } }
+
+	// Advanced Context Actions (Subphase 4.4.2)
+	| { command: 'OPEN_IN_EXPLORER'; payload: { hostId: string; path: string; fileSystem: 'local' | 'remote' } }
+	| { command: 'OPEN_WITH_DEFAULT'; payload: { hostId: string; path: string; fileSystem: 'local' | 'remote' } }
+	| { command: 'CALCULATE_CHECKSUM'; payload: { hostId: string; path: string; fileSystem: 'local' | 'remote'; algorithm: 'md5' | 'sha1' | 'sha256' } }
+	| { command: 'CHECKSUM_RESULT'; payload: { checksum: string; algorithm: string; filename: string } }
+	| { command: 'COPY_PATH_ADVANCED'; payload: { path: string; type: 'name' | 'fullPath' | 'url'; hostId?: string } }
+	| { command: 'CREATE_SYMLINK'; payload: { hostId: string; sourcePath: string; targetPath: string; fileSystem: 'local' | 'remote' } };
 
 // ============================================================================
 // UTILITY TYPES
