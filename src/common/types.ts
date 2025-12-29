@@ -83,6 +83,21 @@ export interface FileEntry {
 	symlinkTarget?: string; // Target path if type is 'l'
 }
 
+export interface Bookmark {
+	id: string;
+	label: string;
+	path: string;
+	system: 'local' | 'remote';
+	hostId?: string;  // Only for remote bookmarks
+	createdAt: number;
+}
+
+export interface DiskSpaceInfo {
+	total: number;    // Total space in bytes
+	free: number;     // Free space in bytes
+	used: number;     // Used space in bytes
+}
+
 export interface TransferStatus {
 	filename: string;
 	progress: number;  // 0-100
@@ -333,7 +348,17 @@ export type Message =
 	| { command: 'CONSOLE_STATUS'; payload: { status: 'connecting' | 'connected' | 'disconnected' | 'error'; message?: string } }
 
 	// Bulk Rename (Subphase 4.4)
-	| { command: 'BULK_RENAME'; payload: { hostId: string; operations: { oldPath: string; newPath: string }[]; fileSystem: 'local' | 'remote' } };
+	| { command: 'BULK_RENAME'; payload: { hostId: string; operations: { oldPath: string; newPath: string }[]; fileSystem: 'local' | 'remote' } }
+
+	// Bookmarks (Subphase 4.4.1)
+	| { command: 'GET_BOOKMARKS'; payload: { hostId: string } }
+	| { command: 'BOOKMARKS_RESPONSE'; payload: { bookmarks: Bookmark[] } }
+	| { command: 'ADD_BOOKMARK'; payload: { bookmark: Omit<Bookmark, 'id' | 'createdAt'> } }
+	| { command: 'REMOVE_BOOKMARK'; payload: { bookmarkId: string; hostId: string } }
+
+	// Disk Space (Subphase 4.4.1)
+	| { command: 'GET_DISK_SPACE'; payload: { hostId: string; path: string; fileSystem: 'local' | 'remote' } }
+	| { command: 'DISK_SPACE_RESPONSE'; payload: { diskSpace: DiskSpaceInfo; fileSystem: 'local' | 'remote' } };
 
 // ============================================================================
 // UTILITY TYPES

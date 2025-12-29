@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FileEntry, TransferStatus } from '../../common/types';
+import { FileEntry, TransferStatus, Bookmark, DiskSpaceInfo } from '../../common/types';
 import { Toolbar } from '../components/FileManager/Toolbar';
 import { FileList } from '../components/FileManager/FileList';
+import { PanelStatus } from '../components/FileManager/PanelStatus';
 import FilePropertiesDialog from '../dialogs/FilePropertiesDialog';
 import SearchDialog from '../dialogs/SearchDialog';
 import BulkRenameDialog from '../dialogs/BulkRenameDialog';
@@ -54,6 +55,10 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	const [consoleHeight, setConsoleHeight] = useState<number>(200);
 	const [compareMode, setCompareMode] = useState<boolean>(false);
 	const [showBulkRenameDialog, setShowBulkRenameDialog] = useState<boolean>(false);
+	const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+	const [leftDiskSpace, setLeftDiskSpace] = useState<DiskSpaceInfo | null>(null);
+	const [rightDiskSpace, setRightDiskSpace] = useState<DiskSpaceInfo | null>(null);
+	const [diskSpaceLoading, setDiskSpaceLoading] = useState<boolean>(false);
 
 	// Panel states
 	const [leftPanel, setLeftPanel] = useState<PanelState>({
@@ -184,6 +189,22 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					setSearchQuery(message.payload.searchQuery);
 					break;
 				}
+
+				case 'BOOKMARKS_RESPONSE': {
+					setBookmarks(message.payload.bookmarks);
+					break;
+				}
+
+				case 'DISK_SPACE_RESPONSE': {
+					const panelId = message.payload.fileSystem === leftPanel.fileSystem ? 'left' : 'right';
+					if (panelId === 'left') {
+						setLeftDiskSpace(message.payload.diskSpace);
+					} else {
+						setRightDiskSpace(message.payload.diskSpace);
+					}
+					setDiskSpaceLoading(false);
+					break;
+				}
 			}
 		};
 
@@ -231,6 +252,43 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		stateLoaded,
 		hostId
 	]);
+
+	// Request bookmarks on mount
+	useEffect(() => {
+		vscode.postMessage({
+			command: 'GET_BOOKMARKS',
+			payload: { hostId }
+		});
+	}, [hostId]);
+
+	// Request disk space when path or file system changes
+	useEffect(() => {
+		if (leftPanel.currentPath) {
+			setDiskSpaceLoading(true);
+			vscode.postMessage({
+				command: 'GET_DISK_SPACE',
+				payload: {
+					hostId,
+					path: leftPanel.currentPath,
+					fileSystem: leftPanel.fileSystem
+				}
+			});
+		}
+	}, [leftPanel.currentPath, leftPanel.fileSystem, hostId]);
+
+	useEffect(() => {
+		if (layoutMode === 'commander' && rightPanel.currentPath) {
+			setDiskSpaceLoading(true);
+			vscode.postMessage({
+				command: 'GET_DISK_SPACE',
+				payload: {
+					hostId,
+					path: rightPanel.currentPath,
+					fileSystem: rightPanel.fileSystem
+				}
+			});
+		}
+	}, [rightPanel.currentPath, rightPanel.fileSystem, layoutMode, hostId]);
 
 	// Commander hotkeys (Tab, Space, Insert, F-Keys, Clipboard)
 	useEffect(() => {
@@ -949,6 +1007,65 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	};
 
 	/**
+	 * Bookmark handlers
+	 */
+	const handleAddBookmark = (label: string, path: string, system: 'local' | 'remote') => {
+		vscode.postMessage({
+			command: 'ADD_BOOKMARK',
+			payload: {
+				bookmark: {
+					label,
+					path,
+					system,
+					hostId: system === 'remote' ? hostId : undefined
+				}
+			}
+		});
+
+		// Refresh bookmarks
+		setTimeout(() => {
+			vscode.postMessage({
+				command: 'GET_BOOKMARKS',
+				payload: { hostId }
+			});
+		}, 100);
+	};
+
+	const handleRemoveBookmark = (bookmarkId: string) => {
+		vscode.postMessage({
+			command: 'REMOVE_BOOKMARK',
+			payload: { bookmarkId, hostId }
+		});
+
+		// Refresh bookmarks
+		setTimeout(() => {
+			vscode.postMessage({
+				command: 'GET_BOOKMARKS',
+				payload: { hostId }
+			});
+		}, 100);
+	};
+
+	const handleNavigateToBookmark = (path: string) => {
+		navigateToPath(path);
+	};
+
+	const handleHistoryNavigate = (index: number) => {
+		const state = getActiveState();
+		const path = state.history[index];
+
+		setActiveState(prev => ({
+			...prev,
+			historyIndex: index,
+			currentPath: path,
+			selection: [],
+			focusedFile: null
+		}));
+
+		loadDirectory(path);
+	};
+
+	/**
 	 * View mode handlers
 	 */
 	const handleSearchChange = (query: string) => {
@@ -1003,6 +1120,8 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		const state = panelId === 'left' ? leftPanel : rightPanel;
 		const isActive = activePanel === panelId;
 		const { missing, newer } = getFileDifferences();
+		const diskSpace = panelId === 'left' ? leftDiskSpace : rightDiskSpace;
+		const selectedFiles = state.files.filter(f => state.selection.includes(f.path));
 
 		return (
 			<div
@@ -1035,6 +1154,13 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					newerFiles={newer}
 				/>
 
+				<PanelStatus
+					files={state.files}
+					selectedFiles={selectedFiles}
+					diskSpace={diskSpace}
+					isLoading={diskSpaceLoading}
+				/>
+
 				{state.isLoading && (
 					<div className="loading-overlay">
 						<div className="spinner" />
@@ -1058,6 +1184,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
 				isLoading={getActiveState().isLoading}
 				searchQuery={getActiveState().searchQuery}
 				fileSystem={getActiveState().fileSystem}
+				bookmarks={bookmarks}
+				history={getActiveState().history}
+				historyIndex={getActiveState().historyIndex}
 				onNavigateHome={handleNavigateHome}
 				onNavigateUp={handleNavigateUp}
 				onNavigateBack={handleNavigateBack}
@@ -1074,6 +1203,10 @@ export const FileManager: React.FC<FileManagerProps> = ({
 				onSearchChange={handleSearchChange}
 				onPathNavigate={navigateToPath}
 				onFileSystemChange={handleFileSystemChange}
+				onAddBookmark={handleAddBookmark}
+				onRemoveBookmark={handleRemoveBookmark}
+				onNavigateToBookmark={handleNavigateToBookmark}
+				onHistoryNavigate={handleHistoryNavigate}
 			/>
 
 			{/* Error Message */}

@@ -20,6 +20,8 @@ import { EditHandler } from './services/editHandler';
 import { TransferService } from './services/transferService';
 import { BroadcastService } from './services/broadcastService';
 import { BadgeService } from './services/badgeService';
+import { BookmarkService } from './services/bookmarkService';
+import { DiskSpaceService } from './services/diskSpaceService';
 import { SftpPanel } from './panels/sftpPanel';
 import { TerminalPanel } from './panels/TerminalPanel';
 import { Message, Host, HostStatus, TransferJob, TransferQueueSummary } from '../common/types';
@@ -48,6 +50,8 @@ export async function activate(context: vscode.ExtensionContext) {
 	const archiveService = new ArchiveService(sftpService);
 	const editHandler = new EditHandler(sftpService, hostService, credentialService, context);
 	const broadcastService = new BroadcastService();
+	const bookmarkService = new BookmarkService(context);
+	const diskSpaceService = new DiskSpaceService(sftpService);
 
 	// Session Restoration
 	await restoreSessions(context, sessionTracker, hostService, credentialService, hostKeyService, sftpService, localFsService, clipboardService, stateService, archiveService);
@@ -140,7 +144,9 @@ export async function activate(context: vscode.ExtensionContext) {
 			stateService,
 			archiveService,
 			broadcastService,
-			editHandler
+			editHandler,
+			bookmarkService,
+			diskSpaceService
 		);
 		context.subscriptions.push(
 			vscode.window.registerWebviewViewProvider('labonair.views.hosts', provider)
@@ -186,7 +192,9 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		private readonly _stateService: StateService,
 		private readonly _archiveService: ArchiveService,
 		private readonly _broadcastService: BroadcastService,
-		private readonly _editHandler: EditHandler
+		private readonly _editHandler: EditHandler,
+		private readonly _bookmarkService: BookmarkService,
+		private readonly _diskSpaceService: DiskSpaceService
 	) { }
 
 	public resolveWebviewView(
@@ -600,6 +608,68 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 				case 'SET_CONTEXT': {
 					const { key, value } = message.payload;
 					vscode.commands.executeCommand('setContext', key, value);
+					break;
+				}
+
+				// ============================================================
+				// BOOKMARKS (Subphase 4.4.1)
+				// ============================================================
+				case 'GET_BOOKMARKS': {
+					const bookmarks = this._bookmarkService.getBookmarks(message.payload.hostId);
+					webviewView.webview.postMessage({
+						command: 'BOOKMARKS_RESPONSE',
+						payload: { bookmarks }
+					});
+					break;
+				}
+
+				case 'ADD_BOOKMARK': {
+					await this._bookmarkService.addBookmark(message.payload.bookmark.hostId || 'local', message.payload.bookmark);
+					// Send updated bookmarks back
+					const bookmarks = this._bookmarkService.getBookmarks(message.payload.bookmark.hostId || 'local');
+					webviewView.webview.postMessage({
+						command: 'BOOKMARKS_RESPONSE',
+						payload: { bookmarks }
+					});
+					break;
+				}
+
+				case 'REMOVE_BOOKMARK': {
+					await this._bookmarkService.removeBookmark(message.payload.hostId, message.payload.bookmarkId);
+					// Send updated bookmarks back
+					const bookmarks = this._bookmarkService.getBookmarks(message.payload.hostId);
+					webviewView.webview.postMessage({
+						command: 'BOOKMARKS_RESPONSE',
+						payload: { bookmarks }
+					});
+					break;
+				}
+
+				// ============================================================
+				// DISK SPACE (Subphase 4.4.1)
+				// ============================================================
+				case 'GET_DISK_SPACE': {
+					try {
+						const diskSpace = await this._diskSpaceService.getDiskSpace(
+							message.payload.hostId,
+							message.payload.path,
+							message.payload.fileSystem
+						);
+						webviewView.webview.postMessage({
+							command: 'DISK_SPACE_RESPONSE',
+							payload: { diskSpace, fileSystem: message.payload.fileSystem }
+						});
+					} catch (error) {
+						console.error('[Main] Failed to get disk space:', error);
+						// Send empty response on error
+						webviewView.webview.postMessage({
+							command: 'DISK_SPACE_RESPONSE',
+							payload: {
+								diskSpace: { total: 0, free: 0, used: 0 },
+								fileSystem: message.payload.fileSystem
+							}
+						});
+					}
 					break;
 				}
 			}

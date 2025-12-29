@@ -724,3 +724,162 @@
 .console-resize-handle:hover {
 	background-color: var(--vscode-focusBorder) !important;
 }
+
+/* ============================================================================
+   PANEL STATUS STYLES (Subphase 4.4.1)
+   ============================================================================ */
+
+.panel-status {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 12px;
+	background: var(--vscode-statusBar-background);
+	border-top: 1px solid var(--vscode-panel-border);
+	font-size: 12px;
+	color: var(--vscode-statusBar-foreground);
+	flex-shrink: 0;
+	height: 28px;
+}
+
+.panel-status-section {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.panel-status-left {
+	flex: 0 0 auto;
+	justify-content: flex-start;
+}
+
+.panel-status-center {
+	flex: 1;
+	justify-content: center;
+	text-align: center;
+}
+
+.panel-status-right {
+	flex: 0 0 auto;
+	justify-content: flex-end;
+}
+
+.panel-status-label {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.panel-status-muted {
+	opacity: 0.6;
+}
+
+/* ============================================================================
+   TOOLBAR DROPDOWN STYLES (Subphase 4.4.1)
+   ============================================================================ */
+
+.toolbar-dropdown {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	margin-top: 4px;
+	background: var(--vscode-dropdown-background);
+	border: 1px solid var(--vscode-dropdown-border);
+	border-radius: 4px;
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+	min-width: 200px;
+	max-width: 400px;
+	max-height: 400px;
+	overflow-y: auto;
+	z-index: 1000;
+}
+
+.toolbar-dropdown-item {
+	padding: 8px 12px;
+	cursor: pointer;
+	color: var(--vscode-dropdown-foreground);
+	font-size: 13px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	transition: background-color 0.1s ease;
+}
+
+.toolbar-dropdown-item:hover {
+	background: var(--vscode-list-hoverBackground);
+}
+
+.toolbar-dropdown-add {
+	font-weight: 500;
+	color: var(--vscode-textLink-foreground);
+}
+
+.toolbar-dropdown-divider {
+	height: 1px;
+	background: var(--vscode-dropdown-border);
+	margin: 4px 0;
+}
+
+.toolbar-dropdown-header {
+	padding: 6px 12px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	color: var(--vscode-descriptionForeground);
+	letter-spacing: 0.5px;
+}
+
+.toolbar-dropdown-bookmark {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	padding-right: 32px;
+	position: relative;
+}
+
+.toolbar-dropdown-bookmark-label {
+	font-weight: 500;
+	color: var(--vscode-foreground);
+}
+
+.toolbar-dropdown-bookmark-path {
+	font-size: 11px;
+	color: var(--vscode-descriptionForeground);
+	font-family: var(--vscode-editor-font-family);
+}
+
+.toolbar-dropdown-bookmark-delete {
+	position: absolute;
+	right: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	background: transparent;
+	border: none;
+	color: var(--vscode-descriptionForeground);
+	cursor: pointer;
+	padding: 4px;
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background-color 0.1s ease;
+}
+
+.toolbar-dropdown-bookmark-delete:hover {
+	background: var(--vscode-button-secondaryHoverBackground);
+	color: var(--vscode-errorForeground);
+}
+
+.toolbar-dropdown-empty {
+	color: var(--vscode-descriptionForeground);
+	font-style: italic;
+	cursor: default;
+}
+
+.toolbar-dropdown-empty:hover {
+	background: transparent;
+}

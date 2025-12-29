@@ -79,7 +79,12 @@
 			"properties": {
 				"labonair.sftp.ignorePatterns": {
 					"type": "array",
-					"default": [".git", ".DS_Store", "node_modules", "Thumbs.db"],
+					"default": [
+						".git",
+						".DS_Store",
+						"node_modules",
+						"Thumbs.db"
+					],
 					"description": "File and folder patterns to ignore during SFTP transfers",
 					"items": {
 						"type": "string"
@@ -109,6 +114,7 @@
 		"iconv-lite": "^0.6.3",
 		"lucide-react": "^0.300.0",
 		"minimatch": "^9.0.3",
+		"node-disk-info": "^1.3.0",
 		"node-pty": "^1.0.0",
 		"react": "^18.2.0",
 		"react-dom": "^18.2.0",

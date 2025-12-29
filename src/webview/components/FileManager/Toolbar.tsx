@@ -14,8 +14,11 @@ import {
 	Columns,
 	Link2,
 	Unlink,
-	Search
+	Search,
+	Star,
+	Trash2
 } from 'lucide-react';
+import { Bookmark } from '../../../common/types';
 
 interface ToolbarProps {
 	currentPath: string;
@@ -27,6 +30,9 @@ interface ToolbarProps {
 	isLoading: boolean;
 	searchQuery: string;
 	fileSystem?: 'local' | 'remote';
+	bookmarks?: Bookmark[];
+	history?: string[];
+	historyIndex?: number;
 	onNavigateHome: () => void;
 	onNavigateUp: () => void;
 	onNavigateBack: () => void;
@@ -43,6 +49,10 @@ interface ToolbarProps {
 	onSearchChange: (query: string) => void;
 	onPathNavigate?: (path: string) => void;
 	onFileSystemChange?: (mode: 'local' | 'remote') => void;
+	onAddBookmark?: (label: string, path: string, system: 'local' | 'remote') => void;
+	onRemoveBookmark?: (bookmarkId: string) => void;
+	onNavigateToBookmark?: (path: string) => void;
+	onHistoryNavigate?: (index: number) => void;
 }
 
 /**
@@ -59,6 +69,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 	isLoading,
 	searchQuery,
 	fileSystem = 'remote',
+	bookmarks = [],
+	history = [],
+	historyIndex = 0,
 	onNavigateHome,
 	onNavigateUp,
 	onNavigateBack,
@@ -74,11 +87,21 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 	onSyncBrowsingChange,
 	onSearchChange,
 	onPathNavigate,
-	onFileSystemChange
+	onFileSystemChange,
+	onAddBookmark,
+	onRemoveBookmark,
+	onNavigateToBookmark,
+	onHistoryNavigate
 }) => {
 	const [pathInput, setPathInput] = useState(currentPath);
 	const [isEditMode, setIsEditMode] = useState(false);
+	const [showBookmarksDropdown, setShowBookmarksDropdown] = useState(false);
+	const [showBackHistoryDropdown, setShowBackHistoryDropdown] = useState(false);
+	const [showForwardHistoryDropdown, setShowForwardHistoryDropdown] = useState(false);
 	const inputRef = React.useRef<HTMLInputElement>(null);
+	const bookmarksDropdownRef = React.useRef<HTMLDivElement>(null);
+	const backHistoryDropdownRef = React.useRef<HTMLDivElement>(null);
+	const forwardHistoryDropdownRef = React.useRef<HTMLDivElement>(null);
 
 	// Update path input when currentPath changes
 	React.useEffect(() => {
@@ -163,6 +186,98 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 		}
 	};
 
+	/**
+	 * Close dropdowns when clicking outside
+	 */
+	React.useEffect(() => {
+		const handleClickOutside = (e: MouseEvent) => {
+			if (bookmarksDropdownRef.current && !bookmarksDropdownRef.current.contains(e.target as Node)) {
+				setShowBookmarksDropdown(false);
+			}
+			if (backHistoryDropdownRef.current && !backHistoryDropdownRef.current.contains(e.target as Node)) {
+				setShowBackHistoryDropdown(false);
+			}
+			if (forwardHistoryDropdownRef.current && !forwardHistoryDropdownRef.current.contains(e.target as Node)) {
+				setShowForwardHistoryDropdown(false);
+			}
+		};
+
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, []);
+
+	/**
+	 * Handle adding a bookmark
+	 */
+	const handleAddBookmark = () => {
+		if (onAddBookmark) {
+			// Generate a label from the current path
+			const pathParts = currentPath.split('/').filter(p => p);
+			const label = pathParts.length > 0 ? pathParts[pathParts.length - 1] : (currentPath === '/' ? 'Root' : 'Home');
+			onAddBookmark(label, currentPath, fileSystem || 'remote');
+			setShowBookmarksDropdown(false);
+		}
+	};
+
+	/**
+	 * Handle navigating to a bookmark
+	 */
+	const handleBookmarkClick = (path: string) => {
+		if (onNavigateToBookmark) {
+			onNavigateToBookmark(path);
+			setShowBookmarksDropdown(false);
+		}
+	};
+
+	/**
+	 * Handle removing a bookmark
+	 */
+	const handleRemoveBookmark = (e: React.MouseEvent, bookmarkId: string) => {
+		e.stopPropagation();
+		if (onRemoveBookmark) {
+			onRemoveBookmark(bookmarkId);
+		}
+	};
+
+	/**
+	 * Handle history navigation
+	 */
+	const handleHistoryItemClick = (index: number) => {
+		if (onHistoryNavigate) {
+			onHistoryNavigate(index);
+			setShowBackHistoryDropdown(false);
+			setShowForwardHistoryDropdown(false);
+		}
+	};
+
+	/**
+	 * Get history items for back dropdown (items before current index)
+	 */
+	const getBackHistory = (): Array<{ index: number; path: string }> => {
+		return history.slice(0, historyIndex).reverse().slice(0, 10).map((path, i) => ({
+			index: historyIndex - i - 1,
+			path
+		}));
+	};
+
+	/**
+	 * Get history items for forward dropdown (items after current index)
+	 */
+	const getForwardHistory = (): Array<{ index: number; path: string }> => {
+		return history.slice(historyIndex + 1, historyIndex + 11).map((path, i) => ({
+			index: historyIndex + i + 1,
+			path
+		}));
+	};
+
+	/**
+	 * Group bookmarks by system type
+	 */
+	const groupedBookmarks = {
+		local: bookmarks.filter(b => b.system === 'local'),
+		remote: bookmarks.filter(b => b.system === 'remote')
+	};
+
 	return (
 		<div className="file-manager-toolbar">
 			{/* Location Switcher (Local/Remote) */}
@@ -195,24 +310,70 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
 			{/* Navigation Controls */}
 			<div className="toolbar-section toolbar-nav">
-				<button
-					className="toolbar-btn"
-					onClick={onNavigateBack}
-					disabled={!canGoBack || isLoading}
-					title="Back"
-					aria-label="Navigate back"
-				>
-					<ChevronLeft size={16} />
-				</button>
-				<button
-					className="toolbar-btn"
-					onClick={onNavigateForward}
-					disabled={!canGoForward || isLoading}
-					title="Forward"
-					aria-label="Navigate forward"
-				>
-					<ChevronRight size={16} />
-				</button>
+				{/* Back Button with History Dropdown */}
+				<div ref={backHistoryDropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
+					<button
+						className="toolbar-btn"
+						onClick={onNavigateBack}
+						onContextMenu={(e) => {
+							e.preventDefault();
+							if (canGoBack) {
+								setShowBackHistoryDropdown(!showBackHistoryDropdown);
+							}
+						}}
+						disabled={!canGoBack || isLoading}
+						title="Back (right-click for history)"
+						aria-label="Navigate back"
+					>
+						<ChevronLeft size={16} />
+					</button>
+					{showBackHistoryDropdown && canGoBack && (
+						<div className="toolbar-dropdown">
+							{getBackHistory().map((item) => (
+								<div
+									key={item.index}
+									className="toolbar-dropdown-item"
+									onClick={() => handleHistoryItemClick(item.index)}
+								>
+									{item.path}
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+
+				{/* Forward Button with History Dropdown */}
+				<div ref={forwardHistoryDropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
+					<button
+						className="toolbar-btn"
+						onClick={onNavigateForward}
+						onContextMenu={(e) => {
+							e.preventDefault();
+							if (canGoForward) {
+								setShowForwardHistoryDropdown(!showForwardHistoryDropdown);
+							}
+						}}
+						disabled={!canGoForward || isLoading}
+						title="Forward (right-click for history)"
+						aria-label="Navigate forward"
+					>
+						<ChevronRight size={16} />
+					</button>
+					{showForwardHistoryDropdown && canGoForward && (
+						<div className="toolbar-dropdown">
+							{getForwardHistory().map((item) => (
+								<div
+									key={item.index}
+									className="toolbar-dropdown-item"
+									onClick={() => handleHistoryItemClick(item.index)}
+								>
+									{item.path}
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+
 				<button
 					className="toolbar-btn"
 					onClick={onNavigateUp}
@@ -231,6 +392,86 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 				>
 					<Home size={16} />
 				</button>
+
+				{/* Bookmarks Button */}
+				{onAddBookmark && (
+					<div ref={bookmarksDropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
+						<button
+							className="toolbar-btn"
+							onClick={() => setShowBookmarksDropdown(!showBookmarksDropdown)}
+							disabled={isLoading}
+							title="Bookmarks"
+							aria-label="Toggle bookmarks"
+						>
+							<Star size={16} />
+						</button>
+						{showBookmarksDropdown && (
+							<div className="toolbar-dropdown">
+								<div
+									className="toolbar-dropdown-item toolbar-dropdown-add"
+									onClick={handleAddBookmark}
+								>
+									<Star size={14} />
+									<span>Add current folder to Bookmarks</span>
+								</div>
+								{bookmarks.length > 0 && <div className="toolbar-dropdown-divider" />}
+
+								{groupedBookmarks.local.length > 0 && (
+									<>
+										<div className="toolbar-dropdown-header">Local</div>
+										{groupedBookmarks.local.map((bookmark) => (
+											<div
+												key={bookmark.id}
+												className="toolbar-dropdown-item toolbar-dropdown-bookmark"
+												onClick={() => handleBookmarkClick(bookmark.path)}
+											>
+												<span className="toolbar-dropdown-bookmark-label">{bookmark.label}</span>
+												<span className="toolbar-dropdown-bookmark-path">{bookmark.path}</span>
+												<button
+													className="toolbar-dropdown-bookmark-delete"
+													onClick={(e) => handleRemoveBookmark(e, bookmark.id)}
+													title="Remove bookmark"
+												>
+													<Trash2 size={12} />
+												</button>
+											</div>
+										))}
+									</>
+								)}
+
+								{groupedBookmarks.remote.length > 0 && (
+									<>
+										<div className="toolbar-dropdown-header">Remote</div>
+										{groupedBookmarks.remote.map((bookmark) => (
+											<div
+												key={bookmark.id}
+												className="toolbar-dropdown-item toolbar-dropdown-bookmark"
+												onClick={() => handleBookmarkClick(bookmark.path)}
+											>
+												<span className="toolbar-dropdown-bookmark-label">{bookmark.label}</span>
+												<span className="toolbar-dropdown-bookmark-path">{bookmark.path}</span>
+												<button
+													className="toolbar-dropdown-bookmark-delete"
+													onClick={(e) => handleRemoveBookmark(e, bookmark.id)}
+													title="Remove bookmark"
+												>
+													<Trash2 size={12} />
+												</button>
+											</div>
+										))}
+									</>
+								)}
+
+								{bookmarks.length === 0 && (
+									<div className="toolbar-dropdown-item toolbar-dropdown-empty">
+										No bookmarks yet
+									</div>
+								)}
+							</div>
+						)}
+					</div>
+				)}
+
 				<button
 					className="toolbar-btn"
 					onClick={onRefresh}

@@ -917,4 +917,48 @@ export class SftpService {
 		// Clear cache for the entire directory tree
 		this.clearCache(hostId);
 	}
+
+	/**
+	 * Executes a shell command on the remote server
+	 * @param hostId - The host identifier
+	 * @param command - The command to execute
+	 * @returns The command output
+	 */
+	public async executeCommand(hostId: string, command: string): Promise<string> {
+		const host = await this.getHost(hostId);
+		const client = await ConnectionPool.acquire(
+			host,
+			this.hostService,
+			this.credentialService,
+			this.hostKeyService
+		);
+
+		return new Promise((resolve, reject) => {
+			client.exec(command, (err, stream) => {
+				if (err) {
+					reject(new Error(`Failed to execute command: ${err.message}`));
+					return;
+				}
+
+				let output = '';
+				let errorOutput = '';
+
+				stream.on('data', (data: Buffer) => {
+					output += data.toString();
+				});
+
+				stream.stderr.on('data', (data: Buffer) => {
+					errorOutput += data.toString();
+				});
+
+				stream.on('close', (code: number) => {
+					if (code === 0) {
+						resolve(output);
+					} else {
+						reject(new Error(`Command failed with code ${code}: ${errorOutput || output}`));
+					}
+				});
+			});
+		});
+	}
 }
