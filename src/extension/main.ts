@@ -34,6 +34,7 @@ import { SftpController } from './controllers/SftpController';
 import { CredentialController } from './controllers/CredentialController';
 import { TransferController } from './controllers/TransferController';
 import { StateController } from './controllers/StateController';
+import { ClipboardController } from './controllers/ClipboardController';
 
 // Store service instances for cleanup
 let sshConnectionServiceInstance: SshConnectionService | undefined;
@@ -155,7 +156,8 @@ export async function activate(context: vscode.ExtensionContext) {
 			broadcastService,
 			editHandler,
 			bookmarkService,
-			diskSpaceService
+			diskSpaceService,
+			transferService
 		);
 		context.subscriptions.push(
 			vscode.window.registerWebviewViewProvider('labonair.views.hosts', provider)
@@ -190,6 +192,7 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 	private _credentialController?: CredentialController;
 	private _transferController?: TransferController;
 	private _stateController?: StateController;
+	private _clipboardController?: ClipboardController;
 
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
@@ -209,7 +212,8 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		private readonly _broadcastService: BroadcastService,
 		private readonly _editHandler: EditHandler,
 		private readonly _bookmarkService: BookmarkService,
-		private readonly _diskSpaceService: DiskSpaceService
+		private readonly _diskSpaceService: DiskSpaceService,
+		private readonly _transferService: TransferService
 	) { }
 
 	public resolveWebviewView(
@@ -261,6 +265,13 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		this._credentialController = new CredentialController(
 			extensionContext,
 			this._credentialService
+		);
+
+		this._clipboardController = new ClipboardController(
+			extensionContext,
+			this._clipboardService,
+			this._transferService,
+			this._localFsService
 		);
 
 		// Register RPC handlers
@@ -1137,7 +1148,13 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		});
 
 		this._rpcRouter.register('context.openWithDefault', async (params) => {
-			await this._sftpController!.openWithDefault(params.hostId, params.path, params.fileSystem);
+			if (params.fileSystem === 'remote') {
+				// Use EditHandler for remote files to download and open externally
+				await this._editHandler.openFileExternally(params.hostId, params.path);
+			} else {
+				// Use SftpController for local files
+				await this._sftpController!.openWithDefault(params.hostId, params.path, params.fileSystem);
+			}
 		});
 
 		this._rpcRouter.register('context.calculateChecksum', async (params) => {
@@ -1150,6 +1167,17 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 
 		this._rpcRouter.register('context.createSymlink', async (params) => {
 			await this._sftpController!.createSymlink(params.hostId, params.sourcePath, params.targetPath, params.fileSystem);
+		});
+
+		// ============================================================
+		// CLIPBOARD OPERATIONS
+		// ============================================================
+		this._rpcRouter.register('clipboard.copy', async (params) => {
+			await this._clipboardController!.copy(params.files, params.sourceHostId, params.system, params.operation);
+		});
+
+		this._rpcRouter.register('clipboard.paste', async (params) => {
+			await this._clipboardController!.paste(params.targetPath, params.targetSystem, params.hostId);
 		});
 
 		// ============================================================

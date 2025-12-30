@@ -89,6 +89,32 @@
 					"items": {
 						"type": "string"
 					}
+				},
+				"labonair.files.associations": {
+					"type": "object",
+					"default": {
+						"*.png": "internal-preview",
+						"*.jpg": "internal-preview",
+						"*.jpeg": "internal-preview",
+						"*.gif": "internal-preview",
+						"*.svg": "internal-preview",
+						"*.pdf": "external",
+						"*.xlsx": "external",
+						"*.docx": "external",
+						"*.pptx": "external",
+						"*.log": "vscode",
+						"*.txt": "vscode",
+						"*.md": "vscode",
+						"*.json": "vscode",
+						"*.xml": "vscode",
+						"*.yaml": "vscode",
+						"*.yml": "vscode"
+					},
+					"description": "File extension to action mapping. Actions: 'internal-preview' (show in media panel), 'external' (open with system default app), 'vscode' (open in VS Code editor)",
+					"additionalProperties": {
+						"type": "string",
+						"enum": ["internal-preview", "external", "vscode"]
+					}
 				}
 			}
 		}

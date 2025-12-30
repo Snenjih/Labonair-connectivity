@@ -498,6 +498,61 @@ export class EditHandler {
 	}
 
 	/**
+	 * Opens a remote file with the system's default application
+	 * Downloads the file to temp, opens it externally, and watches for changes
+	 */
+	public async openFileExternally(hostId: string, remotePath: string): Promise<void> {
+		try {
+			// Get file stats first to check size
+			const fileInfo = await this.sftpService.stat(hostId, remotePath);
+
+			// Check file size limits
+			if (fileInfo.size > this.FILE_SIZE_HARD_LIMIT) {
+				vscode.window.showErrorMessage(
+					`File is too large (${this.formatSize(fileInfo.size)}). Maximum size is ${this.formatSize(this.FILE_SIZE_HARD_LIMIT)}.`
+				);
+				return;
+			}
+
+			// Create a unique temp file path
+			const fileName = path.basename(remotePath);
+			const sanitizedPath = remotePath.replace(/\//g, '_');
+			const tempFilePath = path.join(this.tempDir, `external_${hostId}_${sanitizedPath}`);
+
+			// Download the file
+			await vscode.window.withProgress({
+				location: vscode.ProgressLocation.Notification,
+				title: `Downloading ${fileName}...`,
+				cancellable: false
+			}, async () => {
+				await this.sftpService.getFile(hostId, remotePath, tempFilePath);
+			});
+
+			// Read original content for comparison
+			const originalContent = fs.readFileSync(tempFilePath, 'utf8');
+
+			// Open the file with system default application
+			const localUri = vscode.Uri.file(tempFilePath);
+			await vscode.env.openExternal(localUri);
+
+			// Track the mapping for file watcher (reuse existing watcher logic)
+			this.remoteFileMap.set(tempFilePath, {
+				localUri,
+				hostId,
+				remotePath,
+				permissions: fileInfo.permissions,
+				originalContent,
+				lastSaved: Date.now()
+			});
+
+			vscode.window.showInformationMessage(`Opened ${fileName} in system default application. Changes will be auto-uploaded on save.`);
+		} catch (error) {
+			vscode.window.showErrorMessage(`Failed to open file externally: ${error}`);
+			throw error;
+		}
+	}
+
+	/**
 	 * Cleanup on extension deactivation
 	 */
 	public dispose(): void {

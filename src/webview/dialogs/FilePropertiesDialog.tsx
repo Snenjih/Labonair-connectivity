@@ -9,13 +9,17 @@ interface FilePropertiesDialogProps {
 	hostId: string;
 	fileSystem?: 'local' | 'remote';
 	onSave: (octal: string, recursive: boolean) => void;
+	onChangeOwnership?: (owner: string, group: string, recursive: boolean) => void;
 	onClose: () => void;
 }
 
-const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostId, fileSystem = 'remote', onSave, onClose }) => {
-	const [activeTab, setActiveTab] = useState<'general' | 'permissions'>('general');
+const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostId, fileSystem = 'remote', onSave, onChangeOwnership, onClose }) => {
+	const [activeTab, setActiveTab] = useState<'general' | 'permissions' | 'ownership'>('general');
 	const [recursive, setRecursive] = useState(false);
+	const [ownerInput, setOwnerInput] = useState(file.owner || '');
+	const [groupInput, setGroupInput] = useState(file.group || '');
 	const isLocal = fileSystem === 'local';
+	const isRemote = fileSystem === 'remote';
 	const { octal, permissions, updatePermission, updateOctal } = usePermissions(
 		file.permissions?.slice(-3) || '644'
 	);
@@ -93,11 +97,21 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 	};
 
 	/**
-	 * Handles save button click
+	 * Handles save button click for permissions
 	 */
 	const handleSave = () => {
 		onSave(octal, recursive);
 		onClose();
+	};
+
+	/**
+	 * Handles save button click for ownership
+	 */
+	const handleSaveOwnership = () => {
+		if (onChangeOwnership) {
+			onChangeOwnership(ownerInput, groupInput, recursive);
+			onClose();
+		}
 	};
 
 	/**
@@ -178,6 +192,87 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 						<span className="property-value monospace">{file.symlinkTarget}</span>
 					</div>
 				)}
+			</div>
+		</div>
+	);
+
+	/**
+	 * Renders Ownership tab content
+	 */
+	const renderOwnershipTab = () => (
+		<div className="file-properties-ownership">
+			{isLocal && (
+				<div style={{
+					padding: '16px',
+					background: 'var(--vscode-textBlockQuote-background)',
+					border: '1px solid var(--vscode-textBlockQuote-border)',
+					borderRadius: '4px',
+					marginBottom: '16px'
+				}}>
+					<h4 style={{ marginTop: 0, marginBottom: '8px', fontSize: '13px' }}>
+						Local File Ownership
+					</h4>
+					<p style={{ margin: 0, fontSize: '12px', lineHeight: '1.5' }}>
+						Ownership for local files is managed by your operating system.
+						On Windows, file ownership uses a different system than Unix permissions.
+						On macOS/Linux, you can modify ownership using system tools or the command line (chown).
+					</p>
+					<p style={{ margin: '8px 0 0 0', fontSize: '12px', lineHeight: '1.5', color: 'var(--vscode-descriptionForeground)' }}>
+						<strong>Note:</strong> Ownership editing is only available for remote SFTP files.
+					</p>
+				</div>
+			)}
+
+			<div className="ownership-form">
+				<div className="form-group">
+					<label htmlFor="owner-input">Owner (User):</label>
+					<input
+						id="owner-input"
+						type="text"
+						className="text-input"
+						value={ownerInput}
+						onChange={(e) => setOwnerInput(e.target.value)}
+						placeholder="username or UID"
+						disabled={isLocal}
+					/>
+					<span className="help-text">Enter username or numeric UID</span>
+				</div>
+
+				<div className="form-group">
+					<label htmlFor="group-input">Group:</label>
+					<input
+						id="group-input"
+						type="text"
+						className="text-input"
+						value={groupInput}
+						onChange={(e) => setGroupInput(e.target.value)}
+						placeholder="groupname or GID"
+						disabled={isLocal}
+					/>
+					<span className="help-text">Enter group name or numeric GID</span>
+				</div>
+
+				{file.type === 'd' && (
+					<div className="recursive-option">
+						<label>
+							<input
+								type="checkbox"
+								checked={recursive}
+								onChange={(e) => setRecursive(e.target.checked)}
+								disabled={isLocal}
+							/>
+							<span>Apply to enclosed files and folders (recursive)</span>
+						</label>
+					</div>
+				)}
+			</div>
+
+			<div className="ownership-current">
+				<strong>Current Ownership:</strong>
+				<div className="current-values">
+					<div>Owner: <code>{file.owner || 'Unknown'}</code></div>
+					<div>Group: <code>{file.group || 'Unknown'}</code></div>
+				</div>
 			</div>
 		</div>
 	);
@@ -360,10 +455,18 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 						>
 							Permissions
 						</button>
+						<button
+							className={`tab-button ${activeTab === 'ownership' ? 'active' : ''}`}
+							onClick={() => setActiveTab('ownership')}
+						>
+							Ownership
+						</button>
 					</div>
 
 					<div className="tabs-content">
-						{activeTab === 'general' ? renderGeneralTab() : renderPermissionsTab()}
+						{activeTab === 'general' && renderGeneralTab()}
+						{activeTab === 'permissions' && renderPermissionsTab()}
+						{activeTab === 'ownership' && renderOwnershipTab()}
 					</div>
 				</div>
 
@@ -374,6 +477,11 @@ const FilePropertiesDialog: React.FC<FilePropertiesDialogProps> = ({ file, hostI
 					{activeTab === 'permissions' && !isLocal && (
 						<button className="vscode-button" onClick={handleSave}>
 							Save Permissions
+						</button>
+					)}
+					{activeTab === 'ownership' && isRemote && onChangeOwnership && (
+						<button className="vscode-button" onClick={handleSaveOwnership}>
+							Save Ownership
 						</button>
 					)}
 				</div>

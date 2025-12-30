@@ -6,6 +6,7 @@ import { PanelStatus } from '../components/FileManager/PanelStatus';
 import FilePropertiesDialog from '../dialogs/FilePropertiesDialog';
 import SearchDialog from '../dialogs/SearchDialog';
 import BulkRenameDialog from '../dialogs/BulkRenameDialog';
+import ChecksumDialog from '../dialogs/ChecksumDialog';
 import { Console } from '../components/FileManager/Console';
 import vscode from '../utils/vscode';
 import '../styles/fileManager.css';
@@ -55,6 +56,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	const [consoleHeight, setConsoleHeight] = useState<number>(200);
 	const [compareMode, setCompareMode] = useState<boolean>(false);
 	const [showBulkRenameDialog, setShowBulkRenameDialog] = useState<boolean>(false);
+	const [checksumDialog, setChecksumDialog] = useState<{ filename: string; checksum: string; algorithm: string } | null>(null);
 	const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
 	const [leftDiskSpace, setLeftDiskSpace] = useState<DiskSpaceInfo | null>(null);
 	const [rightDiskSpace, setRightDiskSpace] = useState<DiskSpaceInfo | null>(null);
@@ -208,14 +210,8 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
 				case 'CHECKSUM_RESULT': {
 					const { checksum, algorithm, filename } = message.payload;
-					// Create a modal/dialog showing the checksum with copy button
-					const result = `${algorithm.toUpperCase()} Checksum for ${filename}:\n\n${checksum}`;
-
-					// Copy to clipboard
-					navigator.clipboard.writeText(checksum);
-
-					// Show result (you can replace this with a proper dialog later)
-					alert(`${result}\n\n(Checksum copied to clipboard)`);
+					// Show ChecksumDialog
+					setChecksumDialog({ filename, checksum, algorithm });
 					break;
 				}
 			}
@@ -826,6 +822,23 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		}
 	};
 
+	const handleChangeOwnership = (owner: string, group: string, recursive: boolean) => {
+		if (propertiesFile) {
+			vscode.postMessage({
+				command: 'CHANGE_OWNERSHIP',
+				payload: {
+					hostId,
+					path: propertiesFile.path,
+					owner,
+					group,
+					recursive
+				}
+			});
+			// Reload directory to see updated ownership
+			loadDirectory(getActiveState().currentPath, activePanel);
+		}
+	};
+
 	const handleCopyPath = (path: string) => {
 		vscode.postMessage({
 			command: 'COPY_PATH',
@@ -1365,7 +1378,17 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					hostId={hostId}
 					fileSystem={getActiveState().fileSystem}
 					onSave={handleSavePermissions}
+					onChangeOwnership={handleChangeOwnership}
 					onClose={() => setPropertiesFile(null)}
+				/>
+			)}
+
+			{checksumDialog && (
+				<ChecksumDialog
+					filename={checksumDialog.filename}
+					checksum={checksumDialog.checksum}
+					algorithm={checksumDialog.algorithm}
+					onClose={() => setChecksumDialog(null)}
 				/>
 			)}
 

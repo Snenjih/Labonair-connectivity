@@ -1096,4 +1096,31 @@ export class SftpService {
 			throw new Error(`Failed to resolve symlink ${symlinkPath}: ${error}`);
 		}
 	}
+
+	/**
+	 * Changes file/directory ownership on the remote server
+	 * @param hostId - The host identifier
+	 * @param remotePath - Path to the file/directory
+	 * @param owner - Owner user (username or UID)
+	 * @param group - Group (group name or GID), optional
+	 * @param recursive - Whether to apply recursively for directories
+	 */
+	public async chown(
+		hostId: string,
+		remotePath: string,
+		owner: string,
+		group?: string,
+		recursive: boolean = false
+	): Promise<void> {
+		try {
+			// Build chown command
+			const ownerGroup = group ? `${owner}:${group}` : owner;
+			const recursiveFlag = recursive ? '-R ' : '';
+			const command = `chown ${recursiveFlag}'${ownerGroup}' '${remotePath}'`;
+
+			await this.executeCommand(hostId, command);
+		} catch (error) {
+			throw new Error(`Failed to change ownership for ${remotePath}: ${error}`);
+		}
+	}
 }

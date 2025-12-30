@@ -1,0 +1,178 @@
+/* ============================================================================
+   CHECKSUM DIALOG STYLES
+   ============================================================================ */
+
+.checksum-dialog {
+	width: 600px;
+	max-width: 90vw;
+}
+
+.checksum-content {
+	padding: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+/* File Info Section */
+.checksum-info {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+	background: var(--vscode-editor-background);
+	border: 1px solid var(--vscode-panel-border);
+	border-radius: 4px;
+}
+
+.info-row {
+	display: flex;
+	gap: 12px;
+}
+
+.info-label {
+	font-weight: 600;
+	min-width: 80px;
+	color: var(--vscode-foreground);
+}
+
+.info-value {
+	color: var(--vscode-descriptionForeground);
+	word-break: break-all;
+}
+
+/* Checksum Value Section */
+.checksum-value-section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.checksum-value-section label {
+	font-weight: 600;
+	color: var(--vscode-foreground);
+}
+
+.checksum-display {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px;
+	background: var(--vscode-editor-background);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 4px;
+	font-family: var(--vscode-editor-font-family);
+}
+
+.checksum-hash {
+	flex: 1;
+	font-size: 12px;
+	color: var(--vscode-editor-foreground);
+	word-break: break-all;
+	line-height: 1.6;
+	padding: 4px;
+}
+
+.copy-button {
+	background: var(--vscode-button-background);
+	color: var(--vscode-button-foreground);
+	border: none;
+	border-radius: 3px;
+	padding: 6px 8px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background-color 0.1s;
+}
+
+.copy-button:hover {
+	background: var(--vscode-button-hoverBackground);
+}
+
+.copy-button:active {
+	transform: scale(0.95);
+}
+
+/* Compare Section */
+.checksum-compare-section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.checksum-compare-section label {
+	font-weight: 600;
+	color: var(--vscode-foreground);
+}
+
+.compare-input-group {
+	display: flex;
+	gap: 8px;
+}
+
+.compare-input {
+	flex: 1;
+	padding: 8px 12px;
+	background: var(--vscode-input-background);
+	color: var(--vscode-input-foreground);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 3px;
+	font-family: var(--vscode-editor-font-family);
+	font-size: 12px;
+}
+
+.compare-input:focus {
+	outline: none;
+	border-color: var(--vscode-focusBorder);
+}
+
+.compare-input::placeholder {
+	color: var(--vscode-input-placeholderForeground);
+}
+
+/* Match Result */
+.match-result {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 12px;
+	border-radius: 4px;
+	font-weight: 500;
+	margin-top: 8px;
+}
+
+.match-result.match-success {
+	background: rgba(0, 128, 0, 0.15);
+	border: 1px solid rgba(0, 128, 0, 0.3);
+	color: #4caf50;
+}
+
+.match-result.match-fail {
+	background: rgba(255, 0, 0, 0.15);
+	border: 1px solid rgba(255, 0, 0, 0.3);
+	color: #f44336;
+}
+
+.match-result svg {
+	flex-shrink: 0;
+}
+
+/* Info Note */
+.checksum-note {
+	padding: 12px;
+	background: var(--vscode-textBlockQuote-background);
+	border-left: 3px solid var(--vscode-textBlockQuote-border);
+	border-radius: 3px;
+}
+
+.checksum-note p {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--vscode-descriptionForeground);
+}
+
+.checksum-note strong {
+	color: var(--vscode-foreground);
+}

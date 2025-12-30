@@ -320,6 +320,7 @@ export type Message =
 	// File Permissions (Subphase 3.9)
 	| { command: 'SAVE_FILE_PERMISSIONS'; payload: { hostId: string; path: string; octal: string; recursive: boolean } }
 	| { command: 'PERMISSIONS_PROGRESS'; payload: { current: number; total: number; path: string } }
+	| { command: 'CHANGE_OWNERSHIP'; payload: { hostId: string; path: string; owner: string; group: string; recursive: boolean } }
 
 	// Sudo Save (Subphase 3.9)
 	| { command: 'PROMPT_SUDO'; payload: { remotePath: string; defaultPassword?: string } }
