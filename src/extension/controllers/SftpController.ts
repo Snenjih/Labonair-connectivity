@@ -198,10 +198,16 @@ export class SftpController extends BaseController {
 		panelId?: 'left' | 'right',
 		fileSystem?: 'local' | 'remote'
 	): Promise<{ targetPath: string }> {
-		// TODO: Implement symlink resolution
-		// For now, just return the path as-is
-		this.log(`Symlink resolution not yet implemented: ${symlinkPath}`);
-		return { targetPath: symlinkPath };
+		let targetPath: string;
+
+		if (fileSystem === 'local') {
+			targetPath = await this.localFsService.resolveSymlink(symlinkPath);
+		} else {
+			targetPath = await this.sftpService.resolveSymlink(hostId, symlinkPath);
+		}
+
+		this.log(`Resolved symlink ${symlinkPath} -> ${targetPath}`);
+		return { targetPath };
 	}
 
 	/**
@@ -255,8 +261,49 @@ export class SftpController extends BaseController {
 	 * Clipboard paste
 	 */
 	async clipboardPaste(targetPath: string, targetSystem: 'local' | 'remote', hostId: string): Promise<void> {
-		// TODO: Implement clipboard paste
-		this.log(`Clipboard paste not yet implemented: ${targetPath}`);
+		const clipboard = this.clipboardService.getClipboard();
+
+		if (!clipboard || clipboard.files.length === 0) {
+			this.showError('Clipboard is empty. Copy or cut files first.');
+			return;
+		}
+
+		const sourcePaths = clipboard.files.map(f => f.path);
+		const sourceSystem = clipboard.system;
+		const operation = clipboard.operation;
+
+		// Same system paste
+		if (sourceSystem === targetSystem) {
+			if (sourceSystem === 'local') {
+				// Local to local
+				if (operation === 'copy') {
+					await this.localCopy(sourcePaths, targetPath);
+					this.showInfo(`Copied ${sourcePaths.length} file(s) to ${targetPath}`);
+				} else {
+					await this.localMove(sourcePaths, targetPath);
+					this.showInfo(`Moved ${sourcePaths.length} file(s) to ${targetPath}`);
+					this.clipboardService.clear();
+				}
+			} else {
+				// Remote to remote (same host)
+				if (operation === 'copy') {
+					await this.remoteCopy(hostId, sourcePaths, targetPath);
+					this.showInfo(`Copied ${sourcePaths.length} file(s) to ${targetPath}`);
+				} else {
+					await this.remoteMove(hostId, sourcePaths, targetPath);
+					this.showInfo(`Moved ${sourcePaths.length} file(s) to ${targetPath}`);
+					this.clipboardService.clear();
+				}
+			}
+		} else {
+			// Cross-system paste (local <-> remote)
+			// This requires the transfer service which handles upload/download
+			this.showError(
+				'Cross-system paste (local ↔ remote) requires drag-and-drop or transfer queue. ' +
+				'Please use the transfer queue for uploading/downloading files.'
+			);
+			this.log(`Cross-system paste not supported directly. Use transfer queue instead.`);
+		}
 	}
 
 	/**
@@ -292,9 +339,13 @@ export class SftpController extends BaseController {
 		content?: string,
 		recursive: boolean = true
 	): Promise<{ results: FileEntry[] }> {
-		// TODO: Implement file search
-		this.log(`File search not yet implemented: ${path}`);
-		return { results: [] };
+		if (fileSystem === 'local') {
+			const results = await this.localFsService.searchFiles(path, pattern, content, recursive);
+			return { results };
+		} else {
+			const results = await this.sftpService.searchFiles(hostId, path, pattern, content, recursive);
+			return { results };
+		}
 	}
 
 	/**

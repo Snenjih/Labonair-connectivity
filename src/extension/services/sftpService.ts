@@ -1003,4 +1003,97 @@ export class SftpService {
 		const parentPath = targetPath.split('/').slice(0, -1).join('/') || '/';
 		this.directoryCache.delete(`${hostId}:${parentPath}`);
 	}
+
+	/**
+	 * Searches for files on the remote server matching the given pattern and/or content
+	 * @param hostId - The host identifier
+	 * @param basePath - Directory to start the search
+	 * @param pattern - Filename pattern (supports wildcards like *.txt)
+	 * @param content - Optional content to search within files
+	 * @param recursive - Whether to search subdirectories
+	 * @returns Array of matching FileEntry objects
+	 */
+	public async searchFiles(
+		hostId: string,
+		basePath: string,
+		pattern?: string,
+		content?: string,
+		recursive: boolean = true
+	): Promise<FileEntry[]> {
+		const results: FileEntry[] = [];
+
+		// Build find command
+		let findCmd = `find '${basePath}'`;
+
+		// Add depth restriction if not recursive
+		if (!recursive) {
+			findCmd += ' -maxdepth 1';
+		}
+
+		// Add filename pattern if provided
+		if (pattern) {
+			// Escape single quotes in pattern
+			const escapedPattern = pattern.replace(/'/g, "'\\''");
+			findCmd += ` -name '${escapedPattern}'`;
+		}
+
+		// If content search is specified, use grep to filter files
+		if (content) {
+			// Escape single quotes in content
+			const escapedContent = content.replace(/'/g, "'\\''");
+
+			// Find files, then grep for content
+			findCmd += ` -type f -exec grep -l '${escapedContent}' {} \\;`;
+		} else {
+			// Just list all matching files/directories
+			findCmd += ' 2>/dev/null';
+		}
+
+		try {
+			const output = await this.executeCommand(hostId, findCmd);
+
+			if (!output.trim()) {
+				return results;
+			}
+
+			// Parse output - one path per line
+			const paths = output.trim().split('\n');
+
+			// Get detailed info for each file using stat
+			for (const filePath of paths) {
+				if (!filePath) continue;
+
+				try {
+					const fileEntry = await this.stat(hostId, filePath);
+					results.push(fileEntry);
+				} catch (error) {
+					// Skip files we can't stat
+					console.warn(`Failed to stat ${filePath}:`, error);
+				}
+			}
+		} catch (error) {
+			// If find command fails, return empty results
+			console.warn(`Search failed for ${basePath}:`, error);
+		}
+
+		return results;
+	}
+
+	/**
+	 * Resolves a symbolic link on the remote server to its target path
+	 * @param hostId - The host identifier
+	 * @param symlinkPath - Path to the symbolic link
+	 * @returns The resolved target path
+	 */
+	public async resolveSymlink(hostId: string, symlinkPath: string): Promise<string> {
+		try {
+			// Use readlink -f to follow the symlink chain and get the absolute path
+			const command = `readlink -f '${symlinkPath}'`;
+			const output = await this.executeCommand(hostId, command);
+
+			return output.trim();
+		} catch (error) {
+			throw new Error(`Failed to resolve symlink ${symlinkPath}: ${error}`);
+		}
+	}
 }

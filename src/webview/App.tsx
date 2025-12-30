@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import vscode from './utils/vscode';
 import { Host, WebviewState, Message, Credential, ViewType, HostStatus } from '../common/types';
+import { useHostStore } from './store/useHostStore';
 import TopNav from './components/TopNav';
 import Toolbar from './components/Toolbar';
 import HostGroup from './components/HostGroup';
@@ -25,16 +26,31 @@ declare global {
 }
 
 const App: React.FC = () => {
-	const [state, setState] = useState<WebviewState>({
-		view: 'hosts',
-		hosts: [],
-		selectedHost: null,
-		credentials: [],
-		activeSessionHostIds: [],
-		hostStatuses: {},
-		selectedHostIds: [],
-		editingCredential: null
-	});
+	// Zustand store for hosts, credentials, sessions
+	const hosts = useHostStore(state => state.hosts);
+	const credentials = useHostStore(state => state.credentials);
+	const activeSessionHostIds = useHostStore(state => state.activeSessionHostIds);
+	const hostStatuses = useHostStore(state => state.hostStatuses);
+	const selectedHostIds = useHostStore(state => state.selectedHostIds);
+	const sshAgentAvailable = useHostStore(state => state.sshAgentAvailable);
+	const availableShells = useHostStore(state => state.availableShells);
+
+	// Store actions
+	const setHosts = useHostStore(state => state.setHosts);
+	const setCredentials = useHostStore(state => state.setCredentials);
+	const setActiveSessionHostIds = useHostStore(state => state.setActiveSessionHostIds);
+	const setHostStatuses = useHostStore(state => state.setHostStatuses);
+	const setSelectedHostIds = useHostStore(state => state.setSelectedHostIds);
+	const setSshAgentAvailable = useHostStore(state => state.setSshAgentAvailable);
+	const setAvailableShells = useHostStore(state => state.setAvailableShells);
+	const toggleHostSelection = useHostStore(state => state.toggleHostSelection);
+	const clearSelection = useHostStore(state => state.clearSelection);
+
+	// Local UI state (view navigation, editing, dialogs)
+	const [view, setView] = useState<ViewType>('hosts');
+	const [selectedHost, setSelectedHost] = useState<Host | null>(null);
+	const [hostId, setHostId] = useState<string | undefined>(undefined);
+	const [currentPath, setCurrentPath] = useState<string | undefined>(undefined);
 
 	const [filterText, setFilterText] = useState('');
 	const [sortCriteria, setSortCriteria] = useState<'name' | 'lastUsed' | 'group'>('name');
@@ -57,34 +73,34 @@ const App: React.FC = () => {
 			const message: Message = event.data;
 			switch (message.command) {
 				case 'UPDATE_DATA':
-					setState(prev => ({
-						...prev,
-						view: message.payload.view || prev.view,
-						hosts: message.payload.hosts || prev.hosts,
-						credentials: message.payload.credentials || prev.credentials,
-							activeSessionHostIds: message.payload.activeSessionHostIds !== undefined ? message.payload.activeSessionHostIds : prev.activeSessionHostIds,
-						hostStatuses: message.payload.hostStatuses || prev.hostStatuses,
-						hostId: message.payload.hostId || prev.hostId,
-						currentPath: message.payload.currentPath || prev.currentPath
-					}));
+					// Update Zustand stores
+					if (message.payload.hosts) setHosts(message.payload.hosts);
+					if (message.payload.credentials) setCredentials(message.payload.credentials);
+					if (message.payload.activeSessionHostIds !== undefined) {
+						setActiveSessionHostIds(message.payload.activeSessionHostIds);
+					}
+					if (message.payload.hostStatuses) setHostStatuses(message.payload.hostStatuses);
+
+					// Update local UI state
+					if (message.payload.view) setView(message.payload.view);
+					if (message.payload.hostId) setHostId(message.payload.hostId);
+					if (message.payload.currentPath) setCurrentPath(message.payload.currentPath);
 					break;
+
 				case 'SESSION_UPDATE':
-					setState(prev => ({
-						...prev,
-						activeSessionHostIds: message.payload.activeHostIds
-					}));
+					setActiveSessionHostIds(message.payload.activeHostIds);
 					break;
+
 				case 'HOST_STATUS_UPDATE':
-					setState(prev => ({
-						...prev,
-						hostStatuses: message.payload.statuses
-					}));
+					setHostStatuses(message.payload.statuses);
 					break;
+
 				case 'CHECK_HOST_KEY':
 					setHostKeyRequest(message.payload);
 					break;
+
 				case 'AVAILABLE_SHELLS':
-					setState(prev => ({ ...prev, availableShells: message.payload.shells }));
+					setAvailableShells(message.payload.shells);
 					break;
 			}
 		};
@@ -93,7 +109,7 @@ const App: React.FC = () => {
 		vscode.postMessage({ command: 'FETCH_DATA' });
 
 		return () => window.removeEventListener('message', handleMessage);
-	}, []);
+	}, [setHosts, setCredentials, setActiveSessionHostIds, setHostStatuses, setAvailableShells]);
 
 	// Focus tracking for keybinding context
 	useEffect(() => {
@@ -128,14 +144,12 @@ const App: React.FC = () => {
 	// ============================================================
 	// NAVIGATION
 	// ============================================================
-	const handleNavigate = useCallback((view: ViewType) => {
-		setState(prev => ({
-			...prev,
-			view,
-			selectedHost: view === 'hosts' ? null : prev.selectedHost,
-			editingCredential: view === 'credentials' ? null : prev.editingCredential
-		}));
-		if (view === 'credentials') {
+	const handleNavigate = useCallback((newView: ViewType) => {
+		setView(newView);
+		if (newView === 'hosts') {
+			setSelectedHost(null);
+		}
+		if (newView === 'credentials') {
 			vscode.postMessage({ command: 'GET_CREDENTIALS' });
 		}
 	}, []);
@@ -145,7 +159,8 @@ const App: React.FC = () => {
 	// ============================================================
 	const handleSaveHost = useCallback((host: Host, password?: string, keyPath?: string) => {
 		vscode.postMessage({ command: 'SAVE_HOST', payload: { host, password, keyPath } });
-		setState(prev => ({ ...prev, view: 'hosts', selectedHost: null }));
+		setView('hosts');
+		setSelectedHost(null);
 	}, []);
 
 	const handleDeleteHost = useCallback((id: string) => {
@@ -165,52 +180,45 @@ const App: React.FC = () => {
 	}, []);
 
 	const handleEditHost = useCallback((host: Host) => {
-		setState(prev => ({ ...prev, view: 'addHost', selectedHost: host }));
+		setView('addHost');
+		setSelectedHost(host);
 	}, []);
 
 	// ============================================================
 	// BULK ACTIONS
 	// ============================================================
 	const handleToggleSelection = useCallback((id: string) => {
-		setState(prev => {
-			const selected = new Set(prev.selectedHostIds || []);
-			if (selected.has(id)) {
-				selected.delete(id);
-			} else {
-				selected.add(id);
-			}
-			return { ...prev, selectedHostIds: Array.from(selected) };
-		});
-	}, []);
+		toggleHostSelection(id);
+	}, [toggleHostSelection]);
 
 	const handleSelectAll = useCallback((ids: string[]) => {
-		setState(prev => ({ ...prev, selectedHostIds: ids }));
-	}, []);
+		setSelectedHostIds(ids);
+	}, [setSelectedHostIds]);
 
 	const handleClearSelection = useCallback(() => {
-		setState(prev => ({ ...prev, selectedHostIds: [] }));
-	}, []);
+		clearSelection();
+	}, [clearSelection]);
 
 	const handleBulkDelete = useCallback(() => {
-		if (state.selectedHostIds && state.selectedHostIds.length > 0) {
-			vscode.postMessage({ command: 'BULK_DELETE_HOSTS', payload: { ids: state.selectedHostIds } });
-			handleClearSelection();
+		if (selectedHostIds && selectedHostIds.length > 0) {
+			vscode.postMessage({ command: 'BULK_DELETE_HOSTS', payload: { ids: selectedHostIds } });
+			clearSelection();
 		}
-	}, [state.selectedHostIds, handleClearSelection]);
+	}, [selectedHostIds, clearSelection]);
 
 	const handleBulkMoveToFolder = useCallback((folder: string) => {
-		if (state.selectedHostIds && state.selectedHostIds.length > 0) {
-			vscode.postMessage({ command: 'BULK_MOVE_TO_FOLDER', payload: { ids: state.selectedHostIds, folder } });
-			handleClearSelection();
+		if (selectedHostIds && selectedHostIds.length > 0) {
+			vscode.postMessage({ command: 'BULK_MOVE_TO_FOLDER', payload: { ids: selectedHostIds, folder } });
+			clearSelection();
 		}
-	}, [state.selectedHostIds, handleClearSelection]);
+	}, [selectedHostIds, clearSelection]);
 
 	const handleBulkAssignTags = useCallback((tags: string[], mode: 'add' | 'replace') => {
-		if (state.selectedHostIds && state.selectedHostIds.length > 0) {
-			vscode.postMessage({ command: 'BULK_ASSIGN_TAGS', payload: { ids: state.selectedHostIds, tags, mode } });
-			handleClearSelection();
+		if (selectedHostIds && selectedHostIds.length > 0) {
+			vscode.postMessage({ command: 'BULK_ASSIGN_TAGS', payload: { ids: selectedHostIds, tags, mode } });
+			clearSelection();
 		}
-	}, [state.selectedHostIds, handleClearSelection]);
+	}, [selectedHostIds, clearSelection]);
 
 	// ============================================================
 	// FOLDER ACTIONS
@@ -235,10 +243,10 @@ const App: React.FC = () => {
 	}, []);
 
 	const handleExportSelected = useCallback(() => {
-		if (state.selectedHostIds && state.selectedHostIds.length > 0) {
-			vscode.postMessage({ command: 'EXPORT_HOSTS', payload: { ids: state.selectedHostIds } });
+		if (selectedHostIds && selectedHostIds.length > 0) {
+			vscode.postMessage({ command: 'EXPORT_HOSTS', payload: { ids: selectedHostIds } });
 		}
-	}, [state.selectedHostIds]);
+	}, [selectedHostIds]);
 
 	const handleExportHost = useCallback((hostId: string) => {
 		vscode.postMessage({ command: 'EXPORT_HOSTS', payload: { ids: [hostId] } });
@@ -288,7 +296,7 @@ const App: React.FC = () => {
 	// FILTERING & SORTING
 	// ============================================================
 	const filteredHosts = useMemo(() => {
-		return state.hosts.filter(h => {
+		return hosts.filter(h => {
 			if (!filterText) return true;
 			const lower = filterText.toLowerCase();
 			return h.name.toLowerCase().includes(lower) ||
@@ -296,7 +304,7 @@ const App: React.FC = () => {
 				h.tags.some(t => t.toLowerCase().includes(lower)) ||
 				(h.folder && h.folder.toLowerCase().includes(lower));
 		});
-	}, [state.hosts, filterText]);
+	}, [hosts, filterText]);
 
 	const sortedHosts = useMemo(() => {
 		return [...filteredHosts].sort((a, b) => {
@@ -334,8 +342,8 @@ const App: React.FC = () => {
 	}, [sortedHosts]);
 
 	const existingFolders = useMemo(() => {
-		return Array.from(new Set(state.hosts.map(h => h.folder).filter(Boolean))) as string[];
-	}, [state.hosts]);
+		return Array.from(new Set(hosts.map(h => h.folder).filter(Boolean))) as string[];
+	}, [hosts]);
 
 	// ============================================================
 	// QUICK CONNECT
@@ -397,50 +405,47 @@ const App: React.FC = () => {
 			)}
 
 			{/* Only show TopNav in sidebar context */}
-			{!isEditorContext && <TopNav activeView={state.view} onNavigate={handleNavigate} />}
+			{!isEditorContext && <TopNav activeView={view} onNavigate={handleNavigate} />}
 
-			{state.view === 'hosts' && (
+			{view === 'hosts' && (
 				<>
 					<Toolbar
 						onImport={handleImport}
 						onSort={setSortCriteria}
 						sortCriteria={sortCriteria}
 						onQuickConnect={handleQuickConnect}
-						selectedCount={state.selectedHostIds?.length || 0}
+						selectedCount={selectedHostIds?.length || 0}
 						onBulkDelete={handleBulkDelete}
 					/>
 					<SearchBar value={filterText} onChange={setFilterText} />
 					<div className="host-list">
-						{state.hosts.length === 0 ? (
+						{hosts.length === 0 ? (
 							<EmptyState />
 						) : (
-							Object.entries(groupedHosts).map(([folder, hosts]) => (
+							Object.entries(groupedHosts).map(([folder, folderHosts]) => (
 								<HostGroup
 									key={folder}
 									name={folder}
-									count={hosts.length}
-									credentials={state.credentials}
-									selectedHostIds={state.selectedHostIds || []}
+									count={folderHosts.length}
+									credentials={credentials}
+									selectedHostIds={selectedHostIds || []}
 									onSelectAll={(selected) => {
 										if (selected) {
-											handleSelectAll([...(state.selectedHostIds || []), ...hosts.map(h => h.id)]);
+											handleSelectAll([...(selectedHostIds || []), ...folderHosts.map(h => h.id)]);
 										} else {
-											const hostIds = new Set(hosts.map(h => h.id));
-											setState(prev => ({
-												...prev,
-												selectedHostIds: (prev.selectedHostIds || []).filter(id => !hostIds.has(id))
-											}));
+											const hostIds = new Set(folderHosts.map(h => h.id));
+											setSelectedHostIds((selectedHostIds || []).filter(id => !hostIds.has(id)));
 										}
 									}}
 									onRenameFolder={handleRenameFolder}
 								>
-									{hosts.map(host => (
+									{folderHosts.map(host => (
 										<HostCard
 											key={host.id}
 											host={host}
-											isActive={state.activeSessionHostIds?.includes(host.id)}
-											isSelected={state.selectedHostIds?.includes(host.id) || false}
-											status={state.hostStatuses?.[host.id] || 'unknown'}
+											isActive={activeSessionHostIds?.includes(host.id)}
+											isSelected={selectedHostIds?.includes(host.id) || false}
+											status={hostStatuses?.[host.id] || 'unknown'}
 											onConnect={() => handleConnect(host.id)}
 											onDelete={() => handleDeleteHost(host.id)}
 											onManageTunnels={() => setTunnelDialogHost(host)}
@@ -460,35 +465,35 @@ const App: React.FC = () => {
 				</>
 			)}
 
-			{state.view === 'addHost' && (
+			{view === 'addHost' && (
 				<EditHost
-					initialHost={state.selectedHost}
-					agentAvailable={state.sshAgentAvailable}
-					availableShells={state.availableShells || []}
+					initialHost={selectedHost}
+					agentAvailable={sshAgentAvailable}
+					availableShells={availableShells || []}
 					existingFolders={existingFolders}
-					credentials={state.credentials || []}
+					credentials={credentials || []}
 					onSave={handleSaveHost}
 					onCancel={() => handleNavigate('hosts')}
 				/>
 			)}
 
-			{state.view === 'credentials' && (
+			{view === 'credentials' && (
 				<CredentialsView
-					credentials={state.credentials || []}
+					credentials={credentials || []}
 				/>
 			)}
 
-			{state.view === 'fileManager' && state.hostId && (
+			{view === 'fileManager' && hostId && (
 				<FileManager
-					hostId={state.hostId}
-					initialPath={state.currentPath}
+					hostId={hostId}
+					initialPath={currentPath}
 				/>
 			)}
 
-			{state.view === 'terminal' && state.hostId && (
+			{view === 'terminal' && hostId && (
 				<TerminalView
-					hostId={state.hostId}
-					host={state.hosts.find(h => h.id === state.hostId)}
+					hostId={hostId}
+					host={hosts.find(h => h.id === hostId)}
 				/>
 			)}
 

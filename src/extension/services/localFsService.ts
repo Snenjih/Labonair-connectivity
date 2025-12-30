@@ -477,4 +477,154 @@ export class LocalFsService {
 			await fs.promises.symlink(resolvedSource, resolvedTarget);
 		}
 	}
+
+	/**
+	 * Searches for files matching the given pattern and/or content
+	 * @param basePath - Directory to start the search
+	 * @param pattern - Filename pattern (supports wildcards like *.txt)
+	 * @param content - Optional content to search within files
+	 * @param recursive - Whether to search subdirectories
+	 * @returns Array of matching FileEntry objects
+	 */
+	public async searchFiles(
+		basePath: string,
+		pattern?: string,
+		content?: string,
+		recursive: boolean = true
+	): Promise<FileEntry[]> {
+		const resolvedBase = this.resolvePath(basePath);
+		const results: FileEntry[] = [];
+
+		// Convert glob pattern to regex
+		const patternRegex = pattern ? this.globToRegex(pattern) : null;
+
+		await this.searchRecursive(resolvedBase, patternRegex, content, recursive, results);
+
+		return results;
+	}
+
+	/**
+	 * Recursive helper for file search
+	 */
+	private async searchRecursive(
+		dirPath: string,
+		patternRegex: RegExp | null,
+		content: string | undefined,
+		recursive: boolean,
+		results: FileEntry[]
+	): Promise<void> {
+		try {
+			const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+
+			for (const entry of entries) {
+				const fullPath = path.join(dirPath, entry.name);
+
+				try {
+					// Check if filename matches pattern (if provided)
+					const nameMatches = !patternRegex || patternRegex.test(entry.name);
+
+					if (nameMatches) {
+						const stats = await fs.promises.stat(fullPath);
+
+						// Determine file type
+						let type: 'd' | '-' | 'l' = '-';
+						if (entry.isDirectory()) {
+							type = 'd';
+						} else if (entry.isSymbolicLink()) {
+							type = 'l';
+						}
+
+						// If content search is specified, only include files that contain the content
+						let contentMatches = !content; // If no content filter, consider it a match
+
+						if (content && type === '-') {
+							try {
+								const fileContent = await fs.promises.readFile(fullPath, 'utf-8');
+								contentMatches = fileContent.includes(content);
+							} catch (error) {
+								// Skip binary files or files we can't read
+								contentMatches = false;
+							}
+						}
+
+						// Add to results if it matches both filename and content criteria
+						if (contentMatches) {
+							const permissions = this.buildPermissionsString(stats.mode);
+
+							const fileEntry: FileEntry = {
+								name: entry.name,
+								path: this.normalizePath(fullPath),
+								size: stats.size,
+								type,
+								modTime: stats.mtime,
+								permissions,
+								owner: String(stats.uid || ''),
+								group: String(stats.gid || '')
+							};
+
+							// Resolve symlink target if it's a symlink
+							if (type === 'l') {
+								try {
+									fileEntry.symlinkTarget = await fs.promises.readlink(fullPath);
+								} catch (error) {
+									fileEntry.symlinkTarget = '(unresolved)';
+								}
+							}
+
+							results.push(fileEntry);
+						}
+					}
+
+					// Recurse into subdirectories if enabled
+					if (recursive && entry.isDirectory()) {
+						await this.searchRecursive(fullPath, patternRegex, content, recursive, results);
+					}
+				} catch (error) {
+					// Skip files/directories we can't access
+					console.warn(`Failed to search ${fullPath}:`, error);
+				}
+			}
+		} catch (error) {
+			// Skip directories we can't read
+			console.warn(`Failed to read directory ${dirPath}:`, error);
+		}
+	}
+
+	/**
+	 * Converts a glob pattern to a regular expression
+	 * Supports * (match any characters) and ? (match single character)
+	 */
+	private globToRegex(pattern: string): RegExp {
+		// Escape special regex characters except * and ?
+		let regexPattern = pattern
+			.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+			.replace(/\*/g, '.*')
+			.replace(/\?/g, '.');
+
+		return new RegExp(`^${regexPattern}$`, 'i');
+	}
+
+	/**
+	 * Resolves a symbolic link to its target path
+	 * @param symlinkPath - Path to the symbolic link
+	 * @returns The resolved target path
+	 */
+	public async resolveSymlink(symlinkPath: string): Promise<string> {
+		const resolvedPath = this.resolvePath(symlinkPath);
+
+		try {
+			// Read the symlink target
+			const target = await fs.promises.readlink(resolvedPath);
+
+			// If the target is a relative path, resolve it relative to the symlink's directory
+			if (!path.isAbsolute(target)) {
+				const symlinkDir = path.dirname(resolvedPath);
+				return this.normalizePath(path.resolve(symlinkDir, target));
+			}
+
+			return this.normalizePath(target);
+		} catch (error) {
+			throw new Error(`Failed to resolve symlink ${symlinkPath}: ${error}`);
+		}
+	}
 }
