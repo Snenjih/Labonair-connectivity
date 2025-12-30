@@ -592,16 +592,19 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	/**
 	 * Loads a directory listing
 	 */
-	const loadDirectory = (path: string, panelId: 'left' | 'right' = activePanel) => {
+	const loadDirectory = (path: string, panelId: 'left' | 'right' = activePanel, overrideFileSystem?: 'local' | 'remote') => {
 		const setState = panelId === 'left' ? setLeftPanel : setRightPanel;
 		const panel = panelId === 'left' ? leftPanel : rightPanel;
 
 		setState(prev => ({ ...prev, isLoading: true }));
 		setError(null);
 
+		// Use override if provided, otherwise use panel's current fileSystem
+		const fileSystem = overrideFileSystem !== undefined ? overrideFileSystem : panel.fileSystem;
+
 		vscode.postMessage({
 			command: 'SFTP_LS',
-			payload: { hostId, path, panelId, fileSystem: panel.fileSystem }
+			payload: { hostId, path, panelId, fileSystem }
 		});
 	};
 
@@ -1167,12 +1170,9 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		});
 
 		// Load the directory for the new file system
+		// Pass the new mode directly to avoid race condition with state updates
 		const newPath = mode === 'local' ? '~' : (initialPath || '/');
-
-		// We need to wait for state to update before loading
-		setTimeout(() => {
-			loadDirectory(newPath, activePanel);
-		}, 0);
+		loadDirectory(newPath, activePanel, mode);
 	};
 
 	/**
