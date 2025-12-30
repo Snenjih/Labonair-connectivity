@@ -289,6 +289,7 @@ export class EditHandler {
 
 	/**
 	 * Uploads a file using sudo
+	 * SECURITY: Uses stdin to send password instead of shell interpolation to prevent injection
 	 */
 	private async sudoUpload(mapping: RemoteFileMapping, document: vscode.TextDocument, sudoPassword: string): Promise<void> {
 		// Strategy: Upload to /tmp first, then use sudo mv
@@ -299,9 +300,6 @@ export class EditHandler {
 		await this.sftpService.putFile(mapping.hostId, localPath, tmpPath);
 
 		// Use SSH to execute sudo mv
-		// Note: This requires SSH session access - we'll need to add this to SftpService or create a separate SSH command executor
-		// For now, we'll use a simplified approach
-
 		const host = this.hostService.getHostById(mapping.hostId);
 		if (!host) {
 			throw new Error('Host not found');
@@ -313,7 +311,9 @@ export class EditHandler {
 
 		return new Promise((resolve, reject) => {
 			client.on('ready', () => {
-				const command = `echo '${sudoPassword}' | sudo -S mv '${tmpPath}' '${mapping.remotePath}'`;
+				// SECURITY FIX: Use sudo -S -p '' to read password from stdin
+				// This prevents shell injection if password contains special characters
+				const command = `sudo -S -p '' mv "${tmpPath}" "${mapping.remotePath}"`;
 
 				client.exec(command, (err: any, stream: any) => {
 					if (err) {
@@ -323,6 +323,8 @@ export class EditHandler {
 					}
 
 					let stderr = '';
+					let passwordSent = false;
+
 					stream.on('close', (code: number) => {
 						client.end();
 						if (code === 0) {
@@ -330,11 +332,23 @@ export class EditHandler {
 						} else {
 							reject(new Error(`Sudo command failed: ${stderr}`));
 						}
-					}).on('data', () => {
+					}).on('data', (data: Buffer) => {
 						// stdout - ignore
 					}).stderr.on('data', (data: Buffer) => {
-						stderr += data.toString();
+						const output = data.toString();
+
+						// Send password on first stderr output (sudo prompt)
+						if (!passwordSent) {
+							stream.write(sudoPassword + '\n');
+							passwordSent = true;
+						}
+
+						stderr += output;
 					});
+
+					// Send password immediately via stdin (secure method)
+					stream.write(sudoPassword + '\n');
+					passwordSent = true;
 				});
 			});
 

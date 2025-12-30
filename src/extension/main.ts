@@ -26,6 +26,15 @@ import { SftpPanel } from './panels/sftpPanel';
 import { TerminalPanel } from './panels/TerminalPanel';
 import { Message, Host, HostStatus, TransferJob, TransferQueueSummary } from '../common/types';
 
+// RPC System imports
+import { RpcRouter } from './utils/rpcHandler';
+import { RpcRequest } from '../common/rpc';
+import { HostController } from './controllers/HostController';
+import { SftpController } from './controllers/SftpController';
+import { CredentialController } from './controllers/CredentialController';
+import { TransferController } from './controllers/TransferController';
+import { StateController } from './controllers/StateController';
+
 // Store service instances for cleanup
 let sshConnectionServiceInstance: SshConnectionService | undefined;
 let sftpServiceInstance: SftpService | undefined;
@@ -175,6 +184,12 @@ export async function activate(context: vscode.ExtensionContext) {
 class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 	private _view?: vscode.WebviewView;
 	private _statusService?: StatusService;
+	private _rpcRouter?: RpcRouter;
+	private _hostController?: HostController;
+	private _sftpController?: SftpController;
+	private _credentialController?: CredentialController;
+	private _transferController?: TransferController;
+	private _stateController?: StateController;
 
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
@@ -218,6 +233,39 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 			webviewView.webview.postMessage({ command: 'HOST_STATUS_UPDATE', payload: { statuses } });
 		});
 
+		// Initialize RPC Router and Controllers
+		this._rpcRouter = new RpcRouter();
+		this._rpcRouter.setWebview(webviewView.webview);
+
+		// Get extension context from the services (they all have it)
+		const extensionContext = (this._hostService as any).context;
+
+		this._hostController = new HostController(
+			extensionContext,
+			this._hostService,
+			this._credentialService,
+			this._sessionTracker,
+			this._statusService
+		);
+
+		this._sftpController = new SftpController(
+			extensionContext,
+			this._sftpService,
+			this._localFsService,
+			this._clipboardService,
+			this._archiveService,
+			this._bookmarkService,
+			this._diskSpaceService
+		);
+
+		this._credentialController = new CredentialController(
+			extensionContext,
+			this._credentialService
+		);
+
+		// Register RPC handlers
+		this._registerRpcHandlers();
+
 		// Listen for credential updates
 		this._credentialService.onDidChangeCredentials(credentials => {
 			webviewView.webview.postMessage({ command: 'UPDATE_DATA', payload: { credentials } });
@@ -233,8 +281,17 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 			this._statusService?.dispose();
 		});
 
-		webviewView.webview.onDidReceiveMessage(async (message: Message) => {
-			switch (message.command) {
+		webviewView.webview.onDidReceiveMessage(async (message: any) => {
+			// Check if this is an RPC request
+			if (message.type === 'rpc-request' && message.request) {
+				const request = message.request as RpcRequest;
+				await this._rpcRouter?.handleRequest(request);
+				return;
+			}
+
+			// Fall back to legacy message handling for backward compatibility
+			const legacyMessage = message as Message;
+			switch (legacyMessage.command) {
 				// ============================================================
 				// DATA FETCHING
 				// ============================================================
@@ -832,6 +889,278 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 		}
 	}
 	*/
+
+	/**
+	 * Registers all RPC handlers with the RPC router
+	 */
+	private _registerRpcHandlers(): void {
+		if (!this._rpcRouter || !this._hostController || !this._sftpController || !this._credentialController) {
+			console.error('[RPC] Cannot register handlers: controllers not initialized');
+			return;
+		}
+
+		// ============================================================
+		// DATA FETCHING
+		// ============================================================
+		this._rpcRouter.register('data.fetch', async () => {
+			return await this._hostController!.fetchData();
+		});
+
+		// ============================================================
+		// HOST OPERATIONS
+		// ============================================================
+		this._rpcRouter.register('host.list', async () => {
+			return await this._hostController!.listHosts();
+		});
+
+		this._rpcRouter.register('host.get', async (params) => {
+			return await this._hostController!.getHost(params.id);
+		});
+
+		this._rpcRouter.register('host.save', async (params) => {
+			await this._hostController!.saveHost(params.host, params.password, params.keyPath);
+			await this.broadcastUpdate();
+		});
+
+		this._rpcRouter.register('host.delete', async (params) => {
+			await this._hostController!.deleteHost(params.id);
+			await this.broadcastUpdate();
+		});
+
+		this._rpcRouter.register('host.clone', async (params) => {
+			const cloned = await this._hostController!.cloneHost(params.id);
+			await this.broadcastUpdate();
+			return cloned;
+		});
+
+		this._rpcRouter.register('host.togglePin', async (params) => {
+			const isPinned = await this._hostController!.togglePin(params.id);
+			await this.broadcastUpdate();
+			return isPinned;
+		});
+
+		this._rpcRouter.register('host.updateLastUsed', async (params) => {
+			await this._hostController!.updateLastUsed(params.id);
+		});
+
+		// ============================================================
+		// FOLDER OPERATIONS
+		// ============================================================
+		this._rpcRouter.register('folder.rename', async (params) => {
+			const result = await this._hostController!.renameFolder(params.oldName, params.newName);
+			await this.broadcastUpdate();
+			return result;
+		});
+
+		this._rpcRouter.register('folder.moveHost', async (params) => {
+			await this._hostController!.moveHostToFolder(params.hostId, params.folder);
+			await this.broadcastUpdate();
+		});
+
+		this._rpcRouter.register('folder.saveConfig', async (params) => {
+			await this._hostController!.saveFolderConfig(params.config);
+		});
+
+		// ============================================================
+		// BULK OPERATIONS
+		// ============================================================
+		this._rpcRouter.register('bulk.deleteHosts', async (params) => {
+			const result = await this._hostController!.bulkDeleteHosts(params.ids);
+			await this.broadcastUpdate();
+			return result;
+		});
+
+		this._rpcRouter.register('bulk.moveToFolder', async (params) => {
+			const result = await this._hostController!.bulkMoveToFolder(params.ids, params.folder);
+			await this.broadcastUpdate();
+			return result;
+		});
+
+		this._rpcRouter.register('bulk.assignTags', async (params) => {
+			const result = await this._hostController!.bulkAssignTags(params.ids, params.tags, params.mode);
+			await this.broadcastUpdate();
+			return result;
+		});
+
+		// ============================================================
+		// IMPORT / EXPORT
+		// ============================================================
+		this._rpcRouter.register('import.hosts', async (params) => {
+			const result = await this._hostController!.importHosts(params.hosts);
+			await this.broadcastUpdate();
+			return result;
+		});
+
+		this._rpcRouter.register('export.hosts', async (params) => {
+			return await this._hostController!.exportHosts(params.ids);
+		});
+
+		// ============================================================
+		// CREDENTIALS
+		// ============================================================
+		this._rpcRouter.register('credential.list', async () => {
+			return await this._credentialController!.listCredentials();
+		});
+
+		this._rpcRouter.register('credential.save', async (params) => {
+			await this._credentialController!.saveCredential(params.credential, params.secret);
+			await this.broadcastUpdate();
+		});
+
+		this._rpcRouter.register('credential.delete', async (params) => {
+			await this._credentialController!.deleteCredential(params.id);
+			await this.broadcastUpdate();
+		});
+
+		// ============================================================
+		// SFTP OPERATIONS
+		// ============================================================
+		this._rpcRouter.register('sftp.ls', async (params) => {
+			return await this._sftpController!.listFiles(params.hostId, params.path, params.panelId, params.fileSystem);
+		});
+
+		this._rpcRouter.register('sftp.stat', async (params) => {
+			return await this._sftpController!.stat(params.hostId, params.path, params.fileSystem);
+		});
+
+		this._rpcRouter.register('sftp.upload', async (params) => {
+			await this._sftpController!.upload(params.hostId, params.remotePath, params.localPath, params.fileSystem);
+		});
+
+		this._rpcRouter.register('sftp.download', async (params) => {
+			await this._sftpController!.download(params.hostId, params.remotePath, params.localPath, params.fileSystem);
+		});
+
+		this._rpcRouter.register('sftp.rm', async (params) => {
+			await this._sftpController!.remove(params.hostId, params.path, params.fileSystem);
+		});
+
+		this._rpcRouter.register('sftp.mkdir', async (params) => {
+			await this._sftpController!.mkdir(params.hostId, params.path, params.fileSystem);
+		});
+
+		this._rpcRouter.register('sftp.rename', async (params) => {
+			await this._sftpController!.rename(params.hostId, params.oldPath, params.newPath, params.fileSystem);
+		});
+
+		this._rpcRouter.register('sftp.move', async (params) => {
+			await this._sftpController!.move(params.hostId, params.sourcePaths, params.targetPath, params.sourcePanel, params.fileSystem);
+		});
+
+		this._rpcRouter.register('sftp.newFile', async (params) => {
+			await this._sftpController!.newFile(params.hostId, params.path, params.fileSystem);
+		});
+
+		this._rpcRouter.register('sftp.remoteCopy', async (params) => {
+			await this._sftpController!.remoteCopy(params.hostId, params.sourcePaths, params.targetPath);
+		});
+
+		this._rpcRouter.register('sftp.remoteMove', async (params) => {
+			await this._sftpController!.remoteMove(params.hostId, params.sourcePaths, params.targetPath);
+		});
+
+		this._rpcRouter.register('sftp.resolveSymlink', async (params) => {
+			return await this._sftpController!.resolveSymlink(params.hostId, params.symlinkPath, params.panelId, params.fileSystem);
+		});
+
+		// ============================================================
+		// LOCAL FILE SYSTEM
+		// ============================================================
+		this._rpcRouter.register('local.copy', async (params) => {
+			await this._sftpController!.localCopy(params.sourcePaths, params.targetPath);
+		});
+
+		this._rpcRouter.register('local.move', async (params) => {
+			await this._sftpController!.localMove(params.sourcePaths, params.targetPath);
+		});
+
+		this._rpcRouter.register('local.openFile', async (params) => {
+			await this._sftpController!.openLocalFile(params.path);
+		});
+
+		// ============================================================
+		// CLIPBOARD OPERATIONS
+		// ============================================================
+		this._rpcRouter.register('clipboard.copy', async (params) => {
+			await this._sftpController!.clipboardCopy(params.files, params.sourceHostId, params.system, params.operation);
+		});
+
+		this._rpcRouter.register('clipboard.paste', async (params) => {
+			await this._sftpController!.clipboardPaste(params.targetPath, params.targetSystem, params.hostId);
+		});
+
+		// ============================================================
+		// ARCHIVE OPERATIONS
+		// ============================================================
+		this._rpcRouter.register('archive.extract', async (params) => {
+			await this._sftpController!.extractArchive(params.hostId, params.archivePath, params.fileSystem);
+		});
+
+		this._rpcRouter.register('archive.compress', async (params) => {
+			await this._sftpController!.compressFiles(params.hostId, params.paths, params.archiveName, params.archiveType, params.fileSystem);
+		});
+
+		// ============================================================
+		// SEARCH OPERATIONS
+		// ============================================================
+		this._rpcRouter.register('search.files', async (params) => {
+			return await this._sftpController!.searchFiles(params.hostId, params.path, params.fileSystem, params.pattern, params.content, params.recursive);
+		});
+
+		// ============================================================
+		// BOOKMARKS
+		// ============================================================
+		this._rpcRouter.register('bookmark.list', async (params) => {
+			return await this._sftpController!.listBookmarks(params.hostId);
+		});
+
+		this._rpcRouter.register('bookmark.add', async (params) => {
+			await this._sftpController!.addBookmark(params.bookmark);
+		});
+
+		this._rpcRouter.register('bookmark.remove', async (params) => {
+			await this._sftpController!.removeBookmark(params.bookmarkId, params.hostId);
+		});
+
+		// ============================================================
+		// DISK SPACE
+		// ============================================================
+		this._rpcRouter.register('disk.getSpace', async (params) => {
+			return await this._sftpController!.getDiskSpace(params.hostId, params.path, params.fileSystem);
+		});
+
+		// ============================================================
+		// ADVANCED CONTEXT ACTIONS
+		// ============================================================
+		this._rpcRouter.register('context.openInExplorer', async (params) => {
+			await this._sftpController!.openInExplorer(params.hostId, params.path, params.fileSystem);
+		});
+
+		this._rpcRouter.register('context.openWithDefault', async (params) => {
+			await this._sftpController!.openWithDefault(params.hostId, params.path, params.fileSystem);
+		});
+
+		this._rpcRouter.register('context.calculateChecksum', async (params) => {
+			return await this._sftpController!.calculateChecksum(params.hostId, params.path, params.fileSystem, params.algorithm);
+		});
+
+		this._rpcRouter.register('context.copyPath', async (params) => {
+			await this._sftpController!.copyPath(params.path, params.type, params.hostId);
+		});
+
+		this._rpcRouter.register('context.createSymlink', async (params) => {
+			await this._sftpController!.createSymlink(params.hostId, params.sourcePath, params.targetPath, params.fileSystem);
+		});
+
+		// ============================================================
+		// BULK RENAME
+		// ============================================================
+		this._rpcRouter.register('bulk.rename', async (params) => {
+			await this._sftpController!.bulkRename(params.hostId, params.operations, params.fileSystem);
+		});
+
+		console.log('[RPC] Registered', this._rpcRouter.getRegisteredMethods().length, 'RPC handlers');
+	}
 
 	private async broadcastUpdate() {
 		if (this._view) {
