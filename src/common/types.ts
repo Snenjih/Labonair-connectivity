@@ -367,7 +367,74 @@ export type Message =
 	| { command: 'CALCULATE_CHECKSUM'; payload: { hostId: string; path: string; fileSystem: 'local' | 'remote'; algorithm: 'md5' | 'sha1' | 'sha256' } }
 	| { command: 'CHECKSUM_RESULT'; payload: { checksum: string; algorithm: string; filename: string } }
 	| { command: 'COPY_PATH_ADVANCED'; payload: { path: string; type: 'name' | 'fullPath' | 'url'; hostId?: string } }
-	| { command: 'CREATE_SYMLINK'; payload: { hostId: string; sourcePath: string; targetPath: string; fileSystem: 'local' | 'remote' } };
+	| { command: 'CREATE_SYMLINK'; payload: { hostId: string; sourcePath: string; targetPath: string; fileSystem: 'local' | 'remote' } }
+
+	// Directory Synchronization (Subphase 4.8)
+	| { command: 'START_SYNC'; payload: { hostId: string; leftPath: string; leftSystem: 'local' | 'remote'; rightPath: string; rightSystem: 'local' | 'remote'; options: SyncOptions } }
+	| { command: 'SYNC_COMPARE_RESULT'; payload: { items: SyncItem[] } }
+	| { command: 'EXECUTE_SYNC'; payload: { items: SyncItem[] } }
+	| { command: 'SYNC_PROGRESS'; payload: { current: number; total: number; currentFile: string } }
+	| { command: 'GET_SYNC_STATE'; payload: { hostId: string } }
+	| { command: 'SYNC_STATE_RESPONSE'; payload: { state?: SyncState } }
+	| { command: 'SAVE_SYNC_STATE'; payload: { hostId: string; state: SyncState } }
+
+	// Advanced Selection (Subphase 4.8)
+	| { command: 'ADVANCED_SELECT'; payload: { hostId: string; criteria: SelectionCriteria; fileSystem: 'local' | 'remote' } }
+	| { command: 'ADVANCED_SELECT_RESULT'; payload: { selectedPaths: string[] } }
+
+	// Logging (Subphase 4.8)
+	| { command: 'SHOW_LOGS' }
+	| { command: 'CLEAR_LOGS' }
+	| { command: 'SET_VERBOSE_LOGGING'; payload: { enabled: boolean } };
+
+// ============================================================================
+// SYNC TYPES (Subphase 4.8)
+// ============================================================================
+
+export interface SyncOptions {
+	compareSize: boolean;
+	compareDate: boolean;
+	compareContent: boolean;
+	includePattern?: string;  // Glob pattern for files to include
+	excludePattern?: string;  // Glob pattern for files to exclude
+}
+
+export type SyncDirection = 'left-to-right' | 'right-to-left' | 'bidirectional' | 'skip' | 'conflict';
+export type SyncAction = 'copy' | 'delete' | 'update' | 'skip';
+
+export interface SyncItem {
+	leftPath?: string;
+	rightPath?: string;
+	name: string;
+	direction: SyncDirection;
+	action: SyncAction;
+	reason: string;  // Explanation of why this action is needed
+	leftSize?: number;
+	rightSize?: number;
+	leftModTime?: Date;
+	rightModTime?: Date;
+	type: 'd' | '-' | 'l';  // directory, file, or symlink
+}
+
+export interface SyncState {
+	leftPath: string;
+	leftSystem: 'local' | 'remote';
+	rightPath: string;
+	rightSystem: 'local' | 'remote';
+	options: SyncOptions;
+	items?: SyncItem[];
+	timestamp: number;
+}
+
+export interface SelectionCriteria {
+	pattern?: string;        // File name pattern (*.js, src/**/*.ts)
+	newerThan?: Date;        // Files modified after this date
+	olderThan?: Date;        // Files modified before this date
+	minSize?: number;        // Minimum file size in bytes
+	maxSize?: number;        // Maximum file size in bytes
+	contentContains?: string;  // Files containing this text
+	recursive: boolean;      // Search in subdirectories
+}
 
 // ============================================================================
 // UTILITY TYPES

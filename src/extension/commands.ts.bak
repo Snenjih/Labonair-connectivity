@@ -96,7 +96,6 @@ export function registerCommands(
 						clipboardService,
 						stateService,
 						archiveService,
-					syncService,
 						hostService,
 						credentialService,
 						hostKeyService

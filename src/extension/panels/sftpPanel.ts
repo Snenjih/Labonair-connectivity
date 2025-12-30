@@ -4,6 +4,7 @@ import { LocalFsService } from '../services/localFsService';
 import { ClipboardService } from '../services/clipboardService';
 import { StateService, FileManagerState } from '../services/stateService';
 import { ArchiveService } from '../services/archiveService';
+import { SyncService } from '../services/syncService';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
 import { HostKeyService } from '../security/hostKeyService';
@@ -37,6 +38,7 @@ export class SftpPanel {
 		clipboardService: ClipboardService,
 		stateService: StateService,
 		archiveService: ArchiveService,
+		syncService: SyncService,
 		hostService: HostService,
 		credentialService: CredentialService,
 		hostKeyService: HostKeyService,
@@ -64,7 +66,7 @@ export class SftpPanel {
 			}
 		);
 
-		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, localFsService, clipboardService, stateService, archiveService, hostService, credentialService, hostKeyService, sessionTracker);
+		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, localFsService, clipboardService, stateService, archiveService, syncService, hostService, credentialService, hostKeyService, sessionTracker);
 		return SftpPanel.currentPanel;
 	}
 
@@ -79,6 +81,7 @@ export class SftpPanel {
 		private readonly _clipboardService: ClipboardService,
 		private readonly _stateService: StateService,
 		private readonly _archiveService: ArchiveService,
+		private readonly _syncService: SyncService,
 		private readonly _hostService: HostService,
 		private readonly _credentialService: CredentialService,
 		private readonly _hostKeyService: HostKeyService,

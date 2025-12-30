@@ -16,7 +16,8 @@ import {
 	Unlink,
 	Search,
 	Star,
-	Trash2
+	Trash2,
+	ArrowLeftRight
 } from 'lucide-react';
 import { Bookmark } from '../../../common/types';
 
@@ -43,6 +44,7 @@ interface ToolbarProps {
 	onNewFile: () => void;
 	onOpenTerminal?: () => void;
 	onDeepSearch?: () => void;
+	onOpenSync?: () => void;
 	onViewModeChange: (mode: 'list' | 'grid') => void;
 	onLayoutModeChange: (mode: 'explorer' | 'commander') => void;
 	onSyncBrowsingChange?: (enabled: boolean) => void;
@@ -82,6 +84,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 	onNewFile,
 	onOpenTerminal,
 	onDeepSearch,
+	onOpenSync,
 	onViewModeChange,
 	onLayoutModeChange,
 	onSyncBrowsingChange,
@@ -573,6 +576,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 						aria-label="Search for files in current directory and subdirectories"
 					>
 						<Search size={16} />
+					</button>
+				)}
+				{onOpenSync && layoutMode === 'commander' && (
+					<button
+						className="toolbar-btn"
+						onClick={onOpenSync}
+						disabled={isLoading}
+						title="Synchronize directories (Commander mode only)"
+						aria-label="Open directory synchronization dialog"
+					>
+						<ArrowLeftRight size={16} />
 					</button>
 				)}
 			</div>

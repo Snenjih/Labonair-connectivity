@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { minimatch } from 'minimatch';
 import { TransferJob, UploadJob, DownloadJob, TransferJobStatus, TransferQueueSummary } from '../../common/types';
 import { SftpService } from './sftpService';
+import { getLogger } from '../utils/logger';
 
 /**
  * Priority Queue for managing transfer jobs
@@ -102,6 +103,7 @@ export class TransferService {
 	private processingInterval: NodeJS.Timeout | null = null;
 	private conflictResolutions: Map<string, Promise<{ action: 'overwrite' | 'resume' | 'rename' | 'skip' }>> = new Map();
 	private conflictResolvers: Map<string, (value: { action: 'overwrite' | 'resume' | 'rename' | 'skip' }) => void> = new Map();
+	private logger = getLogger();
 
 	constructor(
 		private readonly sftpService: SftpService,
@@ -109,6 +111,7 @@ export class TransferService {
 		private readonly onQueueChange: (jobs: TransferJob[], summary: TransferQueueSummary) => void,
 		private readonly onConflict?: (transferId: string, sourceFile: string, targetStats: { size: number; modTime: Date }) => void
 	) {
+		this.logger.info('Transfer Service initialized');
 		// Start processing queue
 		this.startProcessing();
 	}
@@ -148,6 +151,8 @@ export class TransferService {
 	 * Adds a new transfer job to the queue
 	 */
 	public addJob(jobData: Partial<TransferJob>): TransferJob {
+		this.logger.transfer(`Adding ${jobData.type || 'download'} job for ${jobData.filename}`);
+
 		const job: TransferJob = {
 			id: jobData.id || uuidv4(),
 			type: jobData.type || 'download',

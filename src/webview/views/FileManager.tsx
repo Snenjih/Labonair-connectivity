@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { FileEntry, TransferStatus, Bookmark, DiskSpaceInfo } from '../../common/types';
+import { FileEntry, TransferStatus, Bookmark, DiskSpaceInfo, SyncItem, SyncOptions, SelectionCriteria } from '../../common/types';
 import { Toolbar } from '../components/FileManager/Toolbar';
 import { FileList } from '../components/FileManager/FileList';
 import { PanelStatus } from '../components/FileManager/PanelStatus';
@@ -7,6 +7,8 @@ import FilePropertiesDialog from '../dialogs/FilePropertiesDialog';
 import SearchDialog from '../dialogs/SearchDialog';
 import BulkRenameDialog from '../dialogs/BulkRenameDialog';
 import ChecksumDialog from '../dialogs/ChecksumDialog';
+import SyncDialog from '../dialogs/SyncDialog';
+import AdvancedSelectDialog from '../dialogs/AdvancedSelectDialog';
 import { Console } from '../components/FileManager/Console';
 import vscode from '../utils/vscode';
 import '../styles/fileManager.css';
@@ -57,6 +59,8 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	const [compareMode, setCompareMode] = useState<boolean>(false);
 	const [showBulkRenameDialog, setShowBulkRenameDialog] = useState<boolean>(false);
 	const [checksumDialog, setChecksumDialog] = useState<{ filename: string; checksum: string; algorithm: string } | null>(null);
+	const [showSyncDialog, setShowSyncDialog] = useState<boolean>(false);
+	const [showAdvancedSelectDialog, setShowAdvancedSelectDialog] = useState<boolean>(false);
 	const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
 	const [leftDiskSpace, setLeftDiskSpace] = useState<DiskSpaceInfo | null>(null);
 	const [rightDiskSpace, setRightDiskSpace] = useState<DiskSpaceInfo | null>(null);
@@ -214,6 +218,16 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					setChecksumDialog({ filename, checksum, algorithm });
 					break;
 				}
+
+				case 'ADVANCED_SELECT_RESULT': {
+					const { selectedPaths } = message.payload;
+					// Update selection in active panel
+					setActiveState(prev => ({
+						...prev,
+						selection: selectedPaths
+					}));
+					break;
+				}
 			}
 		};
 
@@ -322,6 +336,13 @@ export const FileManager: React.FC<FileManagerProps> = ({
 			if ((e.ctrlKey || e.metaKey) && (e.key === '`' || (e.shiftKey && e.key === 'c'))) {
 				e.preventDefault();
 				setConsoleVisible(prev => !prev);
+				return;
+			}
+
+			// Ctrl+Shift+F: Advanced Select
+			if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'f') {
+				e.preventDefault();
+				setShowAdvancedSelectDialog(true);
 				return;
 			}
 
@@ -1085,6 +1106,51 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	};
 
 	/**
+	 * Sync handlers
+	 */
+	const handleOpenSync = () => {
+		if (layoutMode === 'commander') {
+			setShowSyncDialog(true);
+		}
+	};
+
+	const handleStartSyncCompare = (options: SyncOptions) => {
+		vscode.postMessage({
+			command: 'START_SYNC',
+			payload: {
+				hostId,
+				leftPath: leftPanel.currentPath,
+				leftSystem: leftPanel.fileSystem,
+				rightPath: rightPanel.currentPath,
+				rightSystem: rightPanel.fileSystem,
+				options
+			}
+		});
+	};
+
+	const handleExecuteSync = (items: SyncItem[]) => {
+		vscode.postMessage({
+			command: 'EXECUTE_SYNC',
+			payload: { items }
+		});
+	};
+
+	/**
+	 * Advanced Select handlers
+	 */
+	const handleAdvancedSelect = (criteria: SelectionCriteria) => {
+		const state = getActiveState();
+		vscode.postMessage({
+			command: 'ADVANCED_SELECT',
+			payload: {
+				hostId,
+				criteria,
+				fileSystem: state.fileSystem
+			}
+		});
+	};
+
+	/**
 	 * Bookmark handlers
 	 */
 	const handleAddBookmark = (label: string, path: string, system: 'local' | 'remote') => {
@@ -1278,6 +1344,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 				onNewFile={handleNewFile}
 				onOpenTerminal={handleOpenTerminal}
 				onDeepSearch={handleDeepSearch}
+				onOpenSync={handleOpenSync}
 				onViewModeChange={setViewMode}
 				onLayoutModeChange={handleLayoutModeChange}
 				onSyncBrowsingChange={setSyncBrowsing}
@@ -1406,6 +1473,28 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					files={getActiveState().files.filter(f => getActiveState().selection.includes(f.path))}
 					onRename={handleBulkRename}
 					onClose={() => setShowBulkRenameDialog(false)}
+				/>
+			)}
+
+			{/* Sync Dialog */}
+			{showSyncDialog && (
+				<SyncDialog
+					hostId={hostId}
+					leftPath={leftPanel.currentPath}
+					leftSystem={leftPanel.fileSystem}
+					rightPath={rightPanel.currentPath}
+					rightSystem={rightPanel.fileSystem}
+					onClose={() => setShowSyncDialog(false)}
+					onStartCompare={handleStartSyncCompare}
+					onExecute={handleExecuteSync}
+				/>
+			)}
+
+			{/* Advanced Select Dialog */}
+			{showAdvancedSelectDialog && (
+				<AdvancedSelectDialog
+					onSelect={handleAdvancedSelect}
+					onClose={() => setShowAdvancedSelectDialog(false)}
 				/>
 			)}
 

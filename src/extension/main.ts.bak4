@@ -69,7 +69,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	const bookmarkService = new BookmarkService(context);
 	const diskSpaceService = new DiskSpaceService(sftpService);
 
-	// Transfer Service with callbacks for webview updates (created early for dependencies)
+	// Session Restoration
+	await restoreSessions(context, sessionTracker, hostService, credentialService, hostKeyService, sftpService, localFsService, clipboardService, stateService, archiveService);
+
+	// Transfer Service with callbacks for webview updates
 	let transferQueueViewProvider: TransferQueueViewProvider | undefined;
 	const transferService = new TransferService(
 		sftpService,
@@ -101,9 +104,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Sync Service
 	const syncService = new SyncService(sftpService, localFsService, transferService);
-
-	// Session Restoration (after all services are initialized)
-	await restoreSessions(context, sessionTracker, hostService, credentialService, hostKeyService, sftpService, localFsService, clipboardService, stateService, archiveService, syncService);
 
 	// Store for cleanup
 	sshConnectionServiceInstance = sshConnectionService;
@@ -181,7 +181,6 @@ export async function activate(context: vscode.ExtensionContext) {
 			clipboardService,
 			stateService,
 			archiveService,
-			syncService,
 			broadcastService,
 			editHandler,
 			bookmarkService,
@@ -1437,8 +1436,7 @@ async function restoreSessions(
 	localFsService: LocalFsService,
 	clipboardService: ClipboardService,
 	stateService: StateService,
-	archiveService: ArchiveService,
-	syncService: SyncService
+	archiveService: ArchiveService
 ): Promise<void> {
 	const persistedSessions = sessionTracker.getPersistedSessions();
 

@@ -4,6 +4,7 @@ import { Host } from '../../common/types';
 import { HostService } from '../hostService';
 import { CredentialService } from '../credentialService';
 import { SshTerminal } from '../terminal/sshTerminal';
+import { getLogger } from '../utils/logger';
 
 /**
  * SSH Connection Service
@@ -11,6 +12,7 @@ import { SshTerminal } from '../terminal/sshTerminal';
  */
 export class SshConnectionService {
 	private activeSessions: Map<string, Client> = new Map();
+	private logger = getLogger();
 
 	constructor(
 		private readonly hostService: HostService,
@@ -23,12 +25,17 @@ export class SshConnectionService {
 	 * @returns A VS Code Terminal instance
 	 */
 	public async createSession(host: Host): Promise<vscode.Terminal> {
+		this.logger.ssh(`Creating SSH session for ${host.username}@${host.host}:${host.port}`);
+
 		// Create pseudoterminal
 		const sshTerminal = new SshTerminal(
 			host,
 			this.hostService,
 			this.credentialService,
-			(client) => this.activeSessions.set(host.id, client),
+			(client) => {
+				this.activeSessions.set(host.id, client);
+				this.logger.ssh(`SSH session established for ${host.name || host.host}`);
+			},
 			() => this.disconnectSession(host.id)
 		);
 
@@ -46,6 +53,7 @@ export class SshConnectionService {
 	 * @param hostId The host ID to disconnect
 	 */
 	public disconnectSession(hostId: string): void {
+		this.logger.ssh(`Disconnecting SSH session for host ID: ${hostId}`);
 		const client = this.activeSessions.get(hostId);
 		if (client) {
 			client.end();
