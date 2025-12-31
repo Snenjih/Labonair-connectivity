@@ -975,23 +975,16 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		sourcePaths: string[],
 		targetPath: string,
 		sourcePanel?: 'left' | 'right',
+		targetPanel?: 'left' | 'right',
 		modifierKey?: 'ctrl' | 'alt' | 'none'
 	) => {
-		// Determine source and target systems
+		// Determine source and target systems (Req #9: Fix Cross-Panel Drag & Drop)
 		const sourcePanelState = sourcePanel === 'left' ? leftPanel : (sourcePanel === 'right' ? rightPanel : getActiveState());
 		const sourceSystem = sourcePanelState.fileSystem; // 'local' | 'remote'
 
-		// Determine target panel and system
-		// If dropping on the same panel, use the active panel's system
-		// Otherwise, determine from the drop target
-		let targetSystem: 'local' | 'remote' = getActiveState().fileSystem;
-
-		// Check if we can determine target system from panels
-		if (leftPanel.currentPath === targetPath || targetPath.startsWith(leftPanel.currentPath)) {
-			targetSystem = leftPanel.fileSystem;
-		} else if (rightPanel.currentPath === targetPath || targetPath.startsWith(rightPanel.currentPath)) {
-			targetSystem = rightPanel.fileSystem;
-		}
+		// Use explicit targetPanel if provided, otherwise fall back to active panel
+		const targetPanelState = targetPanel ? (targetPanel === 'left' ? leftPanel : rightPanel) : getActiveState();
+		const targetSystem = targetPanelState.fileSystem;
 
 		// Determine operation type (copy vs move) based on modifier keys
 		// Ctrl/Alt = copy, no modifier = move
@@ -1267,7 +1260,12 @@ export const FileManager: React.FC<FileManagerProps> = ({
 		return (
 			<div
 				className={`file-manager-panel ${isActive ? 'active' : 'inactive'} ${compareMode ? 'compare-mode' : ''}`}
-				onClick={() => setActivePanel(panelId)}
+				onMouseDownCapture={() => {
+					// Smart Panel Activation (Req #8): Set active panel during capture phase
+					if (activePanel !== panelId) {
+						setActivePanel(panelId);
+					}
+				}}
 			>
 				<FileList
 					files={state.files}
@@ -1278,6 +1276,7 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					hostId={hostId}
 					panelId={panelId}
 					fileSystem={state.fileSystem}
+					currentPath={state.currentPath}
 					onFileSelect={handleFileSelect}
 					onFileOpen={handleFileOpen}
 					onFileEdit={handleFileEdit}
@@ -1296,6 +1295,10 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					onCalculateChecksum={handleCalculateChecksum}
 					onCopyPathAdvanced={handleCopyPathAdvanced}
 					onCreateSymlink={handleCreateSymlink}
+					onNavigateUp={handleNavigateUp}
+					onNewFile={handleNewFile}
+					onNewFolder={handleNewFolder}
+					onRefresh={handleRefresh}
 					compareMode={compareMode}
 					missingFiles={missing}
 					newerFiles={newer}

@@ -445,9 +445,10 @@
 	background: var(--vscode-list-hoverBackground);
 }
 
+/* Selection Styling (Req #5: Use VS Code theme accent colors) */
 .file-list-row.selected {
-	background: var(--vscode-list-activeSelectionBackground);
-	color: var(--vscode-list-activeSelectionForeground);
+	background: var(--vscode-list-activeSelectionBackground) !important;
+	color: var(--vscode-list-activeSelectionForeground) !important;
 }
 
 .file-list-row.focused {
@@ -511,9 +512,10 @@
 	background: var(--vscode-list-hoverBackground);
 }
 
+/* Selection Styling (Req #5: Use VS Code theme accent colors) */
 .file-grid-item.selected {
-	background: var(--vscode-list-activeSelectionBackground);
-	color: var(--vscode-list-activeSelectionForeground);
+	background: var(--vscode-list-activeSelectionBackground) !important;
+	color: var(--vscode-list-activeSelectionForeground) !important;
 }
 
 .file-grid-item.focused {

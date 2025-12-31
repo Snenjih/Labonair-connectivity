@@ -27,6 +27,7 @@ interface FileListProps {
 	hostId: string;
 	panelId?: 'left' | 'right';
 	fileSystem?: 'local' | 'remote';
+	currentPath?: string;
 	onFileSelect: (filePath: string, ctrlKey: boolean, shiftKey: boolean) => void;
 	onFileOpen: (file: FileEntry) => void;
 	onFileEdit: (file: FileEntry) => void;
@@ -37,7 +38,7 @@ interface FileListProps {
 	onCopyPath: (path: string) => void;
 	onCompareFile: (file: FileEntry) => void;
 	onDrop?: (files: FileList, targetPath: string) => void;
-	onInternalDrop?: (sourcePaths: string[], targetPath: string, sourcePanel?: 'left' | 'right') => void;
+	onInternalDrop?: (sourcePaths: string[], targetPath: string, sourcePanel?: 'left' | 'right', targetPanel?: 'left' | 'right') => void;
 	onArchiveExtract?: (file: FileEntry) => void;
 	onArchiveCompress?: (files: FileEntry[]) => void;
 	onOpenInExplorer?: (file: FileEntry) => void;
@@ -45,6 +46,10 @@ interface FileListProps {
 	onCalculateChecksum?: (file: FileEntry, algorithm: 'md5' | 'sha1' | 'sha256') => void;
 	onCopyPathAdvanced?: (file: FileEntry, type: 'name' | 'fullPath' | 'url') => void;
 	onCreateSymlink?: (file: FileEntry) => void;
+	onNavigateUp?: () => void;
+	onNewFile?: () => void;
+	onNewFolder?: () => void;
+	onRefresh?: () => void;
 	compareMode?: boolean;
 	missingFiles?: Set<string>;
 	newerFiles?: Set<string>;
@@ -66,6 +71,7 @@ export const FileList: React.FC<FileListProps> = ({
 	newerFiles = new Set(),
 	panelId,
 	fileSystem = 'remote',
+	currentPath,
 	onFileSelect,
 	onFileOpen,
 	onFileEdit,
@@ -83,12 +89,16 @@ export const FileList: React.FC<FileListProps> = ({
 	onOpenWithDefault,
 	onCalculateChecksum,
 	onCopyPathAdvanced,
-	onCreateSymlink
+	onCreateSymlink,
+	onNavigateUp,
+	onNewFile,
+	onNewFolder,
+	onRefresh
 }) => {
 	const [contextMenu, setContextMenu] = useState<{
 		x: number;
 		y: number;
-		file: FileEntry;
+		file: FileEntry | null;
 	} | null>(null);
 	const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
 	const [dragOver, setDragOver] = useState(false);
@@ -134,6 +144,10 @@ export const FileList: React.FC<FileListProps> = ({
 			f.name.toLowerCase().includes(searchQuery.toLowerCase())
 		)
 		: files;
+
+	// Check if we should show the "..." (previous folder) item
+	const isAtRoot = !currentPath || currentPath === '/' || currentPath === '~';
+	const showPreviousFolderItem = !isAtRoot && onNavigateUp;
 
 	// Virtual scrolling calculations
 	const useVirtualScrolling = viewMode === 'list' && filteredFiles.length > VIRTUAL_THRESHOLD;
@@ -267,6 +281,34 @@ export const FileList: React.FC<FileListProps> = ({
 		setActiveSubmenu(null);
 	}, []);
 
+	/**
+	 * Handles click on empty space (Req #14)
+	 */
+	const handleEmptySpaceClick = (e: React.MouseEvent) => {
+		// Only deselect if clicking directly on the container background
+		if (e.target === e.currentTarget) {
+			onFileSelect('', false, false); // Clear selection
+		}
+	};
+
+	/**
+	 * Handles context menu on empty space (Req #15)
+	 */
+	const handleEmptySpaceContextMenu = (e: React.MouseEvent) => {
+		// Check if right-clicking on empty space
+		if (e.target === e.currentTarget) {
+			e.preventDefault();
+			e.stopPropagation();
+
+			// Show background context menu at cursor position
+			setContextMenu({
+				x: e.clientX,
+				y: e.clientY,
+				file: null as any // Special marker for background menu
+			});
+		}
+	};
+
 	// Close context menu on click outside
 	useEffect(() => {
 		const handleClick = () => closeContextMenu();
@@ -321,7 +363,7 @@ export const FileList: React.FC<FileListProps> = ({
 	};
 
 	/**
-	 * Handles drop
+	 * Handles drop (Req #9: Fix Cross-Panel Drag & Drop)
 	 */
 	const handleDrop = (event: React.DragEvent) => {
 		event.preventDefault();
@@ -337,7 +379,8 @@ export const FileList: React.FC<FileListProps> = ({
 				const targetPath = files.length > 0
 					? files[0].path.split('/').slice(0, -1).join('/') || '/'
 					: '/';
-				onInternalDrop(paths, targetPath, sourcePanel);
+				// Pass both source and target panel IDs to handler
+				onInternalDrop(paths, targetPath, sourcePanel, panelId);
 			} catch (error) {
 				console.error('Failed to parse internal drag data:', error);
 			}
@@ -402,6 +445,38 @@ export const FileList: React.FC<FileListProps> = ({
 				style={useVirtualScrolling ? { height: totalHeight, position: 'relative' } : undefined}
 			>
 				{useVirtualScrolling && <div style={{ height: offsetY }} />}
+
+				{/* Virtual "Previous Folder" Row (Req #7) */}
+				{showPreviousFolderItem && (
+					<div
+						key="virtual-parent-folder"
+						className="file-list-row file-list-row-parent"
+						onClick={(e) => {
+							e.stopPropagation();
+							onNavigateUp?.();
+						}}
+						onDoubleClick={(e) => {
+							e.stopPropagation();
+							onNavigateUp?.();
+						}}
+						tabIndex={0}
+						role="button"
+						title="Previous Folder"
+						style={{ opacity: 0.7 }}
+					>
+						<div className="col-name">
+							<div style={{ position: 'relative', display: 'inline-block' }}>
+								<FolderOpen size={18} />
+							</div>
+							<span className="file-name">...</span>
+						</div>
+						<div className="col-size">—</div>
+						<div className="col-modified">—</div>
+						<div className="col-permissions">—</div>
+						<div className="col-owner">—</div>
+					</div>
+				)}
+
 				{visibleFiles.map((file, index) => {
 					const ignored = isFileIgnored(file.name);
 					return (
@@ -463,6 +538,31 @@ export const FileList: React.FC<FileListProps> = ({
 	 */
 	const renderGridView = () => (
 		<div className="file-grid">
+			{/* Virtual "Previous Folder" Item (Req #7) */}
+			{showPreviousFolderItem && (
+				<div
+					key="virtual-parent-folder"
+					className="file-grid-item file-grid-item-parent"
+					onClick={(e) => {
+						e.stopPropagation();
+						onNavigateUp?.();
+					}}
+					onDoubleClick={(e) => {
+						e.stopPropagation();
+						onNavigateUp?.();
+					}}
+					tabIndex={0}
+					role="button"
+					title="Previous Folder"
+					style={{ opacity: 0.7 }}
+				>
+					<div className="file-grid-icon">
+						<FolderOpen size={48} />
+					</div>
+					<div className="file-grid-name">...</div>
+				</div>
+			)}
+
 			{filteredFiles.map((file) => {
 				const ignored = isFileIgnored(file.name);
 				return (
@@ -513,6 +613,72 @@ export const FileList: React.FC<FileListProps> = ({
 		if (!contextMenu) {return null;}
 
 		const { x, y, file } = contextMenu;
+
+		// Background context menu (Req #15)
+		if (!file) {
+			return (
+				<div
+					className="context-menu"
+					style={{ top: y, left: x }}
+					onClick={(e) => e.stopPropagation()}
+				>
+					{onNewFile && (
+						<button
+							className="context-menu-item"
+							onClick={() => {
+								onNewFile();
+								closeContextMenu();
+							}}
+						>
+							<FileEdit size={14} />
+							<span>New File</span>
+						</button>
+					)}
+					{onNewFolder && (
+						<button
+							className="context-menu-item"
+							onClick={() => {
+								onNewFolder();
+								closeContextMenu();
+							}}
+						>
+							<FolderOpen size={14} />
+							<span>New Folder</span>
+						</button>
+					)}
+					{(onNewFile || onNewFolder) && onRefresh && <div className="context-menu-separator" />}
+					{onRefresh && (
+						<button
+							className="context-menu-item"
+							onClick={() => {
+								onRefresh();
+								closeContextMenu();
+							}}
+						>
+							<Download size={14} />
+							<span>Refresh</span>
+						</button>
+					)}
+					{currentPath && (
+						<>
+							<div className="context-menu-separator" />
+							<button
+								className="context-menu-item"
+								onClick={() => {
+									onCopyPath(currentPath);
+									closeContextMenu();
+								}}
+							>
+								<Copy size={14} />
+								<span>Copy Path</span>
+							</button>
+						</>
+					)}
+				</div>
+			);
+		}
+
+		// File context menu
 		const selectedFiles = filteredFiles.filter(f => selection.includes(f.path));
 		const isMultiSelect = selectedFiles.length > 1;
 
@@ -791,6 +957,8 @@ export const FileList: React.FC<FileListProps> = ({
 			onDragOver={handleDragOver}
 			onDragLeave={handleDragLeave}
 			onDrop={handleDrop}
+			onClick={handleEmptySpaceClick}
+			onContextMenu={handleEmptySpaceContextMenu}
 			tabIndex={0}
 		>
 			{filteredFiles.length === 0 ? (
