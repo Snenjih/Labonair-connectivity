@@ -3,6 +3,44 @@
    Replicates the dark theme from Terminus Host Manager
    ============================================================================= */
 
+/* =============================================================================
+   GLOBAL RESET - Fullscreen Layout (Phase 5.1)
+   ============================================================================= */
+html, body {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#root {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* =============================================================================
+   CODICON FONT SUPPORT (Phase 5.1)
+   Note: VS Code provides codicon font natively through webview.cspSource
+   The CSP has been updated to allow: font-src ${webview.cspSource} data:;
+   ============================================================================= */
+.codicon {
+    font-family: "codicon";
+    font-display: block;
+    font-style: normal;
+    font-weight: normal;
+    font-variant: normal;
+    text-rendering: auto;
+    text-transform: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+
 /* CSS Variables - Mapped to VS Code Theme Variables */
 :root {
     /* Base Colors - mapped to VS Code editor/sidebar colors */
@@ -58,7 +96,8 @@
 .app-container {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     background-color: var(--terminus-bg);
     color: var(--terminus-text);
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -1573,7 +1612,8 @@
 .file-manager {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     background-color: var(--terminus-bg);
     color: var(--terminus-text);
     overflow: hidden;

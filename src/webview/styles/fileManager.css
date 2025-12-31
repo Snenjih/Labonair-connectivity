@@ -197,16 +197,21 @@
 /* Path Input */
 .path-input-form {
 	display: flex;
-	flex: 2;
+	flex: 1;
 	min-width: 200px;
+	align-items: center;
+	gap: 4px;
+	background: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 4px;
+	padding-right: 2px;
 }
 
 .path-input {
 	flex: 1;
 	padding: 4px 8px;
-	background: var(--vscode-input-background);
-	border: 1px solid var(--vscode-input-border);
-	border-radius: 4px;
+	background: transparent;
+	border: none;
 	color: var(--vscode-input-foreground);
 	font-size: 12px;
 	font-family: var(--vscode-font-family);
@@ -214,11 +219,43 @@
 
 .path-input:focus {
 	outline: none;
-	border-color: var(--vscode-focusBorder);
 }
 
 .path-input::placeholder {
 	color: var(--vscode-input-placeholderForeground);
+}
+
+/* Breadcrumb Container with integrated Up button (Req #1) */
+.breadcrumb-container {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: 1;
+	min-width: 0;
+	background: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 4px;
+	padding-right: 2px;
+	transition: border-color 0.15s ease;
+}
+
+.breadcrumb-container:hover {
+	border-color: var(--vscode-focusBorder);
+}
+
+.breadcrumb-container .breadcrumbs {
+	border: none;
+	background: transparent;
+	padding: 4px 8px;
+}
+
+.breadcrumb-container .breadcrumbs:hover {
+	border-color: transparent;
+}
+
+.breadcrumb-up-btn {
+	margin-left: auto;
+	flex-shrink: 0;
 }
 
 /* Search Input */
@@ -236,6 +273,58 @@
 .search-input:focus {
 	outline: none;
 	border-color: var(--vscode-focusBorder);
+}
+
+/* Expanding Search (Req #6) */
+.expanding-search {
+	display: inline-flex;
+	align-items: center;
+	transition: width 0.2s ease;
+}
+
+.expanding-search.collapsed {
+	width: 28px;
+}
+
+.expanding-search.expanded {
+	width: 200px;
+}
+
+.expanding-search-icon {
+	/* Uses toolbar-btn styles */
+}
+
+.expanding-search-input {
+	width: 100%;
+	padding: 4px 8px;
+	background: var(--vscode-input-background);
+	border: 1px solid var(--vscode-input-border);
+	border-radius: 4px;
+	color: var(--vscode-input-foreground);
+	font-size: 12px;
+	font-family: var(--vscode-font-family);
+	transition: width 0.2s ease;
+	animation: expandInput 0.2s ease;
+}
+
+.expanding-search-input:focus {
+	outline: none;
+	border-color: var(--vscode-focusBorder);
+}
+
+.expanding-search-input::placeholder {
+	color: var(--vscode-input-placeholderForeground);
+}
+
+@keyframes expandInput {
+	from {
+		width: 28px;
+		opacity: 0;
+	}
+	to {
+		width: 100%;
+		opacity: 1;
+	}
 }
 
 /* View Toggle */
@@ -907,4 +996,14 @@
 
 .toolbar-dropdown-empty:hover {
 	background: transparent;
+}
+
+/* Action Menu Dropdown (Req #4) */
+.action-menu-dropdown {
+	/* Inherits from toolbar-dropdown */
+	min-width: 220px;
+}
+
+.action-menu-dropdown .toolbar-dropdown-item {
+	/* Additional styling for action menu items if needed */
 }

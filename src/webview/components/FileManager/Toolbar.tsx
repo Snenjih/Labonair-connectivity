@@ -5,21 +5,18 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	RefreshCw,
-	Upload,
-	FolderPlus,
-	FilePlus,
 	Terminal,
 	Grid3x3,
 	List,
 	Columns,
 	Link2,
 	Unlink,
-	Search,
 	Star,
-	Trash2,
-	ArrowLeftRight
+	Trash2
 } from 'lucide-react';
 import { Bookmark } from '../../../common/types';
+import { MenuButton } from './MenuButton';
+import { ExpandingSearch } from './ExpandingSearch';
 
 interface ToolbarProps {
 	currentPath: string;
@@ -379,15 +376,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
 				<button
 					className="toolbar-btn"
-					onClick={onNavigateUp}
-					disabled={isLoading || currentPath === '/' || currentPath === '~'}
-					title="Up one level"
-					aria-label="Navigate up"
-				>
-					<ChevronUp size={16} />
-				</button>
-				<button
-					className="toolbar-btn"
 					onClick={onNavigateHome}
 					disabled={isLoading}
 					title="Home directory"
@@ -486,7 +474,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 				</button>
 			</div>
 
-			{/* Breadcrumbs / Path Bar (Merged) */}
+			{/* Breadcrumbs / Path Bar with integrated Up button (Req #1) */}
 			<div className={`toolbar-section toolbar-path ${fileSystem === 'local' ? 'fs-local' : 'fs-remote'}`}>
 				{isEditMode ? (
 					<form onSubmit={handlePathSubmit} className="path-input-form">
@@ -502,60 +490,66 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 							placeholder="Enter path..."
 							title="Current path"
 						/>
+						<button
+							className="toolbar-btn breadcrumb-up-btn"
+							onClick={onNavigateUp}
+							disabled={isLoading || currentPath === '/' || currentPath === '~'}
+							title="Up one level"
+							aria-label="Navigate up"
+							type="button"
+						>
+							<ChevronUp size={16} />
+						</button>
 					</form>
 				) : (
-					<div
-						className="breadcrumbs"
-						onClick={handleContainerClick}
-						title="Click here to edit path"
-					>
-						{getBreadcrumbs().map((crumb, index) => (
-							<React.Fragment key={index}>
-								<button
-									className="breadcrumb"
-									onClick={() => handleBreadcrumbClick(crumb.path)}
-									disabled={isLoading}
-								>
-									{crumb.label}
-								</button>
-								{index < getBreadcrumbs().length - 1 && (
-									<span className="breadcrumb-separator">/</span>
-								)}
-							</React.Fragment>
-						))}
+					<div className="breadcrumb-container">
+						<div
+							className="breadcrumbs"
+							onClick={handleContainerClick}
+							title="Click here to edit path"
+						>
+							{getBreadcrumbs().map((crumb, index) => (
+								<React.Fragment key={index}>
+									<button
+										className="breadcrumb"
+										onClick={() => handleBreadcrumbClick(crumb.path)}
+										disabled={isLoading}
+									>
+										{crumb.label}
+									</button>
+									{index < getBreadcrumbs().length - 1 && (
+										<span className="breadcrumb-separator">/</span>
+									)}
+								</React.Fragment>
+							))}
+						</div>
+						<button
+							className="toolbar-btn breadcrumb-up-btn"
+							onClick={onNavigateUp}
+							disabled={isLoading || currentPath === '/' || currentPath === '~'}
+							title="Up one level"
+							aria-label="Navigate up"
+						>
+							<ChevronUp size={16} />
+						</button>
 					</div>
 				)}
 			</div>
 
-			{/* Action Buttons */}
+			{/* Action Menu and Quick Actions (Req #4) */}
 			<div className="toolbar-section toolbar-actions">
-				<button
-					className="toolbar-btn"
-					onClick={onNewFile}
-					disabled={isLoading}
-					title="New file"
-					aria-label="Create new file"
-				>
-					<FilePlus size={16} />
-				</button>
-				<button
-					className="toolbar-btn"
-					onClick={onNewFolder}
-					disabled={isLoading}
-					title="New folder"
-					aria-label="Create new folder"
-				>
-					<FolderPlus size={16} />
-				</button>
-				<button
-					className="toolbar-btn"
-					onClick={onUpload}
-					disabled={isLoading}
-					title="Upload file"
-					aria-label="Upload file"
-				>
-					<Upload size={16} />
-				</button>
+				{/* MenuButton: Groups secondary actions into dropdown */}
+				<MenuButton
+					onNewFile={onNewFile}
+					onNewFolder={onNewFolder}
+					onUpload={onUpload}
+					onDeepSearch={onDeepSearch}
+					onOpenSync={onOpenSync}
+					isLoading={isLoading}
+					isCommanderMode={layoutMode === 'commander'}
+				/>
+
+				{/* Keep Terminal as a quick action */}
 				{onOpenTerminal && (
 					<button
 						className="toolbar-btn"
@@ -567,41 +561,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 						<Terminal size={16} />
 					</button>
 				)}
-				{onDeepSearch && (
-					<button
-						className="toolbar-btn"
-						onClick={onDeepSearch}
-						disabled={isLoading}
-						title="Find files (deep search)"
-						aria-label="Search for files in current directory and subdirectories"
-					>
-						<Search size={16} />
-					</button>
-				)}
-				{onOpenSync && layoutMode === 'commander' && (
-					<button
-						className="toolbar-btn"
-						onClick={onOpenSync}
-						disabled={isLoading}
-						title="Synchronize directories (Commander mode only)"
-						aria-label="Open directory synchronization dialog"
-					>
-						<ArrowLeftRight size={16} />
-					</button>
-				)}
 			</div>
 
 			{/* View Controls */}
 			<div className="toolbar-section toolbar-view">
-				{/* Search */}
-				<input
-					type="text"
-					className="search-input"
-					placeholder="Filter..."
+				{/* Expanding Search (Req #6) */}
+				<ExpandingSearch
 					value={searchQuery}
-					onChange={(e) => onSearchChange(e.target.value)}
+					onChange={onSearchChange}
 					disabled={isLoading}
-					title="Filter files"
+					placeholder="Filter..."
 				/>
 
 				{/* View Mode Toggle */}
