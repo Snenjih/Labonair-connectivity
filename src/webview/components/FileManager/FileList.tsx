@@ -108,6 +108,11 @@ export const FileList: React.FC<FileListProps> = ({
 	const listRef = useRef<HTMLDivElement>(null);
 	const bodyRef = useRef<HTMLDivElement>(null);
 	const lastSelectedIndex = useRef<number>(-1);
+	// Rubberband selection state (Req #13)
+	const [isSelecting, setIsSelecting] = useState(false);
+	const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
+	const [selectionCurrent, setSelectionCurrent] = useState<{ x: number; y: number } | null>(null);
+	const [selectionModifier, setSelectionModifier] = useState<'none' | 'ctrl' | 'shift'>('none');
 
 	// Virtual scrolling constants
 	const ITEM_HEIGHT = 32; // Height of each row in pixels
@@ -397,6 +402,163 @@ export const FileList: React.FC<FileListProps> = ({
 	};
 
 	/**
+	 * Rubberband Selection Handlers (Req #13)
+	 */
+
+	// Smart hit-testing: Check if click is on empty space vs file item
+	const isClickOnEmptySpace = (event: React.MouseEvent): boolean => {
+		const target = event.target as HTMLElement;
+		// Check if clicked directly on container or list background (not on a file item)
+		return target.classList.contains('file-list-container') ||
+			target.classList.contains('file-list-body') ||
+			target.classList.contains('file-grid') ||
+			target.classList.contains('file-list-table');
+	};
+
+	const handleContainerMouseDown = (event: React.MouseEvent) => {
+		// Only start selection on left click on empty space
+		if (event.button !== 0) return;
+		if (!isClickOnEmptySpace(event)) return;
+
+		event.preventDefault();
+		const rect = listRef.current?.getBoundingClientRect();
+		if (!rect) return;
+
+		setIsSelecting(true);
+		setSelectionStart({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+		setSelectionCurrent({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+
+		// Track modifier keys
+		if (event.ctrlKey || event.metaKey) {
+			setSelectionModifier('ctrl');
+		} else if (event.shiftKey) {
+			setSelectionModifier('shift');
+		} else {
+			setSelectionModifier('none');
+		}
+	};
+
+	const handleGlobalMouseMove = useCallback((event: MouseEvent) => {
+		if (!isSelecting || !selectionStart || !listRef.current) return;
+
+		const rect = listRef.current.getBoundingClientRect();
+		setSelectionCurrent({
+			x: event.clientX - rect.left,
+			y: event.clientY - rect.top
+		});
+	}, [isSelecting, selectionStart]);
+
+	const handleGlobalMouseUp = useCallback(() => {
+		if (!isSelecting || !selectionStart || !selectionCurrent) {
+			setIsSelecting(false);
+			return;
+		}
+
+		// Calculate selection box bounds
+		const left = Math.min(selectionStart.x, selectionCurrent.x);
+		const right = Math.max(selectionStart.x, selectionCurrent.x);
+		const top = Math.min(selectionStart.y, selectionCurrent.y);
+		const bottom = Math.max(selectionStart.y, selectionCurrent.y);
+
+		// Find intersecting files
+		const selectedPaths: string[] = [];
+		filteredFiles.forEach((file) => {
+			const fileElement = document.querySelector(`[data-file-path="${CSS.escape(file.path)}"]`);
+			if (!fileElement) return;
+
+			const fileRect = fileElement.getBoundingClientRect();
+			const containerRect = listRef.current?.getBoundingClientRect();
+			if (!containerRect) return;
+
+			// Convert to container-relative coordinates
+			const fileLeft = fileRect.left - containerRect.left;
+			const fileRight = fileRect.right - containerRect.left;
+			const fileTop = fileRect.top - containerRect.top;
+			const fileBottom = fileRect.bottom - containerRect.top;
+
+			// Check intersection
+			const intersects = !(
+				fileRight < left ||
+				fileLeft > right ||
+				fileBottom < top ||
+				fileTop > bottom
+			);
+
+			if (intersects) {
+				selectedPaths.push(file.path);
+			}
+		});
+
+		// Update selection based on modifier
+		if (selectedPaths.length > 0) {
+			if (selectionModifier === 'ctrl') {
+				// Toggle selection of intersecting items
+				selectedPaths.forEach(path => {
+					onFileSelect(path, true, false);
+				});
+			} else if (selectionModifier === 'shift') {
+				// Add to selection
+				selectedPaths.forEach(path => {
+					if (!selection.includes(path)) {
+						onFileSelect(path, true, false);
+					}
+				});
+			} else {
+				// Replace selection - select first item without ctrl, then add rest with ctrl
+				if (selectedPaths.length > 0) {
+					onFileSelect(selectedPaths[0], false, false);
+					for (let i = 1; i < selectedPaths.length; i++) {
+						onFileSelect(selectedPaths[i], true, false);
+					}
+				}
+			}
+		}
+
+		// Reset selection state
+		setIsSelecting(false);
+		setSelectionStart(null);
+		setSelectionCurrent(null);
+		setSelectionModifier('none');
+	}, [isSelecting, selectionStart, selectionCurrent, selectionModifier, filteredFiles, selection, onFileSelect]);
+
+	// Attach global mouse event listeners for rubberband selection
+	useEffect(() => {
+		if (isSelecting) {
+			document.addEventListener('mousemove', handleGlobalMouseMove);
+			document.addEventListener('mouseup', handleGlobalMouseUp);
+			return () => {
+				document.removeEventListener('mousemove', handleGlobalMouseMove);
+				document.removeEventListener('mouseup', handleGlobalMouseUp);
+			};
+		}
+	}, [isSelecting, handleGlobalMouseMove, handleGlobalMouseUp]);
+
+	// Render selection box
+	const renderSelectionBox = () => {
+		if (!isSelecting || !selectionStart || !selectionCurrent) return null;
+
+		const left = Math.min(selectionStart.x, selectionCurrent.x);
+		const top = Math.min(selectionStart.y, selectionCurrent.y);
+		const width = Math.abs(selectionCurrent.x - selectionStart.x);
+		const height = Math.abs(selectionCurrent.y - selectionStart.y);
+
+		return (
+			<div
+				className="selection-box"
+				style={{
+					position: 'absolute',
+					left: `${left}px`,
+					top: `${top}px`,
+					width: `${width}px`,
+					height: `${height}px`,
+					pointerEvents: 'none',
+					zIndex: 1000
+				}}
+			/>
+		);
+	};
+
+	/**
 	 * Formats file size
 	 */
 	const formatSize = (bytes: number): string => {
@@ -482,6 +644,7 @@ export const FileList: React.FC<FileListProps> = ({
 					return (
 					<div
 						key={file.path}
+						data-file-path={file.path}
 						className={`file-list-row ${selection.includes(file.path) ? 'selected' : ''} ${focusedFile === file.path ? 'focused' : ''} ${compareMode && missingFiles.has(file.path) ? 'compare-missing' : ''} ${compareMode && newerFiles.has(file.path) ? 'compare-newer' : ''}`}
 						onClick={(e) => handleFileClick(file, e)}
 						onDoubleClick={(e) => handleFileDoubleClick(file, e)}
@@ -568,6 +731,7 @@ export const FileList: React.FC<FileListProps> = ({
 				return (
 				<div
 					key={file.path}
+					data-file-path={file.path}
 					className={`file-grid-item ${selection.includes(file.path) ? 'selected' : ''} ${focusedFile === file.path ? 'focused' : ''} ${compareMode && missingFiles.has(file.path) ? 'compare-missing' : ''} ${compareMode && newerFiles.has(file.path) ? 'compare-newer' : ''}`}
 					onClick={(e) => handleFileClick(file, e)}
 					onDoubleClick={(e) => handleFileDoubleClick(file, e)}
@@ -959,7 +1123,9 @@ export const FileList: React.FC<FileListProps> = ({
 			onDrop={handleDrop}
 			onClick={handleEmptySpaceClick}
 			onContextMenu={handleEmptySpaceContextMenu}
+			onMouseDown={handleContainerMouseDown}
 			tabIndex={0}
+			style={{ position: 'relative' }}
 		>
 			{filteredFiles.length === 0 ? (
 				<div className="empty-state">
@@ -969,6 +1135,7 @@ export const FileList: React.FC<FileListProps> = ({
 				viewMode === 'list' ? renderListView() : renderGridView()
 			)}
 			{renderContextMenu()}
+			{renderSelectionBox()}
 		</div>
 	);
 };

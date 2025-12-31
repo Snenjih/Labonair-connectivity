@@ -34,7 +34,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 	const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
 	const [statusMessage, setStatusMessage] = useState<string>('');
 	const [pasteData, setPasteData] = useState<string | null>(null);
-	const [fontSize, setFontSize] = useState<number>(14);
+	const [fontSize, setFontSize] = useState<number>(host?.terminalFontSize || 14);
 	const [searchVisible, setSearchVisible] = useState<boolean>(false);
 
 	useEffect(() => {
@@ -43,9 +43,12 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 
 		const term1 = new Terminal({
 			fontFamily: 'var(--vscode-editor-font-family, monospace)',
-			fontSize: fontSize,
-			cursorBlink: true,
-			cursorStyle: 'bar',
+			fontSize: host?.terminalFontSize || fontSize,
+			fontWeight: (host?.terminalFontWeight as any) || 'normal',
+			lineHeight: host?.terminalLineHeight || 1.0,
+			letterSpacing: host?.terminalLetterSpacing || 0,
+			cursorBlink: host?.terminalCursorBlink ?? true,
+			cursorStyle: host?.terminalCursorStyle || 'bar',
 			theme: {
 				background: 'var(--vscode-editor-background)',
 				foreground: 'var(--vscode-editor-foreground)',
@@ -188,6 +191,35 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 						setSplitMode(message.payload.splitMode);
 					}
 					break;
+				case 'HOST_CONFIG_UPDATED':
+					// Live update terminal settings when host config changes
+					if (message.payload?.hostId === hostId && message.payload?.host) {
+						const updatedHost = message.payload.host;
+						if (xterm1Ref.current) {
+							xterm1Ref.current.options.fontSize = updatedHost.terminalFontSize || 14;
+							xterm1Ref.current.options.fontWeight = (updatedHost.terminalFontWeight as any) || 'normal';
+							xterm1Ref.current.options.lineHeight = updatedHost.terminalLineHeight || 1.0;
+							xterm1Ref.current.options.letterSpacing = updatedHost.terminalLetterSpacing || 0;
+							xterm1Ref.current.options.cursorBlink = updatedHost.terminalCursorBlink ?? true;
+							xterm1Ref.current.options.cursorStyle = updatedHost.terminalCursorStyle || 'bar';
+							if (fitAddon1Ref.current) {
+								fitAddon1Ref.current.fit();
+							}
+						}
+						if (xterm2Ref.current) {
+							xterm2Ref.current.options.fontSize = updatedHost.terminalFontSize || 14;
+							xterm2Ref.current.options.fontWeight = (updatedHost.terminalFontWeight as any) || 'normal';
+							xterm2Ref.current.options.lineHeight = updatedHost.terminalLineHeight || 1.0;
+							xterm2Ref.current.options.letterSpacing = updatedHost.terminalLetterSpacing || 0;
+							xterm2Ref.current.options.cursorBlink = updatedHost.terminalCursorBlink ?? true;
+							xterm2Ref.current.options.cursorStyle = updatedHost.terminalCursorStyle || 'bar';
+							if (fitAddon2Ref.current) {
+								fitAddon2Ref.current.fit();
+							}
+						}
+						setFontSize(updatedHost.terminalFontSize || 14);
+					}
+					break;
 			}
 		};
 
@@ -210,9 +242,12 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 		if (splitMode !== 'none' && terminal2Ref.current && !xterm2Ref.current) {
 			const term2 = new Terminal({
 				fontFamily: 'var(--vscode-editor-font-family, monospace)',
-				fontSize: fontSize,
-				cursorBlink: true,
-				cursorStyle: 'bar',
+				fontSize: host?.terminalFontSize || fontSize,
+				fontWeight: (host?.terminalFontWeight as any) || 'normal',
+				lineHeight: host?.terminalLineHeight || 1.0,
+				letterSpacing: host?.terminalLetterSpacing || 0,
+				cursorBlink: host?.terminalCursorBlink ?? true,
+				cursorStyle: host?.terminalCursorStyle || 'bar',
 				theme: {
 					background: 'var(--vscode-editor-background)',
 					foreground: 'var(--vscode-editor-foreground)',
@@ -409,10 +444,6 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 		setPasteData(null);
 	};
 
-	const handleFontSizeChange = (newSize: number) => {
-		setFontSize(newSize);
-	};
-
 	const handleSplitVertical = () => {
 		vscode.postMessage({
 			command: 'TERMINAL_SPLIT',
@@ -504,8 +535,6 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 					hostName={host?.name || host?.host || 'Unknown'}
 					onReconnect={handleReconnect}
 					onOpenSftp={handleOpenSftp}
-					fontSize={fontSize}
-					onFontSizeChange={handleFontSizeChange}
 					onSplitVertical={handleSplitVertical}
 					onSplitHorizontal={handleSplitHorizontal}
 					splitMode={splitMode}

@@ -364,8 +364,10 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 				// HOST CRUD
 				// ============================================================
 				case 'SAVE_HOST':
-					await this._hostService.saveHost(message.payload.host, message.payload.password, message.payload.keyPath);
+					const savedHost = await this._hostService.saveHost(message.payload.host, message.payload.password, message.payload.keyPath);
 					this.broadcastUpdate();
+					// Broadcast config update to active terminal panels for live updates
+					TerminalPanel.broadcastHostConfigUpdate(savedHost.id, savedHost);
 					break;
 
 				case 'DELETE_HOST':

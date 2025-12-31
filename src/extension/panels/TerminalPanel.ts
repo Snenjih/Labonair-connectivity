@@ -89,6 +89,20 @@ export class TerminalPanel {
 		return terminalPanel;
 	}
 
+	/**
+	 * Broadcasts a host configuration update to the terminal panel for that host
+	 * This enables live updates when terminal settings are changed
+	 */
+	public static broadcastHostConfigUpdate(hostId: string, host: Host): void {
+		const panel = TerminalPanel.panels.get(hostId);
+		if (panel && panel._panel) {
+			panel._panel.webview.postMessage({
+				command: 'HOST_CONFIG_UPDATED',
+				payload: { hostId, host }
+			});
+		}
+	}
+
 	private constructor(
 		panel: vscode.WebviewPanel,
 		extensionUri: vscode.Uri,

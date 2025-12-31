@@ -46,6 +46,10 @@ export interface Host {
 	terminalCopyOnSelect?: boolean;    // Copy to clipboard when text is selected
 	terminalRightClickBehavior?: 'paste' | 'menu'; // Right-click behavior: paste or show context menu
 	postExecScript?: string[];         // Commands to execute after shell session starts
+	terminalFontSize?: number;         // Font size in pixels (default: 14)
+	terminalFontWeight?: string;       // Font weight: 'normal', 'bold', '100'-'900'
+	terminalLineHeight?: number;       // Line height (default: 1.0)
+	terminalLetterSpacing?: number;    // Letter spacing in pixels (default: 0)
 	// File Manager settings
 	fileManagerLayout?: 'explorer' | 'commander';
 	fileManagerDefaultView?: 'grid' | 'list';
@@ -284,6 +288,7 @@ export type Message =
 	| { command: 'TERM_RESIZE'; payload: { cols: number; rows: number; splitId?: number } }
 	| { command: 'TERM_STATUS'; payload: { status: 'connecting' | 'connected' | 'disconnected' | 'error'; message?: string; splitId?: number } }
 	| { command: 'TERM_RECONNECT'; payload: { hostId: string } }
+	| { command: 'HOST_CONFIG_UPDATED'; payload: { hostId: string; host: Host } }
 	| { command: 'CHECK_FILE'; payload: { path: string; hostId: string } }
 	| { command: 'OPEN_REMOTE_FILE'; payload: { hostId: string; remotePath: string; content: string } }
 	| { command: 'OPEN_REMOTE_RESOURCE'; payload: { path: string; hostId: string } }

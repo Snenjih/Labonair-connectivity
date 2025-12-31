@@ -47,6 +47,10 @@ const EditHost: React.FC<EditHostProps> = ({
 	// Terminal Settings
 	const [cursorStyle, setCursorStyle] = useState<'bar' | 'block' | 'underline'>(initialHost?.terminalCursorStyle || 'block');
 	const [cursorBlink, setCursorBlink] = useState(initialHost?.terminalCursorBlink ?? true);
+	const [terminalFontSize, setTerminalFontSize] = useState(initialHost?.terminalFontSize || 14);
+	const [terminalFontWeight, setTerminalFontWeight] = useState(initialHost?.terminalFontWeight || 'normal');
+	const [terminalLineHeight, setTerminalLineHeight] = useState(initialHost?.terminalLineHeight || 1.0);
+	const [terminalLetterSpacing, setTerminalLetterSpacing] = useState(initialHost?.terminalLetterSpacing || 0);
 
 	// File Manager Settings
 	const [fileManagerLayout, setFileManagerLayout] = useState<'explorer' | 'commander'>(initialHost?.fileManagerLayout || 'explorer');
@@ -99,6 +103,10 @@ const EditHost: React.FC<EditHostProps> = ({
 			// Terminal settings
 			terminalCursorStyle: cursorStyle,
 			terminalCursorBlink: cursorBlink,
+			terminalFontSize,
+			terminalFontWeight,
+			terminalLineHeight,
+			terminalLetterSpacing,
 			// File Manager settings
 			fileManagerLayout,
 			fileManagerDefaultView: defaultView,
@@ -328,6 +336,68 @@ const EditHost: React.FC<EditHostProps> = ({
 								<input type="checkbox" checked={cursorBlink} onChange={e => setCursorBlink(e.target.checked)} />
 								Enable cursor blinking
 							</label>
+						</div>
+
+						<h3>Typography</h3>
+						<p className="section-description">Customize font appearance and spacing for optimal readability.</p>
+
+						<div className="form-row">
+							<div className="form-group flex-1">
+								<label>Font Size</label>
+								<input
+									className="vscode-input"
+									type="number"
+									value={terminalFontSize}
+									onChange={e => setTerminalFontSize(parseInt(e.target.value) || 14)}
+									min="8"
+									max="32"
+									placeholder="14"
+								/>
+								<small>Font size in pixels (8-32)</small>
+							</div>
+							<div className="form-group flex-1">
+								<label>Font Weight</label>
+								<select className="vscode-input" value={terminalFontWeight} onChange={e => setTerminalFontWeight(e.target.value)}>
+									<option value="normal">Normal</option>
+									<option value="bold">Bold</option>
+									<option value="100">Thin (100)</option>
+									<option value="300">Light (300)</option>
+									<option value="500">Medium (500)</option>
+									<option value="600">Semi-Bold (600)</option>
+									<option value="700">Bold (700)</option>
+									<option value="900">Black (900)</option>
+								</select>
+							</div>
+						</div>
+
+						<div className="form-row">
+							<div className="form-group flex-1">
+								<label>Line Height</label>
+								<input
+									className="vscode-input"
+									type="number"
+									value={terminalLineHeight}
+									onChange={e => setTerminalLineHeight(parseFloat(e.target.value) || 1.0)}
+									min="0.5"
+									max="3.0"
+									step="0.1"
+									placeholder="1.0"
+								/>
+								<small>Line height multiplier (0.5-3.0)</small>
+							</div>
+							<div className="form-group flex-1">
+								<label>Letter Spacing</label>
+								<input
+									className="vscode-input"
+									type="number"
+									value={terminalLetterSpacing}
+									onChange={e => setTerminalLetterSpacing(parseInt(e.target.value) || 0)}
+									min="-5"
+									max="10"
+									placeholder="0"
+								/>
+								<small>Letter spacing in pixels (-5 to 10)</small>
+							</div>
 						</div>
 					</div>
 				)}
