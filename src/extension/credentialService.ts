@@ -14,32 +14,48 @@ export class CredentialService {
 	}
 
 	async saveCredential(credential: Credential, secret: string): Promise<void> {
-		const credentials = await this.getCredentials();
-		const index = credentials.findIndex(c => c.id === credential.id);
+		try {
+			const credentials = await this.getCredentials();
+			const index = credentials.findIndex(c => c.id === credential.id);
 
-		if (index !== -1) {
-			credentials[index] = credential;
-		} else {
-			credentials.push(credential);
+			if (index !== -1) {
+				credentials[index] = credential;
+			} else {
+				credentials.push(credential);
+			}
+
+			await this.context.globalState.update(this.STORAGE_KEY, credentials);
+			await this.context.secrets.store(`labonair.credential.${credential.id}`, secret);
+
+			this._onDidChangeCredentials.fire(credentials);
+		} catch (error) {
+			console.error('[CredentialService] Failed to save credential:', error);
+			throw new Error(`Failed to save credential: ${error instanceof Error ? error.message : 'Unknown error'}`);
 		}
-
-		await this.context.globalState.update(this.STORAGE_KEY, credentials);
-		await this.context.secrets.store(`labonair.credential.${credential.id}`, secret);
-
-		this._onDidChangeCredentials.fire(credentials);
 	}
 
 	async deleteCredential(id: string): Promise<void> {
-		let credentials = await this.getCredentials();
-		credentials = credentials.filter(c => c.id !== id);
+		try {
+			let credentials = await this.getCredentials();
+			credentials = credentials.filter(c => c.id !== id);
 
-		await this.context.globalState.update(this.STORAGE_KEY, credentials);
-		await this.context.secrets.delete(`labonair.credential.${id}`);
+			await this.context.globalState.update(this.STORAGE_KEY, credentials);
+			await this.context.secrets.delete(`labonair.credential.${id}`);
 
-		this._onDidChangeCredentials.fire(credentials);
+			this._onDidChangeCredentials.fire(credentials);
+		} catch (error) {
+			console.error('[CredentialService] Failed to delete credential:', error);
+			throw new Error(`Failed to delete credential: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		}
 	}
 
 	async getSecret(id: string): Promise<string | undefined> {
-		return await this.context.secrets.get(`labonair.credential.${id}`);
+		try {
+			return await this.context.secrets.get(`labonair.credential.${id}`);
+		} catch (error) {
+			console.error('[CredentialService] Failed to retrieve secret:', error);
+			// Return undefined instead of throwing to allow graceful degradation
+			return undefined;
+		}
 	}
 }

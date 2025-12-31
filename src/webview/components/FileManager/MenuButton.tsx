@@ -26,7 +26,19 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
 	isCommanderMode
 }) => {
 	const [isOpen, setIsOpen] = useState(false);
+	const [focusedIndex, setFocusedIndex] = useState(0);
 	const dropdownRef = useRef<HTMLDivElement>(null);
+	const buttonRef = useRef<HTMLButtonElement>(null);
+	const menuItemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+	// Build menu items list for keyboard navigation
+	const menuItems = [
+		{ label: 'New File', icon: FilePlus, action: onNewFile },
+		{ label: 'New Folder', icon: FolderPlus, action: onNewFolder },
+		{ label: 'Upload File', icon: Upload, action: onUpload },
+		...(onDeepSearch ? [{ label: 'Find Files (Deep Search)', icon: Search, action: onDeepSearch }] : []),
+		...(onOpenSync && isCommanderMode ? [{ label: 'Synchronize Directories', icon: ArrowLeftRight, action: onOpenSync }] : [])
+	];
 
 	// Close dropdown when clicking outside
 	useEffect(() => {
@@ -42,75 +54,106 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
 		}
 	}, [isOpen]);
 
+	// Focus first menu item when dropdown opens
+	useEffect(() => {
+		if (isOpen && menuItemRefs.current[0]) {
+			setFocusedIndex(0);
+			menuItemRefs.current[0]?.focus();
+		}
+	}, [isOpen]);
+
 	const handleMenuItemClick = (action: () => void) => {
 		action();
 		setIsOpen(false);
+		buttonRef.current?.focus();
+	};
+
+	// Keyboard navigation for the menu button (Subphase 5.6 Req #2)
+	const handleButtonKeyDown = (e: React.KeyboardEvent) => {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			setIsOpen(!isOpen);
+		} else if (e.key === 'ArrowDown' && !isOpen) {
+			e.preventDefault();
+			setIsOpen(true);
+		}
+	};
+
+	// Keyboard navigation for menu items (Subphase 5.6 Req #2)
+	const handleMenuKeyDown = (e: React.KeyboardEvent, index: number) => {
+		switch (e.key) {
+			case 'ArrowDown':
+				e.preventDefault();
+				const nextIndex = (index + 1) % menuItems.length;
+				setFocusedIndex(nextIndex);
+				menuItemRefs.current[nextIndex]?.focus();
+				break;
+			case 'ArrowUp':
+				e.preventDefault();
+				const prevIndex = (index - 1 + menuItems.length) % menuItems.length;
+				setFocusedIndex(prevIndex);
+				menuItemRefs.current[prevIndex]?.focus();
+				break;
+			case 'Enter':
+			case ' ':
+				e.preventDefault();
+				menuItems[index].action();
+				setIsOpen(false);
+				buttonRef.current?.focus();
+				break;
+			case 'Escape':
+				e.preventDefault();
+				setIsOpen(false);
+				buttonRef.current?.focus();
+				break;
+		}
 	};
 
 	return (
 		<div ref={dropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
 			<button
+				ref={buttonRef}
 				className="toolbar-btn"
 				onClick={() => setIsOpen(!isOpen)}
+				onKeyDown={handleButtonKeyDown}
 				disabled={isLoading}
 				title="Actions menu"
 				aria-label="Open actions menu"
 				aria-expanded={isOpen}
+				aria-haspopup="true"
 			>
 				<MoreVertical size={16} />
 			</button>
 
 			{isOpen && (
-				<div className="toolbar-dropdown action-menu-dropdown">
-					<div
-						className="toolbar-dropdown-item"
-						onClick={() => handleMenuItemClick(onNewFile)}
-					>
-						<FilePlus size={14} />
-						<span>New File</span>
-					</div>
+				<div
+					className="toolbar-dropdown action-menu-dropdown"
+					role="menu"
+					aria-label="File actions"
+				>
+					{menuItems.map((item, index) => {
+						const Icon = item.icon;
+						// Add divider before Deep Search and Sync items
+						const needsDividerBefore = index === 3 && onDeepSearch;
 
-					<div
-						className="toolbar-dropdown-item"
-						onClick={() => handleMenuItemClick(onNewFolder)}
-					>
-						<FolderPlus size={14} />
-						<span>New Folder</span>
-					</div>
-
-					<div
-						className="toolbar-dropdown-item"
-						onClick={() => handleMenuItemClick(onUpload)}
-					>
-						<Upload size={14} />
-						<span>Upload File</span>
-					</div>
-
-					{onDeepSearch && (
-						<>
-							<div className="toolbar-dropdown-divider" />
-							<div
-								className="toolbar-dropdown-item"
-								onClick={() => handleMenuItemClick(onDeepSearch)}
-							>
-								<Search size={14} />
-								<span>Find Files (Deep Search)</span>
-							</div>
-						</>
-					)}
-
-					{onOpenSync && isCommanderMode && (
-						<>
-							<div className="toolbar-dropdown-divider" />
-							<div
-								className="toolbar-dropdown-item"
-								onClick={() => handleMenuItemClick(onOpenSync)}
-							>
-								<ArrowLeftRight size={14} />
-								<span>Synchronize Directories</span>
-							</div>
-						</>
-					)}
+						return (
+							<React.Fragment key={index}>
+								{needsDividerBefore && <div className="toolbar-dropdown-divider" />}
+								<div
+									ref={(el) => (menuItemRefs.current[index] = el)}
+									className="toolbar-dropdown-item"
+									onClick={() => handleMenuItemClick(item.action)}
+									onKeyDown={(e) => handleMenuKeyDown(e, index)}
+									tabIndex={0}
+									role="menuitem"
+									aria-label={item.label}
+								>
+									<Icon size={14} />
+									<span>{item.label}</span>
+								</div>
+							</React.Fragment>
+						);
+					})}
 				</div>
 			)}
 		</div>

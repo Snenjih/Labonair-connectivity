@@ -161,6 +161,40 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 	context.subscriptions.push(clearLogsCommand);
 
+	// Register Reset Layout command
+	const resetLayoutCommand = vscode.commands.registerCommand(
+		'labonair.resetLayout',
+		async () => {
+			try {
+				// Clear all UI state from globalState
+				const keys = context.globalState.keys();
+				for (const key of keys) {
+					if (key.startsWith('labonair.panel.') ||
+					    key.startsWith('labonair.fileManager.') ||
+					    key.startsWith('labonair.terminal.')) {
+						await context.globalState.update(key, undefined);
+					}
+				}
+
+				vscode.window.showInformationMessage(
+					'Layout reset successfully. Please reload the window for changes to take effect.',
+					'Reload Window'
+				).then(selection => {
+					if (selection === 'Reload Window') {
+						vscode.commands.executeCommand('workbench.action.reloadWindow');
+					}
+				});
+
+				logger.info('Layout state cleared');
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				vscode.window.showErrorMessage(`Failed to reset layout: ${errorMessage}`);
+				logger.error('Failed to reset layout:', error instanceof Error ? error : new Error(String(error)));
+			}
+		}
+	);
+	context.subscriptions.push(resetLayoutCommand);
+
 	// Register the Webview View Providers
 	try {
 		console.log('Activating Connectivity Extension...');

@@ -53,6 +53,11 @@
 				"command": "labonair.backupAll",
 				"title": "Export All Settings (Backup)",
 				"category": "Labonair"
+			},
+			{
+				"command": "labonair.resetLayout",
+				"title": "Reset UI Layout",
+				"category": "Labonair"
 			}
 		],
 		"keybindings": [

@@ -378,7 +378,20 @@
 }
 
 .file-manager-panel.inactive {
-	opacity: 0.7;
+	/* Subtle opacity reduction for inactive panel (Subphase 5.6 Req #4) */
+	opacity: 0.85;
+}
+
+/* Inactive panel selection styling (Subphase 5.6 Req #4) */
+/* Use VS Code's inactive selection colors for better visual distinction */
+.file-manager-panel.inactive .file-list-row.selected {
+	background: var(--vscode-list-inactiveSelectionBackground) !important;
+	color: var(--vscode-list-inactiveSelectionForeground) !important;
+}
+
+.file-manager-panel.inactive .file-grid-item.selected {
+	background: var(--vscode-list-inactiveSelectionBackground) !important;
+	color: var(--vscode-list-inactiveSelectionForeground) !important;
 }
 
 /* ============================================================================

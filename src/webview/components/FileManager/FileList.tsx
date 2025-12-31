@@ -205,6 +205,7 @@ export const FileList: React.FC<FileListProps> = ({
 
 	/**
 	 * Handles keyboard navigation
+	 * Enhanced to support Shift+Arrow multi-selection (Subphase 5.6 Req #1)
 	 */
 	const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
 		if (filteredFiles.length === 0) {return;}
@@ -232,7 +233,9 @@ export const FileList: React.FC<FileListProps> = ({
 				break;
 			case 'Backspace':
 				event.preventDefault();
-				// Navigate up (parent will handle)
+				if (onNavigateUp) {
+					onNavigateUp();
+				}
 				break;
 			case 'Delete':
 				event.preventDefault();
@@ -250,14 +253,30 @@ export const FileList: React.FC<FileListProps> = ({
 					}
 				}
 				break;
+			case 'a':
+			case 'A':
+				// Ctrl+A: Select all (skip "..." fake folder)
+				if (event.ctrlKey || event.metaKey) {
+					event.preventDefault();
+					// Select first file without ctrl, then add rest with ctrl
+					if (filteredFiles.length > 0) {
+						onFileSelect(filteredFiles[0].path, false, false);
+						for (let i = 1; i < filteredFiles.length; i++) {
+							onFileSelect(filteredFiles[i].path, true, false);
+						}
+					}
+				}
+				break;
 			default:
 				return;
 		}
 
-		if (newIndex !== currentIndex && newIndex >= 0 && newIndex < filteredFiles.length) {
-			onFileSelect(filteredFiles[newIndex].path, false, false);
+		// Handle navigation with Shift+Arrow for multi-selection (Req #1)
+		if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && newIndex !== currentIndex && newIndex >= 0 && newIndex < filteredFiles.length) {
+			// Use shiftKey for multi-selection (emulates rubberband with keyboard)
+			onFileSelect(filteredFiles[newIndex].path, event.ctrlKey || event.metaKey, event.shiftKey);
 		}
-	}, [filteredFiles, focusedFile, selection, onFileSelect, onFileOpen, onFileDelete, onFileRename]);
+	}, [filteredFiles, focusedFile, selection, onFileSelect, onFileOpen, onFileDelete, onFileRename, onNavigateUp]);
 
 	/**
 	 * Handles context menu
@@ -512,6 +531,14 @@ export const FileList: React.FC<FileListProps> = ({
 					}
 				}
 			}
+
+			// Focus sync (Subphase 5.6 Req #1): Focus the last selected item
+			// This ensures keyboard navigation continues from the rubberband selection
+			const lastSelectedPath = selectedPaths[selectedPaths.length - 1];
+			const lastSelectedElement = document.querySelector(`[data-file-path="${CSS.escape(lastSelectedPath)}"]`) as HTMLElement;
+			if (lastSelectedElement) {
+				lastSelectedElement.focus();
+			}
 		}
 
 		// Reset selection state
@@ -621,6 +648,13 @@ export const FileList: React.FC<FileListProps> = ({
 							e.stopPropagation();
 							onNavigateUp?.();
 						}}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								e.stopPropagation();
+								onNavigateUp?.();
+							}
+						}}
 						tabIndex={0}
 						role="button"
 						title="Previous Folder"
@@ -713,6 +747,13 @@ export const FileList: React.FC<FileListProps> = ({
 					onDoubleClick={(e) => {
 						e.stopPropagation();
 						onNavigateUp?.();
+					}}
+					onKeyDown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault();
+							e.stopPropagation();
+							onNavigateUp?.();
+						}
 					}}
 					tabIndex={0}
 					role="button"
