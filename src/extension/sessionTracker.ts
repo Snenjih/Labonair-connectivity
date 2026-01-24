@@ -7,6 +7,7 @@ export interface SessionInfo {
 	hostId: string;
 	splitMode: 'none' | 'vertical' | 'horizontal';
 	type: 'terminal' | 'sftp';
+	timestamp: number; // Unix timestamp when session was last persisted
 }
 
 /**
@@ -43,7 +44,12 @@ export class SessionTracker {
 	 * Register a panel (Terminal or SFTP)
 	 */
 	public registerPanel(panelId: string, sessionInfo: SessionInfo): void {
-		this.activePanels.set(panelId, sessionInfo);
+		// Add timestamp to session info
+		const sessionWithTimestamp: SessionInfo = {
+			...sessionInfo,
+			timestamp: Date.now()
+		};
+		this.activePanels.set(panelId, sessionWithTimestamp);
 		this.persistSessions();
 		this.fireUpdate();
 	}

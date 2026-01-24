@@ -1461,7 +1461,7 @@ async function performBackup(
 
 /**
  * Session Restoration Function
- * Prompts user to restore previous sessions on extension activation
+ * Automatically restores previous sessions on extension activation based on settings
  */
 async function restoreSessions(
 	context: vscode.ExtensionContext,
@@ -1476,28 +1476,41 @@ async function restoreSessions(
 	archiveService: ArchiveService,
 	syncService: SyncService
 ): Promise<void> {
+	// Check if auto-restore is enabled
+	const config = vscode.workspace.getConfiguration('labonair.session');
+	const autoRestore = config.get<boolean>('autoRestore', true);
+
+	if (!autoRestore) {
+		// Auto-restore disabled, clear any persisted sessions
+		sessionTracker.clearPersistedSessions();
+		return;
+	}
+
 	const persistedSessions = sessionTracker.getPersistedSessions();
 
 	if (persistedSessions.length === 0) {
 		return;
 	}
 
-	// Prompt user to restore sessions
-	const tabCount = persistedSessions.length;
-	const answer = await vscode.window.showInformationMessage(
-		`Restore previous session? (${tabCount} tab${tabCount > 1 ? 's' : ''})`,
-		'Yes',
-		'No'
-	);
+	// Get max age setting (in days)
+	const maxAgeDays = config.get<number>('maxAge', 2);
+	const now = Date.now();
+	const maxAgeMs = maxAgeDays > 0 ? maxAgeDays * 24 * 60 * 60 * 1000 : Infinity;
 
-	if (answer !== 'Yes') {
-		// Clear persisted sessions if user declines
+	// Filter sessions based on age
+	const validSessions = persistedSessions.filter(session => {
+		const sessionAge = now - (session.timestamp || 0);
+		return sessionAge <= maxAgeMs;
+	});
+
+	if (validSessions.length === 0) {
+		// All sessions are too old, clear them
 		sessionTracker.clearPersistedSessions();
 		return;
 	}
 
-	// Restore each session
-	for (const sessionInfo of persistedSessions) {
+	// Restore each valid session
+	for (const sessionInfo of validSessions) {
 		try {
 			const host = hostService.getHostById(sessionInfo.hostId);
 			if (!host) {

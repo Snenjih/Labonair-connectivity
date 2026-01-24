@@ -120,6 +120,17 @@
 						"type": "string",
 						"enum": ["internal-preview", "external", "vscode"]
 					}
+				},
+				"labonair.session.autoRestore": {
+					"type": "boolean",
+					"default": true,
+					"description": "Automatically restore Host Manager sessions (terminals and SFTP panels) on startup"
+				},
+				"labonair.session.maxAge": {
+					"type": "number",
+					"default": 2,
+					"minimum": 0,
+					"description": "Maximum age in days for sessions to be restored automatically (0 = no limit)"
 				}
 			}
 		}
