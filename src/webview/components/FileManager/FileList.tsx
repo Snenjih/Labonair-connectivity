@@ -364,6 +364,7 @@ export const FileList: React.FC<FileListProps> = ({
 	 */
 	const handleDragEnd = () => {
 		setDragging(false);
+		setDragOver(false);
 	};
 
 	/**
@@ -560,6 +561,26 @@ export const FileList: React.FC<FileListProps> = ({
 		}
 	}, [isSelecting, handleGlobalMouseMove, handleGlobalMouseUp]);
 
+	// Reset drag over state when drag ends globally (safety mechanism)
+	useEffect(() => {
+		const handleGlobalDragEnd = () => {
+			setDragOver(false);
+			setDragging(false);
+		};
+
+		const handleGlobalDrop = () => {
+			setDragOver(false);
+		};
+
+		document.addEventListener('dragend', handleGlobalDragEnd);
+		document.addEventListener('drop', handleGlobalDrop);
+
+		return () => {
+			document.removeEventListener('dragend', handleGlobalDragEnd);
+			document.removeEventListener('drop', handleGlobalDrop);
+		};
+	}, []);
+
 	// Render selection box
 	const renderSelectionBox = () => {
 		if (!isSelecting || !selectionStart || !selectionCurrent) return null;
@@ -640,10 +661,6 @@ export const FileList: React.FC<FileListProps> = ({
 					<div
 						key="virtual-parent-folder"
 						className="file-list-row file-list-row-parent"
-						onClick={(e) => {
-							e.stopPropagation();
-							onNavigateUp?.();
-						}}
 						onDoubleClick={(e) => {
 							e.stopPropagation();
 							onNavigateUp?.();
@@ -657,7 +674,7 @@ export const FileList: React.FC<FileListProps> = ({
 						}}
 						tabIndex={0}
 						role="button"
-						title="Previous Folder"
+						title="Previous Folder (Double-click to navigate)"
 						style={{ opacity: 0.7 }}
 					>
 						<div className="col-name">
@@ -740,10 +757,6 @@ export const FileList: React.FC<FileListProps> = ({
 				<div
 					key="virtual-parent-folder"
 					className="file-grid-item file-grid-item-parent"
-					onClick={(e) => {
-						e.stopPropagation();
-						onNavigateUp?.();
-					}}
 					onDoubleClick={(e) => {
 						e.stopPropagation();
 						onNavigateUp?.();
@@ -757,7 +770,7 @@ export const FileList: React.FC<FileListProps> = ({
 					}}
 					tabIndex={0}
 					role="button"
-					title="Previous Folder"
+					title="Previous Folder (Double-click to navigate)"
 					style={{ opacity: 0.7 }}
 				>
 					<div className="file-grid-icon">
@@ -1169,9 +1182,83 @@ export const FileList: React.FC<FileListProps> = ({
 			style={{ position: 'relative' }}
 		>
 			{filteredFiles.length === 0 ? (
-				<div className="empty-state">
-					<p>{searchQuery ? 'No files match your search' : 'This directory is empty'}</p>
-				</div>
+				<>
+					{showPreviousFolderItem && (
+						viewMode === 'list' ? (
+							<div className="file-list-table">
+								<div className="file-list-header">
+									<div className="col-name">Name</div>
+									<div className="col-size">Size</div>
+									<div className="col-modified">Modified</div>
+									<div className="col-permissions">Permissions</div>
+									<div className="col-owner">Owner</div>
+								</div>
+								<div className="file-list-body">
+									<div
+										key="virtual-parent-folder"
+										className="file-list-row file-list-row-parent"
+										onDoubleClick={(e) => {
+											e.stopPropagation();
+											onNavigateUp?.();
+										}}
+										onKeyDown={(e) => {
+											if (e.key === 'Enter' || e.key === ' ') {
+												e.preventDefault();
+												e.stopPropagation();
+												onNavigateUp?.();
+											}
+										}}
+										tabIndex={0}
+										role="button"
+										title="Previous Folder (Double-click to navigate)"
+										style={{ opacity: 0.7 }}
+									>
+										<div className="col-name">
+											<div style={{ position: 'relative', display: 'inline-block' }}>
+												<FolderOpen size={18} />
+											</div>
+											<span className="file-name">...</span>
+										</div>
+										<div className="col-size">—</div>
+										<div className="col-modified">—</div>
+										<div className="col-permissions">—</div>
+										<div className="col-owner">—</div>
+									</div>
+								</div>
+							</div>
+						) : (
+							<div className="file-grid">
+								<div
+									key="virtual-parent-folder"
+									className="file-grid-item file-grid-item-parent"
+									onDoubleClick={(e) => {
+										e.stopPropagation();
+										onNavigateUp?.();
+									}}
+									onKeyDown={(e) => {
+										if (e.key === 'Enter' || e.key === ' ') {
+											e.preventDefault();
+											e.stopPropagation();
+											onNavigateUp?.();
+										}
+									}}
+									tabIndex={0}
+									role="button"
+									title="Previous Folder (Double-click to navigate)"
+									style={{ opacity: 0.7 }}
+								>
+									<div className="file-grid-icon">
+										<FolderOpen size={48} />
+									</div>
+									<div className="file-grid-name">...</div>
+								</div>
+							</div>
+						)
+					)}
+					<div className="empty-state">
+						<p>{searchQuery ? 'No files match your search' : 'This directory is empty'}</p>
+					</div>
+				</>
 			) : (
 				viewMode === 'list' ? renderListView() : renderGridView()
 			)}

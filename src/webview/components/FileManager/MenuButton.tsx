@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MoreVertical, FilePlus, FolderPlus, Upload, Search, ArrowLeftRight } from 'lucide-react';
+import { MoreVertical, FilePlus, FolderPlus, Upload, Search, ArrowLeftRight, Terminal } from 'lucide-react';
 
 interface MenuButtonProps {
 	onNewFile: () => void;
 	onNewFolder: () => void;
 	onUpload: () => void;
+	onOpenTerminal?: () => void;
 	onDeepSearch?: () => void;
 	onOpenSync?: () => void;
 	isLoading: boolean;
@@ -20,6 +21,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
 	onNewFile,
 	onNewFolder,
 	onUpload,
+	onOpenTerminal,
 	onDeepSearch,
 	onOpenSync,
 	isLoading,
@@ -36,6 +38,7 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
 		{ label: 'New File', icon: FilePlus, action: onNewFile },
 		{ label: 'New Folder', icon: FolderPlus, action: onNewFolder },
 		{ label: 'Upload File', icon: Upload, action: onUpload },
+		...(onOpenTerminal ? [{ label: 'Open Terminal Here', icon: Terminal, action: onOpenTerminal }] : []),
 		...(onDeepSearch ? [{ label: 'Find Files (Deep Search)', icon: Search, action: onDeepSearch }] : []),
 		...(onOpenSync && isCommanderMode ? [{ label: 'Synchronize Directories', icon: ArrowLeftRight, action: onOpenSync }] : [])
 	];
@@ -133,8 +136,8 @@ export const MenuButton: React.FC<MenuButtonProps> = ({
 				>
 					{menuItems.map((item, index) => {
 						const Icon = item.icon;
-						// Add divider before Deep Search and Sync items
-						const needsDividerBefore = index === 3 && onDeepSearch;
+						// Add divider before Open Terminal Here item
+						const needsDividerBefore = index === 3 && onOpenTerminal;
 
 						return (
 							<React.Fragment key={index}>

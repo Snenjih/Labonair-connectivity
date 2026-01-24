@@ -120,6 +120,22 @@ export const FileManager: React.FC<FileManagerProps> = ({
 	}, [stateLoaded]);
 
 	// Listen for messages from extension
+	// Auto-hide transfer overlay after 3 seconds and refresh directory
+	useEffect(() => {
+		if (transfer && transfer.progress === 100) {
+			const timeoutId = setTimeout(() => {
+				setTransfer(null);
+				// Refresh both panels to show the new/updated files
+				loadDirectory(leftPanel.currentPath, 'left');
+				if (layoutMode === 'commander') {
+					loadDirectory(rightPanel.currentPath, 'right');
+				}
+			}, 3000);
+
+			return () => clearTimeout(timeoutId);
+		}
+	}, [transfer, leftPanel.currentPath, rightPanel.currentPath, layoutMode]);
+
 	useEffect(() => {
 		const handleMessage = (event: MessageEvent) => {
 			const message = event.data;

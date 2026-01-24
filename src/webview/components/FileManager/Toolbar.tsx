@@ -5,7 +5,6 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	RefreshCw,
-	Terminal,
 	Grid3x3,
 	List,
 	Columns,
@@ -543,24 +542,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 					onNewFile={onNewFile}
 					onNewFolder={onNewFolder}
 					onUpload={onUpload}
+					onOpenTerminal={onOpenTerminal}
 					onDeepSearch={onDeepSearch}
 					onOpenSync={onOpenSync}
 					isLoading={isLoading}
 					isCommanderMode={layoutMode === 'commander'}
 				/>
-
-				{/* Keep Terminal as a quick action */}
-				{onOpenTerminal && (
-					<button
-						className="toolbar-btn"
-						onClick={onOpenTerminal}
-						disabled={isLoading}
-						title="Open terminal here"
-						aria-label="Open terminal in current directory"
-					>
-						<Terminal size={16} />
-					</button>
-				)}
 			</div>
 
 			{/* View Controls */}
