@@ -183,7 +183,7 @@ export interface FolderConfig {
 export type Message =
 	// Data fetching
 	| { command: 'FETCH_DATA' }
-	| { command: 'UPDATE_DATA'; payload: { view?: ViewType; hosts?: Host[]; credentials?: Credential[]; activeSessionHostIds?: string[]; hostStatuses?: Record<string, 'online' | 'offline' | 'unknown'>; hostId?: string; currentPath?: string } }
+	| { command: 'UPDATE_DATA'; payload: { view?: ViewType; hosts?: Host[]; credentials?: Credential[]; activeSessionHostIds?: string[]; hostStatuses?: Record<string, 'online' | 'offline' | 'unknown'>; hostId?: string; currentPath?: string; terminalDefaults?: any; fileManagerDefaults?: any } }
 
 	// Host CRUD
 	| { command: 'SAVE_HOST'; payload: { host: Host; password?: string; keyPath?: string } }

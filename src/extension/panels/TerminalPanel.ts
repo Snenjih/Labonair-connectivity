@@ -153,13 +153,26 @@ export class TerminalPanel {
 	 */
 	private async _initializeSession(splitId: number): Promise<void> {
 		try {
+			// Get terminal defaults from configuration
+			const terminalConfig = vscode.workspace.getConfiguration('labonair.terminal');
+			const terminalDefaults = {
+				fontSize: terminalConfig.get<number>('fontSize', 16),
+				fontWeight: terminalConfig.get<string>('fontWeight', '500'),
+				lineHeight: terminalConfig.get<number>('lineHeight', 1.5),
+				letterSpacing: terminalConfig.get<number>('letterSpacing', 2),
+				cursorStyle: terminalConfig.get<string>('cursorStyle', 'block'),
+				cursorBlink: terminalConfig.get<boolean>('cursorBlink', true),
+				pasteThreshold: terminalConfig.get<number>('pasteThreshold', 10)
+			};
+
 			// Send initial state to webview
 			this._panel.webview.postMessage({
 				command: 'UPDATE_DATA',
 				payload: {
 					view: 'terminal',
 					hostId: this._hostId,
-					hosts: [this._host]
+					hosts: [this._host],
+					terminalDefaults
 				}
 			});
 

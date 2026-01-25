@@ -138,6 +138,13 @@ export class SftpPanel {
 			// Update panel title
 			this._panel.title = `SFTP: ${host.name || host.host}`;
 
+			// Get file manager defaults from configuration
+			const fileManagerConfig = vscode.workspace.getConfiguration('labonair.fileManager');
+			const fileManagerDefaults = {
+				defaultLayout: fileManagerConfig.get<string>('defaultLayout', 'explorer') as 'explorer' | 'commander',
+				defaultView: fileManagerConfig.get<string>('defaultView', 'list') as 'list' | 'grid'
+			};
+
 			// Send initial state to webview
 			this._panel.webview.postMessage({
 				command: 'UPDATE_DATA',
@@ -145,7 +152,8 @@ export class SftpPanel {
 					view: 'fileManager',
 					hostId: this._hostId,
 					currentPath: this._currentPath,
-					hosts: [host]
+					hosts: [host],
+					fileManagerDefaults
 				}
 			});
 

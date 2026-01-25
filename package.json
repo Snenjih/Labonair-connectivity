@@ -135,6 +135,138 @@
 					"default": 2,
 					"minimum": 0,
 					"description": "Maximum age in days for sessions to be restored automatically (0 = no limit)"
+				},
+				"labonair.terminal.fontSize": {
+					"type": "number",
+					"default": 16,
+					"minimum": 8,
+					"maximum": 48,
+					"description": "Default terminal font size in pixels"
+				},
+				"labonair.terminal.fontWeight": {
+					"type": "string",
+					"default": "500",
+					"enum": [
+						"100",
+						"200",
+						"300",
+						"400",
+						"500",
+						"600",
+						"700",
+						"800",
+						"900"
+					],
+					"description": "Default terminal font weight"
+				},
+				"labonair.terminal.lineHeight": {
+					"type": "number",
+					"default": 1.5,
+					"minimum": 1.0,
+					"maximum": 3.0,
+					"description": "Default terminal line height multiplier"
+				},
+				"labonair.terminal.letterSpacing": {
+					"type": "number",
+					"default": 2,
+					"minimum": 0,
+					"maximum": 10,
+					"description": "Default terminal letter spacing in pixels"
+				},
+				"labonair.terminal.cursorStyle": {
+					"type": "string",
+					"default": "block",
+					"enum": [
+						"bar",
+						"block",
+						"underline"
+					],
+					"description": "Default terminal cursor style"
+				},
+				"labonair.terminal.cursorBlink": {
+					"type": "boolean",
+					"default": true,
+					"description": "Default terminal cursor blink behavior"
+				},
+				"labonair.terminal.pasteThreshold": {
+					"type": "number",
+					"default": 10,
+					"minimum": 0,
+					"description": "Minimum characters (with newline) to trigger paste confirmation"
+				},
+				"labonair.connection.readyTimeout": {
+					"type": "number",
+					"default": 20000,
+					"minimum": 5000,
+					"maximum": 120000,
+					"description": "SSH connection ready timeout in milliseconds"
+				},
+				"labonair.connection.keepaliveInterval": {
+					"type": "number",
+					"default": 30000,
+					"minimum": 5000,
+					"maximum": 300000,
+					"description": "SSH keepalive interval in milliseconds (when keepalive is enabled per host)"
+				},
+				"labonair.connection.maxAuthTries": {
+					"type": "number",
+					"default": 3,
+					"minimum": 1,
+					"maximum": 10,
+					"description": "Default maximum authentication attempts"
+				},
+				"labonair.transfer.maxConcurrentPerHost": {
+					"type": "number",
+					"default": 3,
+					"minimum": 1,
+					"maximum": 20,
+					"description": "Maximum concurrent transfers per host"
+				},
+				"labonair.transfer.maxConcurrentGlobal": {
+					"type": "number",
+					"default": 5,
+					"minimum": 1,
+					"maximum": 50,
+					"description": "Maximum concurrent transfers across all hosts"
+				},
+				"labonair.transfer.queueProcessingInterval": {
+					"type": "number",
+					"default": 1000,
+					"minimum": 100,
+					"maximum": 10000,
+					"description": "Transfer queue processing interval in milliseconds"
+				},
+				"labonair.transfer.cacheTTL": {
+					"type": "number",
+					"default": 10000,
+					"minimum": 0,
+					"maximum": 300000,
+					"description": "Directory listing cache time-to-live in milliseconds (0 to disable)"
+				},
+				"labonair.transfer.paginationThreshold": {
+					"type": "number",
+					"default": 1000,
+					"minimum": 100,
+					"maximum": 50000,
+					"description": "Number of files before pagination is enabled"
+				},
+				"labonair.fileManager.defaultLayout": {
+					"type": "string",
+					"default": "explorer",
+					"enum": [
+						"explorer",
+						"commander"
+					],
+					"description": "Default file manager layout mode"
+				},
+				"labonair.fileManager.defaultView": {
+					"type": "string",
+					"default": "list",
+					"enum": [
+						"list",
+						"grid"
+					],
+					"description": "Default file manager view mode"
 				}
 			}
 		}

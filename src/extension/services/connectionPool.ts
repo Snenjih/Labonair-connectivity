@@ -143,7 +143,8 @@ class ConnectionPoolImpl {
 		hostKeyService: HostKeyService
 	): Promise<Client> {
 		const authConfig = await this.getAuthConfig(host, hostService, credentialService);
-		const maxAuthTries = host.maxAuthTries || 3; // Default to 3 attempts
+		const config = vscode.workspace.getConfiguration('labonair.connection');
+		const maxAuthTries = host.maxAuthTries || config.get<number>('maxAuthTries', 3);
 		let authAttempts = 0;
 
 		return new Promise((resolve, reject) => {
@@ -179,14 +180,18 @@ class ConnectionPoolImpl {
 				reject(err);
 			});
 
+			const connectionConfig = vscode.workspace.getConfiguration('labonair.connection');
+			const keepaliveInterval = host.keepAlive ? connectionConfig.get<number>('keepaliveInterval', 30000) : undefined;
+			const readyTimeout = connectionConfig.get<number>('readyTimeout', 20000);
+
 			client.connect({
 				host: host.host,
 				port: host.port,
 				username: host.username,
 				...authConfig,
 				tryKeyboard: true, // Enable keyboard-interactive auth
-				keepaliveInterval: host.keepAlive ? 30000 : undefined,
-				readyTimeout: 20000,
+				keepaliveInterval,
+				readyTimeout,
 				// Security: If host verification is critical, we should implement a strict verifier.
 				// For now, we log the fingerprint but accept to avoid blocking users (promiscuous mode)
 				// effectively mimicking known_hosts management but defaulting to accept.

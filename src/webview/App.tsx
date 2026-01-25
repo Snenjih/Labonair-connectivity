@@ -61,6 +61,21 @@ const App: React.FC = () => {
 	const isEditorContext = window.LABONAIR_CONTEXT === 'editor';
 	const isQueueContext = window.LABONAIR_CONTEXT === 'queue';
 
+	// Configuration defaults
+	const [terminalDefaults, setTerminalDefaults] = useState<any>({
+		fontSize: 16,
+		fontWeight: '500',
+		lineHeight: 1.5,
+		letterSpacing: 2,
+		cursorStyle: 'block',
+		cursorBlink: true,
+		pasteThreshold: 10
+	});
+	const [fileManagerDefaults, setFileManagerDefaults] = useState<any>({
+		defaultLayout: 'explorer',
+		defaultView: 'list'
+	});
+
 	// Dialogs
 	const [tunnelDialogHost, setTunnelDialogHost] = useState<Host | null>(null);
 	const [hostKeyRequest, setHostKeyRequest] = useState<{
@@ -131,6 +146,10 @@ const App: React.FC = () => {
 						setActiveSessionHostIds(message.payload.activeSessionHostIds);
 					}
 					if (message.payload.hostStatuses) setHostStatuses(message.payload.hostStatuses);
+
+					// Update configuration defaults
+					if (message.payload.terminalDefaults) setTerminalDefaults(message.payload.terminalDefaults);
+					if (message.payload.fileManagerDefaults) setFileManagerDefaults(message.payload.fileManagerDefaults);
 
 					// Update local UI state
 					if (message.payload.view) setView(message.payload.view);
@@ -554,6 +573,8 @@ const App: React.FC = () => {
 					availableShells={availableShells || []}
 					existingFolders={existingFolders}
 					credentials={credentials || []}
+					terminalDefaults={terminalDefaults}
+					fileManagerDefaults={fileManagerDefaults}
 					onSave={handleSaveHost}
 					onCancel={() => handleNavigate('hosts')}
 				/>
@@ -570,6 +591,8 @@ const App: React.FC = () => {
 				<FileManager
 					hostId={hostId}
 					initialPath={currentPath}
+					layout={fileManagerDefaults?.defaultLayout}
+					defaultView={fileManagerDefaults?.defaultView}
 				/>
 			)}
 

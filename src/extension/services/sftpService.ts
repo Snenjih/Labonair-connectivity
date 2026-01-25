@@ -1,6 +1,7 @@
 import { SFTPWrapper } from 'ssh2';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as vscode from 'vscode';
 import * as iconv from 'iconv-lite';
 import { Host, FileEntry } from '../../common/types';
 import { HostService } from '../hostService';
@@ -25,14 +26,19 @@ export class SftpService {
 	private activeSessions: Map<string, { sftp: SFTPWrapper }> = new Map();
 	private progressCallbacks: Map<string, (progress: number, speed: string) => void> = new Map();
 	private directoryCache: Map<string, DirectoryCacheEntry> = new Map();
-	private readonly CACHE_TTL = 10000; // 10 seconds
-	private readonly PAGINATION_THRESHOLD = 1000; // Files threshold for pagination
+	private readonly CACHE_TTL: number;
+	private readonly PAGINATION_THRESHOLD: number;
 
 	constructor(
 		private readonly hostService: HostService,
 		private readonly credentialService: CredentialService,
 		private readonly hostKeyService: HostKeyService
-	) { }
+	) {
+		// Load transfer settings from configuration
+		const config = vscode.workspace.getConfiguration('labonair.transfer');
+		this.CACHE_TTL = config.get<number>('cacheTTL', 10000);
+		this.PAGINATION_THRESHOLD = config.get<number>('paginationThreshold', 1000);
+	}
 
 	/**
 	 * Gets or creates an SFTP session for a host
@@ -72,6 +78,28 @@ export class SftpService {
 	}
 
 	/**
+	 * Expands tilde paths (~, ~/...) to absolute paths using OpenSSH extension
+	 */
+	private async expandPath(sftp: SFTPWrapper, remotePath: string): Promise<string> {
+		// Only expand if path starts with tilde
+		if (!remotePath.startsWith('~')) {
+			return remotePath;
+		}
+
+		return new Promise((resolve, reject) => {
+			sftp.ext_openssh_expandPath(remotePath, (err, expandedPath) => {
+				if (err) {
+					// Fallback: If extension not supported, return original path
+					console.warn(`Failed to expand path '${remotePath}':`, err);
+					resolve(remotePath);
+				} else {
+					resolve(expandedPath);
+				}
+			});
+		});
+	}
+
+	/**
 	 * Decodes a filename using the host's configured encoding
 	 */
 	private decodeFilename(filename: string, encoding: string): string {
@@ -94,8 +122,15 @@ export class SftpService {
 	 * Lists files in a remote directory with caching
 	 */
 	public async listFiles(hostId: string, remotePath: string, useCache: boolean = true): Promise<FileEntry[]> {
-		// Check cache first
-		const cacheKey = `${hostId}:${remotePath}`;
+		const sftp = await this.getSftpSession(hostId);
+		const host = await this.getHost(hostId);
+		const encoding = host.encoding || 'utf-8';
+
+		// Expand tilde paths to absolute paths
+		const expandedPath = await this.expandPath(sftp, remotePath);
+
+		// Check cache first (use expanded path for cache key)
+		const cacheKey = `${hostId}:${expandedPath}`;
 		if (useCache) {
 			const cached = this.directoryCache.get(cacheKey);
 			if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL)) {
@@ -103,12 +138,8 @@ export class SftpService {
 			}
 		}
 
-		const sftp = await this.getSftpSession(hostId);
-		const host = await this.getHost(hostId);
-		const encoding = host.encoding || 'utf-8';
-
 		return new Promise((resolve, reject) => {
-			sftp.readdir(remotePath, async (err, list) => {
+			sftp.readdir(expandedPath, async (err, list) => {
 				if (err) {
 					reject(new Error(`Failed to list directory: ${err.message}`));
 					return;
@@ -138,7 +169,7 @@ export class SftpService {
 
 					// Decode filename using host's encoding
 					const decodedFilename = this.decodeFilename(item.filename, encoding);
-					const filePath = path.posix.join(remotePath, decodedFilename);
+					const filePath = path.posix.join(expandedPath, decodedFilename);
 					const fileEntry: FileEntry = {
 						name: decodedFilename,
 						path: filePath,
@@ -206,15 +237,18 @@ export class SftpService {
 	public async stat(hostId: string, remotePath: string): Promise<FileEntry> {
 		const sftp = await this.getSftpSession(hostId);
 
+		// Expand tilde paths to absolute paths
+		const expandedPath = await this.expandPath(sftp, remotePath);
+
 		return new Promise((resolve, reject) => {
-			sftp.stat(remotePath, (err, stats) => {
+			sftp.stat(expandedPath, (err, stats) => {
 				if (err) {
 					reject(new Error(`Failed to stat file: ${err.message}`));
 					return;
 				}
 
 				// Get file name from path
-				const name = remotePath.split('/').pop() || remotePath;
+				const name = expandedPath.split('/').pop() || expandedPath;
 
 				// Determine type from stats
 				let type: 'd' | '-' | 'l' = '-';
@@ -229,7 +263,7 @@ export class SftpService {
 
 				resolve({
 					name,
-					path: remotePath,
+					path: expandedPath,
 					size: stats.size || 0,
 					type,
 					modTime: new Date((stats.mtime || 0) * 1000),
@@ -264,9 +298,12 @@ export class SftpService {
 	): Promise<void> {
 		const sftp = await this.getSftpSession(hostId);
 
+		// Expand tilde paths to absolute paths
+		const expandedPath = await this.expandPath(sftp, remotePath);
+
 		return new Promise((resolve, reject) => {
 			// Get file size for progress tracking
-			sftp.stat(remotePath, (err, stats) => {
+			sftp.stat(expandedPath, (err, stats) => {
 				if (err) {
 					reject(new Error(`Failed to stat remote file: ${err.message}`));
 					return;
@@ -276,7 +313,7 @@ export class SftpService {
 				let transferred = 0;
 				const startTime = Date.now();
 
-				const readStream = sftp.createReadStream(remotePath);
+				const readStream = sftp.createReadStream(expandedPath);
 				const writeStream = fs.createWriteStream(localPath);
 
 				readStream.on('data', (chunk: Buffer) => {
@@ -320,6 +357,9 @@ export class SftpService {
 	): Promise<void> {
 		const sftp = await this.getSftpSession(hostId);
 
+		// Expand tilde paths to absolute paths
+		const expandedPath = await this.expandPath(sftp, remotePath);
+
 		return new Promise((resolve, reject) => {
 			// Get local file size
 			const stats = fs.statSync(localPath);
@@ -328,7 +368,7 @@ export class SftpService {
 			const startTime = Date.now();
 
 			const readStream = fs.createReadStream(localPath);
-			const writeStream = sftp.createWriteStream(remotePath);
+			const writeStream = sftp.createWriteStream(expandedPath);
 
 			readStream.on('data', (chunk: Buffer) => {
 				transferred += chunk.length;
@@ -365,9 +405,12 @@ export class SftpService {
 	public async delete(hostId: string, remotePath: string): Promise<void> {
 		const sftp = await this.getSftpSession(hostId);
 
+		// Expand tilde paths to absolute paths
+		const expandedPath = await this.expandPath(sftp, remotePath);
+
 		return new Promise((resolve, reject) => {
 			// First check if it's a directory
-			sftp.stat(remotePath, (statErr, stats) => {
+			sftp.stat(expandedPath, (statErr, stats) => {
 				if (statErr) {
 					reject(new Error(`Failed to stat path: ${statErr.message}`));
 					return;
@@ -375,7 +418,7 @@ export class SftpService {
 
 				if (stats.isDirectory()) {
 					// Remove directory
-					sftp.rmdir(remotePath, (err) => {
+					sftp.rmdir(expandedPath, (err) => {
 						if (err) {
 							reject(new Error(`Failed to remove directory: ${err.message}`));
 						} else {
@@ -384,7 +427,7 @@ export class SftpService {
 					});
 				} else {
 					// Remove file
-					sftp.unlink(remotePath, (err) => {
+					sftp.unlink(expandedPath, (err) => {
 						if (err) {
 							reject(new Error(`Failed to remove file: ${err.message}`));
 						} else {
@@ -402,13 +445,16 @@ export class SftpService {
 	public async mkdir(hostId: string, remotePath: string): Promise<void> {
 		const sftp = await this.getSftpSession(hostId);
 
+		// Expand tilde paths to absolute paths
+		const expandedPath = await this.expandPath(sftp, remotePath);
+
 		return new Promise((resolve, reject) => {
-			sftp.mkdir(remotePath, (err) => {
+			sftp.mkdir(expandedPath, (err) => {
 				if (err) {
 					reject(new Error(`Failed to create directory: ${err.message}`));
 				} else {
 					// Invalidate directory cache for parent directory
-					const parentPath = remotePath.split('/').slice(0, -1).join('/') || '/';
+					const parentPath = expandedPath.split('/').slice(0, -1).join('/') || '/';
 					this.directoryCache.delete(`${hostId}:${parentPath}`);
 					resolve();
 				}
@@ -422,14 +468,18 @@ export class SftpService {
 	public async rename(hostId: string, oldPath: string, newPath: string): Promise<void> {
 		const sftp = await this.getSftpSession(hostId);
 
+		// Expand tilde paths to absolute paths
+		const expandedOldPath = await this.expandPath(sftp, oldPath);
+		const expandedNewPath = await this.expandPath(sftp, newPath);
+
 		return new Promise((resolve, reject) => {
-			sftp.rename(oldPath, newPath, (err) => {
+			sftp.rename(expandedOldPath, expandedNewPath, (err) => {
 				if (err) {
 					reject(new Error(`Failed to rename: ${err.message}`));
 				} else {
 					// Invalidate cache for both old and new parent directories
-					const oldParent = oldPath.split('/').slice(0, -1).join('/') || '/';
-					const newParent = newPath.split('/').slice(0, -1).join('/') || '/';
+					const oldParent = expandedOldPath.split('/').slice(0, -1).join('/') || '/';
+					const newParent = expandedNewPath.split('/').slice(0, -1).join('/') || '/';
 					this.directoryCache.delete(`${hostId}:${oldParent}`);
 					this.directoryCache.delete(`${hostId}:${newParent}`);
 					resolve();
@@ -445,6 +495,11 @@ export class SftpService {
 	 */
 	public async copy(hostId: string, sourcePath: string, destPath: string): Promise<void> {
 		const host = await this.getHost(hostId);
+		const sftp = await this.getSftpSession(hostId);
+
+		// Expand tilde paths to absolute paths
+		const expandedSourcePath = await this.expandPath(sftp, sourcePath);
+		const expandedDestPath = await this.expandPath(sftp, destPath);
 
 		try {
 			// Try to use SSH shell for optimized copy (instant speed)
@@ -457,13 +512,13 @@ export class SftpService {
 
 			return new Promise((resolve, reject) => {
 				// Use 'cp -r' for recursive copy (works for both files and directories)
-				const command = `cp -r "${sourcePath}" "${destPath}"`;
+				const command = `cp -r "${expandedSourcePath}" "${expandedDestPath}"`;
 
 				client.exec(command, (err, stream) => {
 					if (err) {
 						// Shell not available, fall back to SFTP method
 						console.warn('SSH shell copy failed, falling back to SFTP method:', err);
-						this.copyViaSftp(hostId, sourcePath, destPath).then(resolve).catch(reject);
+						this.copyViaSftp(hostId, expandedSourcePath, expandedDestPath).then(resolve).catch(reject);
 						return;
 					}
 
@@ -476,13 +531,13 @@ export class SftpService {
 					stream.on('close', (code: number) => {
 						if (code === 0) {
 							// Clear cache for target directory
-							const parentPath = destPath.split('/').slice(0, -1).join('/') || '/';
+							const parentPath = expandedDestPath.split('/').slice(0, -1).join('/') || '/';
 							this.directoryCache.delete(`${hostId}:${parentPath}`);
 							resolve();
 						} else {
 							// Shell command failed, try SFTP fallback
 							console.warn(`SSH shell copy failed with code ${code}, falling back to SFTP method:`, errorOutput);
-							this.copyViaSftp(hostId, sourcePath, destPath).then(resolve).catch(reject);
+							this.copyViaSftp(hostId, expandedSourcePath, expandedDestPath).then(resolve).catch(reject);
 						}
 					});
 				});
@@ -490,7 +545,7 @@ export class SftpService {
 		} catch (error) {
 			// Connection failed, try SFTP fallback
 			console.warn('Failed to acquire SSH connection for copy, falling back to SFTP method:', error);
-			return this.copyViaSftp(hostId, sourcePath, destPath);
+			return this.copyViaSftp(hostId, expandedSourcePath, expandedDestPath);
 		}
 	}
 
@@ -692,6 +747,11 @@ export class SftpService {
 	 */
 	public async extractRemote(hostId: string, archivePath: string): Promise<void> {
 		const host = await this.getHost(hostId);
+		const sftp = await this.getSftpSession(hostId);
+
+		// Expand tilde paths to absolute paths
+		const expandedArchivePath = await this.expandPath(sftp, archivePath);
+
 		const client = await ConnectionPool.acquire(
 			host,
 			this.hostService,
@@ -701,18 +761,18 @@ export class SftpService {
 
 		return new Promise((resolve, reject) => {
 			// Detect archive type
-			const ext = archivePath.toLowerCase();
+			const ext = expandedArchivePath.toLowerCase();
 			let command: string;
 
 			if (ext.endsWith('.zip')) {
 				// Extract zip file
-				command = `unzip -o '${archivePath}' -d '${archivePath.substring(0, archivePath.lastIndexOf('/'))}'`;
+				command = `unzip -o '${expandedArchivePath}' -d '${expandedArchivePath.substring(0, expandedArchivePath.lastIndexOf('/'))}'`;
 			} else if (ext.endsWith('.tar.gz') || ext.endsWith('.tgz')) {
 				// Extract tar.gz file
-				command = `tar -xzf '${archivePath}' -C '${archivePath.substring(0, archivePath.lastIndexOf('/'))}'`;
+				command = `tar -xzf '${expandedArchivePath}' -C '${expandedArchivePath.substring(0, expandedArchivePath.lastIndexOf('/'))}'`;
 			} else if (ext.endsWith('.tar')) {
 				// Extract tar file
-				command = `tar -xf '${archivePath}' -C '${archivePath.substring(0, archivePath.lastIndexOf('/'))}'`;
+				command = `tar -xf '${expandedArchivePath}' -C '${expandedArchivePath.substring(0, expandedArchivePath.lastIndexOf('/'))}'`;
 			} else {
 				reject(new Error('Unsupported archive format. Supported formats: .zip, .tar, .tar.gz, .tgz'));
 				return;
@@ -757,6 +817,12 @@ export class SftpService {
 		archiveType: 'zip' | 'tar' | 'tar.gz' = 'tar.gz'
 	): Promise<void> {
 		const host = await this.getHost(hostId);
+		const sftp = await this.getSftpSession(hostId);
+
+		// Expand tilde paths to absolute paths for all input paths
+		const expandedPaths = await Promise.all(paths.map(p => this.expandPath(sftp, p)));
+		const expandedArchiveName = await this.expandPath(sftp, archiveName);
+
 		const client = await ConnectionPool.acquire(
 			host,
 			this.hostService,
@@ -765,24 +831,24 @@ export class SftpService {
 		);
 
 		return new Promise((resolve, reject) => {
-			if (paths.length === 0) {
+			if (expandedPaths.length === 0) {
 				reject(new Error('No paths specified for compression'));
 				return;
 			}
 
 			// Build command based on archive type
 			let command: string;
-			const quotedPaths = paths.map(p => `'${p}'`).join(' ');
+			const quotedPaths = expandedPaths.map(p => `'${p}'`).join(' ');
 
 			if (archiveType === 'zip') {
 				// Create zip archive
-				command = `zip -r '${archiveName}' ${quotedPaths}`;
+				command = `zip -r '${expandedArchiveName}' ${quotedPaths}`;
 			} else if (archiveType === 'tar.gz') {
 				// Create tar.gz archive
-				command = `tar -czf '${archiveName}' ${quotedPaths}`;
+				command = `tar -czf '${expandedArchiveName}' ${quotedPaths}`;
 			} else if (archiveType === 'tar') {
 				// Create tar archive
-				command = `tar -cf '${archiveName}' ${quotedPaths}`;
+				command = `tar -cf '${expandedArchiveName}' ${quotedPaths}`;
 			} else {
 				reject(new Error('Unsupported archive type. Supported types: zip, tar, tar.gz'));
 				return;
@@ -822,16 +888,19 @@ export class SftpService {
 	public async chmod(hostId: string, path: string, mode: string): Promise<void> {
 		const sftp = await this.getSftpSession(hostId);
 
+		// Expand tilde paths to absolute paths
+		const expandedPath = await this.expandPath(sftp, path);
+
 		// Convert octal string to number
 		const modeNum = parseInt(mode, 8);
 
 		return new Promise((resolve, reject) => {
-			sftp.chmod(path, modeNum, (err) => {
+			sftp.chmod(expandedPath, modeNum, (err) => {
 				if (err) {
 					reject(new Error(`Failed to change permissions: ${err.message}`));
 				} else {
 					// Invalidate cache for parent directory
-					const parentPath = path.split('/').slice(0, -1).join('/') || '/';
+					const parentPath = expandedPath.split('/').slice(0, -1).join('/') || '/';
 					this.directoryCache.delete(`${hostId}:${parentPath}`);
 					resolve();
 				}
@@ -849,6 +918,10 @@ export class SftpService {
 		onProgress?: (current: number, total: number, path: string) => void
 	): Promise<void> {
 		const sftp = await this.getSftpSession(hostId);
+
+		// Expand tilde paths to absolute paths
+		const expandedDirPath = await this.expandPath(sftp, dirPath);
+
 		const modeNum = parseInt(mode, 8);
 
 		// First, collect all paths to change
@@ -885,7 +958,7 @@ export class SftpService {
 		};
 
 		// Walk the directory tree
-		await walkDirectory(dirPath);
+		await walkDirectory(expandedDirPath);
 
 		// Apply chmod to all collected paths
 		let current = 0;
@@ -996,11 +1069,17 @@ export class SftpService {
 	 * @param targetPath - Path where the symlink should be created
 	 */
 	public async createSymlink(hostId: string, sourcePath: string, targetPath: string): Promise<void> {
-		const command = `ln -s '${sourcePath}' '${targetPath}'`;
+		const sftp = await this.getSftpSession(hostId);
+
+		// Expand tilde paths to absolute paths
+		const expandedSourcePath = await this.expandPath(sftp, sourcePath);
+		const expandedTargetPath = await this.expandPath(sftp, targetPath);
+
+		const command = `ln -s '${expandedSourcePath}' '${expandedTargetPath}'`;
 		await this.executeCommand(hostId, command);
 
 		// Invalidate cache for parent directory
-		const parentPath = targetPath.split('/').slice(0, -1).join('/') || '/';
+		const parentPath = expandedTargetPath.split('/').slice(0, -1).join('/') || '/';
 		this.directoryCache.delete(`${hostId}:${parentPath}`);
 	}
 
@@ -1020,10 +1099,15 @@ export class SftpService {
 		content?: string,
 		recursive: boolean = true
 	): Promise<FileEntry[]> {
+		const sftp = await this.getSftpSession(hostId);
+
+		// Expand tilde paths to absolute paths
+		const expandedBasePath = await this.expandPath(sftp, basePath);
+
 		const results: FileEntry[] = [];
 
 		// Build find command
-		let findCmd = `find '${basePath}'`;
+		let findCmd = `find '${expandedBasePath}'`;
 
 		// Add depth restriction if not recursive
 		if (!recursive) {
@@ -1087,8 +1171,13 @@ export class SftpService {
 	 */
 	public async resolveSymlink(hostId: string, symlinkPath: string): Promise<string> {
 		try {
+			const sftp = await this.getSftpSession(hostId);
+
+			// Expand tilde paths to absolute paths
+			const expandedSymlinkPath = await this.expandPath(sftp, symlinkPath);
+
 			// Use readlink -f to follow the symlink chain and get the absolute path
-			const command = `readlink -f '${symlinkPath}'`;
+			const command = `readlink -f '${expandedSymlinkPath}'`;
 			const output = await this.executeCommand(hostId, command);
 
 			return output.trim();
@@ -1113,10 +1202,15 @@ export class SftpService {
 		recursive: boolean = false
 	): Promise<void> {
 		try {
+			const sftp = await this.getSftpSession(hostId);
+
+			// Expand tilde paths to absolute paths
+			const expandedRemotePath = await this.expandPath(sftp, remotePath);
+
 			// Build chown command
 			const ownerGroup = group ? `${owner}:${group}` : owner;
 			const recursiveFlag = recursive ? '-R ' : '';
-			const command = `chown ${recursiveFlag}'${ownerGroup}' '${remotePath}'`;
+			const command = `chown ${recursiveFlag}'${ownerGroup}' '${expandedRemotePath}'`;
 
 			await this.executeCommand(hostId, command);
 		} catch (error) {

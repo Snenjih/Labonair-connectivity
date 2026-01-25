@@ -48,13 +48,17 @@ export class SshTerminal implements vscode.Pseudoterminal {
 			this.setupClientHandlers();
 
 			// Connect
+			const config = vscode.workspace.getConfiguration('labonair.connection');
+			const keepaliveInterval = this.host.keepAlive ? config.get<number>('keepaliveInterval', 30000) : undefined;
+			const readyTimeout = config.get<number>('readyTimeout', 20000);
+
 			this.client.connect({
 				host: this.host.host,
 				port: this.host.port,
 				username: this.host.username,
 				...authConfig,
-				keepaliveInterval: this.host.keepAlive ? 30000 : undefined,
-				readyTimeout: 20000
+				keepaliveInterval,
+				readyTimeout
 			});
 
 		} catch (error) {

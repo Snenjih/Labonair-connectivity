@@ -12,6 +12,8 @@ interface EditHostProps {
 	availableShells?: string[];
 	existingFolders?: string[];
 	credentials?: Credential[];
+	terminalDefaults?: any;
+	fileManagerDefaults?: any;
 	onSave: (host: Host, password?: string, keyPath?: string) => void;
 	onCancel: () => void;
 }
@@ -22,6 +24,8 @@ const EditHost: React.FC<EditHostProps> = ({
 	availableShells,
 	existingFolders = [],
 	credentials = [],
+	terminalDefaults,
+	fileManagerDefaults,
 	onSave,
 	onCancel
 }) => {
@@ -45,17 +49,33 @@ const EditHost: React.FC<EditHostProps> = ({
 	const [keyPath, setKeyPath] = useState('');
 	const [credentialId, setCredentialId] = useState(initialHost?.credentialId || '');
 
-	// Terminal Settings
-	const [cursorStyle, setCursorStyle] = useState<'bar' | 'block' | 'underline'>(initialHost?.terminalCursorStyle || 'block');
-	const [cursorBlink, setCursorBlink] = useState(initialHost?.terminalCursorBlink ?? true);
-	const [terminalFontSize, setTerminalFontSize] = useState(initialHost?.terminalFontSize || 16);
-	const [terminalFontWeight, setTerminalFontWeight] = useState(initialHost?.terminalFontWeight || '500');
-	const [terminalLineHeight, setTerminalLineHeight] = useState(initialHost?.terminalLineHeight || 1.5);
-	const [terminalLetterSpacing, setTerminalLetterSpacing] = useState(initialHost?.terminalLetterSpacing || 2);
+	// Terminal Settings (use VS Code settings as fallback for new hosts)
+	const [cursorStyle, setCursorStyle] = useState<'bar' | 'block' | 'underline'>(
+		initialHost?.terminalCursorStyle || terminalDefaults?.cursorStyle || 'block'
+	);
+	const [cursorBlink, setCursorBlink] = useState(
+		initialHost?.terminalCursorBlink ?? terminalDefaults?.cursorBlink ?? true
+	);
+	const [terminalFontSize, setTerminalFontSize] = useState(
+		initialHost?.terminalFontSize || terminalDefaults?.fontSize || 16
+	);
+	const [terminalFontWeight, setTerminalFontWeight] = useState(
+		initialHost?.terminalFontWeight || terminalDefaults?.fontWeight || '500'
+	);
+	const [terminalLineHeight, setTerminalLineHeight] = useState(
+		initialHost?.terminalLineHeight || terminalDefaults?.lineHeight || 1.5
+	);
+	const [terminalLetterSpacing, setTerminalLetterSpacing] = useState(
+		initialHost?.terminalLetterSpacing || terminalDefaults?.letterSpacing || 2
+	);
 
-	// File Manager Settings
-	const [fileManagerLayout, setFileManagerLayout] = useState<'explorer' | 'commander'>(initialHost?.fileManagerLayout || 'explorer');
-	const [defaultView, setDefaultView] = useState<'grid' | 'list'>(initialHost?.fileManagerDefaultView || 'list');
+	// File Manager Settings (use VS Code settings as fallback for new hosts)
+	const [fileManagerLayout, setFileManagerLayout] = useState<'explorer' | 'commander'>(
+		initialHost?.fileManagerLayout || fileManagerDefaults?.defaultLayout || 'explorer'
+	);
+	const [defaultView, setDefaultView] = useState<'grid' | 'list'>(
+		initialHost?.fileManagerDefaultView || fileManagerDefaults?.defaultView || 'list'
+	);
 	const [localPath, setLocalPath] = useState(initialHost?.fileManagerLocalPath || '');
 	const [remotePath, setRemotePath] = useState(initialHost?.defaultPath || '');
 

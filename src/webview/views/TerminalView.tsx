@@ -40,18 +40,37 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 	const [connectionLogs, setConnectionLogs] = useState<ConnectionLog[]>([]);
 	const [connectionError, setConnectionError] = useState<{ code: string; message: string } | undefined>();
 
+	// Terminal defaults from VS Code settings (received via UPDATE_DATA)
+	const terminalDefaultsRef = useRef<{
+		fontSize: number;
+		fontWeight: string;
+		lineHeight: number;
+		letterSpacing: number;
+		cursorStyle: string;
+		cursorBlink: boolean;
+		pasteThreshold: number;
+	}>({
+		fontSize: 16,
+		fontWeight: '500',
+		lineHeight: 1.5,
+		letterSpacing: 2,
+		cursorStyle: 'block',
+		cursorBlink: true,
+		pasteThreshold: 10
+	});
+
 	useEffect(() => {
 		// Initialize first terminal
 		if (!terminal1Ref.current) return;
 
 		const term1 = new Terminal({
 			fontFamily: 'var(--vscode-editor-font-family, monospace)',
-			fontSize: host?.terminalFontSize || fontSize,
-			fontWeight: (host?.terminalFontWeight as any) || '500',
-			lineHeight: host?.terminalLineHeight || 1.5,
-			letterSpacing: host?.terminalLetterSpacing || 2,
-			cursorBlink: host?.terminalCursorBlink ?? true,
-			cursorStyle: host?.terminalCursorStyle || 'bar',
+			fontSize: host?.terminalFontSize || terminalDefaultsRef.current.fontSize,
+			fontWeight: (host?.terminalFontWeight as any) || terminalDefaultsRef.current.fontWeight,
+			lineHeight: host?.terminalLineHeight || terminalDefaultsRef.current.lineHeight,
+			letterSpacing: host?.terminalLetterSpacing || terminalDefaultsRef.current.letterSpacing,
+			cursorBlink: host?.terminalCursorBlink ?? terminalDefaultsRef.current.cursorBlink,
+			cursorStyle: (host?.terminalCursorStyle || terminalDefaultsRef.current.cursorStyle) as any,
 			theme: {
 				background: 'var(--vscode-editor-background)',
 				foreground: 'var(--vscode-editor-foreground)',
@@ -136,7 +155,8 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 		}
 
 		term1.onData((data) => {
-			if (data.includes('\n') && data.length > 10) {
+			const threshold = terminalDefaultsRef.current.pasteThreshold;
+			if (data.includes('\n') && data.length > threshold) {
 				setPasteData(data);
 			} else {
 				vscode.postMessage({
@@ -208,34 +228,39 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 					if (message.payload.splitMode) {
 						setSplitMode(message.payload.splitMode);
 					}
+					// Update terminal defaults from configuration
+					if (message.payload.terminalDefaults) {
+						terminalDefaultsRef.current = message.payload.terminalDefaults;
+					}
 					break;
 				case 'HOST_CONFIG_UPDATED':
 					// Live update terminal settings when host config changes
 					if (message.payload?.hostId === hostId && message.payload?.host) {
 						const updatedHost = message.payload.host;
+						const defaults = terminalDefaultsRef.current;
 						if (xterm1Ref.current) {
-							xterm1Ref.current.options.fontSize = updatedHost.terminalFontSize || 16;
-							xterm1Ref.current.options.fontWeight = (updatedHost.terminalFontWeight as any) || '500';
-							xterm1Ref.current.options.lineHeight = updatedHost.terminalLineHeight || 1.5;
-							xterm1Ref.current.options.letterSpacing = updatedHost.terminalLetterSpacing || 2;
-							xterm1Ref.current.options.cursorBlink = updatedHost.terminalCursorBlink ?? true;
-							xterm1Ref.current.options.cursorStyle = updatedHost.terminalCursorStyle || 'bar';
+							xterm1Ref.current.options.fontSize = updatedHost.terminalFontSize || defaults.fontSize;
+							xterm1Ref.current.options.fontWeight = (updatedHost.terminalFontWeight as any) || defaults.fontWeight;
+							xterm1Ref.current.options.lineHeight = updatedHost.terminalLineHeight || defaults.lineHeight;
+							xterm1Ref.current.options.letterSpacing = updatedHost.terminalLetterSpacing || defaults.letterSpacing;
+							xterm1Ref.current.options.cursorBlink = updatedHost.terminalCursorBlink ?? defaults.cursorBlink;
+							xterm1Ref.current.options.cursorStyle = (updatedHost.terminalCursorStyle || defaults.cursorStyle) as any;
 							if (fitAddon1Ref.current) {
 								fitAddon1Ref.current.fit();
 							}
 						}
 						if (xterm2Ref.current) {
-							xterm2Ref.current.options.fontSize = updatedHost.terminalFontSize || 16;
-							xterm2Ref.current.options.fontWeight = (updatedHost.terminalFontWeight as any) || '500';
-							xterm2Ref.current.options.lineHeight = updatedHost.terminalLineHeight || 1.5;
-							xterm2Ref.current.options.letterSpacing = updatedHost.terminalLetterSpacing || 2;
-							xterm2Ref.current.options.cursorBlink = updatedHost.terminalCursorBlink ?? true;
-							xterm2Ref.current.options.cursorStyle = updatedHost.terminalCursorStyle || 'bar';
+							xterm2Ref.current.options.fontSize = updatedHost.terminalFontSize || defaults.fontSize;
+							xterm2Ref.current.options.fontWeight = (updatedHost.terminalFontWeight as any) || defaults.fontWeight;
+							xterm2Ref.current.options.lineHeight = updatedHost.terminalLineHeight || defaults.lineHeight;
+							xterm2Ref.current.options.letterSpacing = updatedHost.terminalLetterSpacing || defaults.letterSpacing;
+							xterm2Ref.current.options.cursorBlink = updatedHost.terminalCursorBlink ?? defaults.cursorBlink;
+							xterm2Ref.current.options.cursorStyle = (updatedHost.terminalCursorStyle || defaults.cursorStyle) as any;
 							if (fitAddon2Ref.current) {
 								fitAddon2Ref.current.fit();
 							}
 						}
-						setFontSize(updatedHost.terminalFontSize || 16);
+						setFontSize(updatedHost.terminalFontSize || defaults.fontSize);
 					}
 					break;
 			}
@@ -260,12 +285,12 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 		if (splitMode !== 'none' && terminal2Ref.current && !xterm2Ref.current) {
 			const term2 = new Terminal({
 				fontFamily: 'var(--vscode-editor-font-family, monospace)',
-				fontSize: host?.terminalFontSize || fontSize,
-				fontWeight: (host?.terminalFontWeight as any) || 'normal',
-				lineHeight: host?.terminalLineHeight || 1.0,
-				letterSpacing: host?.terminalLetterSpacing || 0,
-				cursorBlink: host?.terminalCursorBlink ?? true,
-				cursorStyle: host?.terminalCursorStyle || 'bar',
+				fontSize: host?.terminalFontSize || terminalDefaultsRef.current.fontSize,
+				fontWeight: (host?.terminalFontWeight as any) || terminalDefaultsRef.current.fontWeight,
+				lineHeight: host?.terminalLineHeight || terminalDefaultsRef.current.lineHeight,
+				letterSpacing: host?.terminalLetterSpacing || terminalDefaultsRef.current.letterSpacing,
+				cursorBlink: host?.terminalCursorBlink ?? terminalDefaultsRef.current.cursorBlink,
+				cursorStyle: (host?.terminalCursorStyle || terminalDefaultsRef.current.cursorStyle) as any,
 				theme: {
 					background: 'var(--vscode-editor-background)',
 					foreground: 'var(--vscode-editor-foreground)',
@@ -350,7 +375,8 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 			}
 
 			term2.onData((data) => {
-				if (data.includes('\n') && data.length > 10) {
+				const threshold = terminalDefaultsRef.current.pasteThreshold;
+				if (data.includes('\n') && data.length > threshold) {
 					setPasteData(data);
 				} else {
 					vscode.postMessage({

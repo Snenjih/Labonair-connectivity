@@ -98,8 +98,8 @@ export class TransferService {
 	private queue: TransferQueue = new TransferQueue();
 	private activeTransfers: Map<string, { job: TransferJob; abortController?: AbortController }> = new Map();
 	private completedJobs: TransferJob[] = [];
-	private readonly maxConcurrentTransfersPerHost: number = 3;
-	private readonly maxConcurrentTransfersGlobal: number = 5;
+	private readonly maxConcurrentTransfersPerHost: number;
+	private readonly maxConcurrentTransfersGlobal: number;
 	private processingInterval: NodeJS.Timeout | null = null;
 	private conflictResolutions: Map<string, Promise<{ action: 'overwrite' | 'resume' | 'rename' | 'skip' }>> = new Map();
 	private conflictResolvers: Map<string, (value: { action: 'overwrite' | 'resume' | 'rename' | 'skip' }) => void> = new Map();
@@ -111,6 +111,11 @@ export class TransferService {
 		private readonly onQueueChange: (jobs: TransferJob[], summary: TransferQueueSummary) => void,
 		private readonly onConflict?: (transferId: string, sourceFile: string, targetStats: { size: number; modTime: Date }) => void
 	) {
+		// Load transfer settings from configuration
+		const config = vscode.workspace.getConfiguration('labonair.transfer');
+		this.maxConcurrentTransfersPerHost = config.get<number>('maxConcurrentPerHost', 3);
+		this.maxConcurrentTransfersGlobal = config.get<number>('maxConcurrentGlobal', 5);
+
 		this.logger.info('Transfer Service initialized');
 		// Start processing queue
 		this.startProcessing();
@@ -312,9 +317,12 @@ export class TransferService {
 			return;
 		}
 
+		const config = vscode.workspace.getConfiguration('labonair.transfer');
+		const interval = config.get<number>('queueProcessingInterval', 1000);
+
 		this.processingInterval = setInterval(() => {
 			this.processQueue();
-		}, 1000);
+		}, interval);
 	}
 
 	/**

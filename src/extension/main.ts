@@ -46,6 +46,32 @@ let transferServiceInstance: TransferService | undefined;
 let broadcastServiceInstance: BroadcastService | undefined;
 let badgeServiceInstance: BadgeService | undefined;
 
+/**
+ * Gets terminal default settings from VS Code configuration
+ */
+function getTerminalDefaults(): Partial<Host> {
+	const config = vscode.workspace.getConfiguration('labonair.terminal');
+	return {
+		terminalFontSize: config.get<number>('fontSize', 16),
+		terminalFontWeight: config.get<string>('fontWeight', '500'),
+		terminalLineHeight: config.get<number>('lineHeight', 1.5),
+		terminalLetterSpacing: config.get<number>('letterSpacing', 2),
+		terminalCursorStyle: config.get<string>('cursorStyle', 'block') as 'bar' | 'block' | 'underline',
+		terminalCursorBlink: config.get<boolean>('cursorBlink', true)
+	};
+}
+
+/**
+ * Gets file manager default settings from VS Code configuration
+ */
+function getFileManagerDefaults(): { defaultLayout: 'explorer' | 'commander'; defaultView: 'list' | 'grid' } {
+	const config = vscode.workspace.getConfiguration('labonair.fileManager');
+	return {
+		defaultLayout: config.get<string>('defaultLayout', 'explorer') as 'explorer' | 'commander',
+		defaultView: config.get<string>('defaultView', 'list') as 'list' | 'grid'
+	};
+}
+
 export async function activate(context: vscode.ExtensionContext) {
 	// Initialize logger
 	const logger = initLogger('Labonair Connectivity');
@@ -403,9 +429,13 @@ class ConnectivityViewProvider implements vscode.WebviewViewProvider {
 						const activeHostIds = this._sessionTracker.getActiveHostIds();
 					const hostStatuses = this._statusService?.getAllStatuses() || {};
 
+					// Get configuration defaults
+					const terminalDefaults = getTerminalDefaults();
+					const fileManagerDefaults = getFileManagerDefaults();
+
 					webviewView.webview.postMessage({
 						command: 'UPDATE_DATA',
-						payload: { hosts, credentials, activeSessionHostIds: activeHostIds, hostStatuses }
+						payload: { hosts, credentials, activeSessionHostIds: activeHostIds, hostStatuses, terminalDefaults, fileManagerDefaults }
 					});
 
 					// Check SSH Agent
