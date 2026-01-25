@@ -146,16 +146,21 @@ export class SftpPanel {
 			};
 
 			// Send initial state to webview
-			this._panel.webview.postMessage({
-				command: 'UPDATE_DATA',
-				payload: {
-					view: 'fileManager',
-					hostId: this._hostId,
-					currentPath: this._currentPath,
-					hosts: [host],
-					fileManagerDefaults
-				}
-			});
+			try {
+				this._panel.webview.postMessage({
+					command: 'UPDATE_DATA',
+					payload: {
+						view: 'fileManager',
+						hostId: this._hostId,
+						currentPath: this._currentPath,
+						hosts: [host],
+						fileManagerDefaults
+					}
+				});
+			} catch (error) {
+				console.warn(`Failed to send initial UPDATE_DATA: webview no longer available`);
+				return;
+			}
 
 			// Load initial directory listing
 			await this._listFiles(this._currentPath);
@@ -381,23 +386,33 @@ export class SftpPanel {
 
 			this._currentPath = path;
 
-			this._panel.webview.postMessage({
-				command: 'SFTP_LS_RESPONSE',
-				payload: {
-					files,
-					currentPath: path,
-					panelId,
-					fileSystem
-				}
-			});
+			// Check if webview is still available before posting message
+			try {
+				this._panel.webview.postMessage({
+					command: 'SFTP_LS_RESPONSE',
+					payload: {
+						files,
+						currentPath: path,
+						panelId,
+						fileSystem
+					}
+				});
+			} catch (error) {
+				console.warn(`Failed to send SFTP_LS_RESPONSE: webview no longer available`);
+			}
 		} catch (error) {
-			this._panel.webview.postMessage({
-				command: 'SFTP_ERROR',
-				payload: {
-					message: `Failed to list directory: ${error}`,
-					panelId
-				}
-			});
+			// Check if webview is still available before posting error message
+			try {
+				this._panel.webview.postMessage({
+					command: 'SFTP_ERROR',
+					payload: {
+						message: `Failed to list directory: ${error}`,
+						panelId
+					}
+				});
+			} catch (webviewError) {
+				console.warn(`Failed to send SFTP_ERROR: webview no longer available`);
+			}
 		}
 	}
 

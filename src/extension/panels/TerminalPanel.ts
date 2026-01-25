@@ -186,18 +186,34 @@ export class TerminalPanel {
 				session = new LocalPtyService(
 					this._host,
 					(data: string) => {
-						// Send data to webview with splitId
-						this._panel.webview.postMessage({
-							command: 'TERM_DATA',
-							payload: { data, splitId }
-						});
+						// Send data to webview with splitId - check if webview still exists
+						try {
+							if (!this._panel.webview) {
+								return;
+							}
+							this._panel.webview.postMessage({
+								command: 'TERM_DATA',
+								payload: { data, splitId }
+							});
+						} catch (error) {
+							// Webview may have been disposed
+							console.warn(`Failed to send TERM_DATA: webview no longer available`);
+						}
 					},
 					(status: 'connecting' | 'connected' | 'disconnected' | 'error', message?: string) => {
-						// Send status to webview with splitId
-						this._panel.webview.postMessage({
-							command: 'TERM_STATUS',
-							payload: { status, message, splitId }
-						});
+						// Send status to webview with splitId - check if webview still exists
+						try {
+							if (!this._panel.webview) {
+								return;
+							}
+							this._panel.webview.postMessage({
+								command: 'TERM_STATUS',
+								payload: { status, message, splitId }
+							});
+						} catch (error) {
+							// Webview may have been disposed
+							console.warn(`Failed to send TERM_STATUS: webview no longer available`);
+						}
 					}
 				);
 			} else {
@@ -208,18 +224,34 @@ export class TerminalPanel {
 					this._credentialService,
 					this._hostKeyService,
 					(data: string) => {
-						// Send data to webview with splitId
-						this._panel.webview.postMessage({
-							command: 'TERM_DATA',
-							payload: { data, splitId }
-						});
+						// Send data to webview with splitId - check if webview still exists
+						try {
+							if (!this._panel.webview) {
+								return;
+							}
+							this._panel.webview.postMessage({
+								command: 'TERM_DATA',
+								payload: { data, splitId }
+							});
+						} catch (error) {
+							// Webview may have been disposed
+							console.warn(`Failed to send TERM_DATA: webview no longer available`);
+						}
 					},
 					(status: 'connecting' | 'connected' | 'disconnected' | 'error', message?: string) => {
-						// Send status to webview with splitId
-						this._panel.webview.postMessage({
-							command: 'TERM_STATUS',
-							payload: { status, message, splitId }
-						});
+						// Send status to webview with splitId - check if webview still exists
+						try {
+							if (!this._panel.webview) {
+								return;
+							}
+							this._panel.webview.postMessage({
+								command: 'TERM_STATUS',
+								payload: { status, message, splitId }
+							});
+						} catch (error) {
+							// Webview may have been disposed
+							console.warn(`Failed to send TERM_STATUS: webview no longer available`);
+						}
 					}
 				);
 			}

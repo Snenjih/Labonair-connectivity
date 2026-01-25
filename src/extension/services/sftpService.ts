@@ -89,9 +89,14 @@ export class SftpService {
 		return new Promise((resolve, reject) => {
 			sftp.ext_openssh_expandPath(remotePath, (err, expandedPath) => {
 				if (err) {
-					// Fallback: If extension not supported, return original path
-					console.warn(`Failed to expand path '${remotePath}':`, err);
-					resolve(remotePath);
+					// Reject connection errors, fallback only for unsupported extension errors
+					if (err.message && (err.message.includes('No response') || err.message.includes('EOF') || err.message.includes('close'))) {
+						reject(new Error(`Connection lost while expanding path '${remotePath}': ${err.message}`));
+					} else {
+						// Fallback: If extension not supported, return original path
+						console.warn(`OpenSSH expansion not supported, using original path: ${remotePath}`);
+						resolve(remotePath);
+					}
 				} else {
 					resolve(expandedPath);
 				}
