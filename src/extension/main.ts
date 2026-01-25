@@ -161,6 +161,33 @@ export async function activate(context: vscode.ExtensionContext) {
 	);
 	context.subscriptions.push(clearLogsCommand);
 
+	// Register Copy command
+	const copyCommand = vscode.commands.registerCommand(
+		'labonair.copy',
+		() => {
+			logger.info('Copy command triggered');
+		}
+	);
+	context.subscriptions.push(copyCommand);
+
+	// Register Paste command
+	const pasteCommand = vscode.commands.registerCommand(
+		'labonair.paste',
+		() => {
+			logger.info('Paste command triggered');
+		}
+	);
+	context.subscriptions.push(pasteCommand);
+
+	// Register Refresh command
+	const refreshCommand = vscode.commands.registerCommand(
+		'labonair.refresh',
+		() => {
+			logger.info('Refresh command triggered');
+		}
+	);
+	context.subscriptions.push(refreshCommand);
+
 	// Register Reset Layout command
 	const resetLayoutCommand = vscode.commands.registerCommand(
 		'labonair.resetLayout',
