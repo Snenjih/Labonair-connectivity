@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Pin, MoreVertical, Edit, Copy, Download, Trash2, Tag, Terminal, Plug, Files } from 'lucide-react';
 import { Host, HostStatus } from '../../common/types';
 
 interface TunnelStatus {
@@ -138,7 +139,7 @@ const HostCard: React.FC<HostCardProps> = ({
 				)}
 				<div className="host-info" onClick={onEdit}>
 					<div className="host-name">
-						{host.pin && <i className="codicon codicon-pinned pin-icon" title="Pinned"></i>}
+						{host.pin && <Pin size={16} style={{ color: '#eab308' }} aria-label="Pinned" />}
 						<span>{host.name || `${host.username}@${host.host}`}</span>
 					</div>
 					<div className="host-address">{host.host}:{host.port}</div>
@@ -147,29 +148,29 @@ const HostCard: React.FC<HostCardProps> = ({
 				{/* Options Button */}
 				<div className="options-wrapper">
 					<button className="icon-button options-btn" onClick={handleOptionsClick} title="Options">
-						<i className="codicon codicon-ellipsis"></i>
+						<MoreVertical size={16} />
 					</button>
 					{showOptions && (
 						<div className="options-menu" onClick={e => e.stopPropagation()}>
 							<button className="option-item" onClick={handleOptionAction(onEdit)}>
-								<i className="codicon codicon-edit"></i>
+								<Edit size={16} />
 								Edit Host
 							</button>
 							{onClone && (
 								<button className="option-item" onClick={handleOptionAction(onClone)}>
-									<i className="codicon codicon-copy"></i>
+									<Copy size={16} />
 									Clone Host
 								</button>
 							)}
 							{onExport && (
 								<button className="option-item" onClick={handleOptionAction(onExport)}>
-									<i className="codicon codicon-cloud-download"></i>
+									<Download size={16} />
 									Export Host
 								</button>
 							)}
 							<div className="option-divider"></div>
 							<button className="option-item danger" onClick={handleOptionAction(onDelete)}>
-								<i className="codicon codicon-trash"></i>
+								<Trash2 size={16} />
 								Delete Host
 							</button>
 						</div>
@@ -182,7 +183,7 @@ const HostCard: React.FC<HostCardProps> = ({
 				<div className="card-middle">
 					{host.tags.slice(0, 4).map((tag, index) => (
 						<span key={index} className="tag-pill">
-							<i className="codicon codicon-tag"></i>
+							<Tag size={14} />
 							{tag}
 						</span>
 					))}
@@ -196,13 +197,13 @@ const HostCard: React.FC<HostCardProps> = ({
 			<div className="card-middle">
 				{host.enableTerminal !== false && (
 					<span className="feature-badge">
-						<i className="codicon codicon-terminal"></i>
+						<Terminal size={14} />
 						Terminal
 					</span>
 				)}
 				{host.tunnels && host.tunnels.length > 0 && (
 					<span className="feature-badge" title={tunnelTooltip} style={{ position: 'relative' }}>
-						<i className="codicon codicon-plug"></i>
+						<Plug size={14} />
 						Tunnel ({host.tunnels.length})
 						{hasActiveTunnels && (
 							<span style={{
@@ -221,7 +222,7 @@ const HostCard: React.FC<HostCardProps> = ({
 				)}
 				{host.enableFileManager !== false && (
 					<span className="feature-badge">
-						<i className="codicon codicon-files"></i>
+						<Files size={14} />
 						SFTP
 					</span>
 				)}
@@ -231,13 +232,13 @@ const HostCard: React.FC<HostCardProps> = ({
 			<div className="card-bottom">
 				{host.enableTerminal !== false && (
 					<button className="action-btn" onClick={(e) => { e.stopPropagation(); onConnect(); }} title="SSH Terminal">
-						<i className="codicon codicon-terminal"></i>
+						<Terminal size={14} />
 						SSH
 					</button>
 				)}
 				{host.enableFileManager !== false && onOpenSftp && (
 					<button className="action-btn" onClick={(e) => { e.stopPropagation(); onOpenSftp(); }} title="SFTP File Manager">
-						<i className="codicon codicon-files"></i>
+						<Files size={14} />
 						SFTP
 					</button>
 				)}

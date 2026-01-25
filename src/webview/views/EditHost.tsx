@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Settings, Terminal, Files, Lock, Key, Activity, Shield, Info, Check, XCircle, Folder, SplitSquareHorizontal, List, Grid3x3, Save } from 'lucide-react';
 import { Host, Tunnel, Message, Credential } from '../../common/types';
 import { TagInput } from '../components/TagInput';
 import { TunnelList } from '../components/TunnelList';
@@ -126,28 +127,28 @@ const EditHost: React.FC<EditHostProps> = ({
 					className={`tab ${activeTab === 'general' ? 'active' : ''}`}
 					onClick={() => setActiveTab('general')}
 				>
-					<i className="codicon codicon-settings-gear"></i>
+					<Settings size={16} />
 					General
 				</button>
 				<button
 					className={`tab ${activeTab === 'terminal' ? 'active' : ''}`}
 					onClick={() => setActiveTab('terminal')}
 				>
-					<i className="codicon codicon-terminal"></i>
+					<Terminal size={16} />
 					Terminal
 				</button>
 				<button
 					className={`tab ${activeTab === 'filemanager' ? 'active' : ''}`}
 					onClick={() => setActiveTab('filemanager')}
 				>
-					<i className="codicon codicon-files"></i>
+					<Files size={16} />
 					File Manager
 				</button>
 				<button
 					className={`tab ${activeTab === 'advanced' ? 'active' : ''}`}
 					onClick={() => setActiveTab('advanced')}
 				>
-					<i className="codicon codicon-gear"></i>
+					<Settings size={16} />
 					Advanced
 				</button>
 			</div>
@@ -231,19 +232,19 @@ const EditHost: React.FC<EditHostProps> = ({
 										<label>Authentication</label>
 										<div className="segmented-control">
 											<button type="button" className={authType === 'password' ? 'active' : ''} onClick={() => setAuthType('password')}>
-												<i className="codicon codicon-lock"></i>
+												<Lock size={16} />
 												Password
 											</button>
 											<button type="button" className={authType === 'key' ? 'active' : ''} onClick={() => setAuthType('key')}>
-												<i className="codicon codicon-key"></i>
+												<Key size={16} />
 												Key File
 											</button>
 											<button type="button" className={authType === 'agent' ? 'active' : ''} onClick={() => setAuthType('agent')}>
-												<i className="codicon codicon-server-process"></i>
+												<Activity size={16} />
 												Agent
 											</button>
 											<button type="button" className={authType === 'credential' ? 'active' : ''} onClick={() => setAuthType('credential')}>
-												<i className="codicon codicon-shield"></i>
+												<Shield size={16} />
 												Vault
 											</button>
 										</div>
@@ -269,11 +270,11 @@ const EditHost: React.FC<EditHostProps> = ({
 									{authType === 'agent' && (
 										<div className="form-group">
 											<div className="info-box">
-												<i className="codicon codicon-info"></i>
+												<Info size={16} />
 												<span>Using SSH Agent for authentication.</span>
 												{agentAvailable ?
-													<span className="status-success"><i className="codicon codicon-check"></i> Agent Detected</span> :
-													<span className="status-error"><i className="codicon codicon-error"></i> Agent Not Found</span>
+													<span className="status-success"><Check size={16} /> Agent Detected</span> :
+													<span className="status-error"><XCircle size={16} /> Agent Not Found</span>
 												}
 											</div>
 										</div>
@@ -412,12 +413,12 @@ const EditHost: React.FC<EditHostProps> = ({
 							<label>File Manager Layout</label>
 							<div className="segmented-control">
 								<button type="button" className={fileManagerLayout === 'explorer' ? 'active' : ''} onClick={() => setFileManagerLayout('explorer')}>
-									<i className="codicon codicon-file-directory"></i>
+									<Folder size={16} />
 									Explorer
 									<span className="option-desc">Single panel, remote files only</span>
 								</button>
 								<button type="button" className={fileManagerLayout === 'commander' ? 'active' : ''} onClick={() => setFileManagerLayout('commander')}>
-									<i className="codicon codicon-split-horizontal"></i>
+									<SplitSquareHorizontal size={16} />
 									Commander
 									<span className="option-desc">Dual panel, local + remote</span>
 								</button>
@@ -428,11 +429,11 @@ const EditHost: React.FC<EditHostProps> = ({
 							<label>Default View</label>
 							<div className="segmented-control">
 								<button type="button" className={defaultView === 'grid' ? 'active' : ''} onClick={() => setDefaultView('grid')}>
-									<i className="codicon codicon-symbol-array"></i>
+									<Grid3x3 size={16} />
 									Grid View
 								</button>
 								<button type="button" className={defaultView === 'list' ? 'active' : ''} onClick={() => setDefaultView('list')}>
-									<i className="codicon codicon-list-unordered"></i>
+									<List size={16} />
 									List View
 								</button>
 							</div>
@@ -488,7 +489,7 @@ const EditHost: React.FC<EditHostProps> = ({
 				<div className="form-actions">
 					<button type="button" onClick={onCancel} className="secondary-button">Cancel</button>
 					<button type="submit" className="primary-button">
-						<i className="codicon codicon-save"></i>
+						<Save size={16} />
 						Save Host
 					</button>
 				</div>

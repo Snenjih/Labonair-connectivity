@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Lock } from 'lucide-react';
 import '../styles/forms.css';
 
 interface SudoPromptDialogProps {
@@ -39,8 +40,8 @@ const SudoPromptDialog: React.FC<SudoPromptDialogProps> = ({
 			<div className="modal-content">
 				<div className="modal-header">
 					<h3>
-						<span style={{ color: 'var(--vscode-testing-iconFailed)' }}>
-							<i className="codicon codicon-lock"></i> Permission Denied
+						<span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--vscode-testing-iconFailed)' }}>
+							<Lock size={20} /> Permission Denied
 						</span>
 					</h3>
 				</div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Server, Plus, Key } from 'lucide-react';
 import { ViewType } from '../../common/types';
 
 interface TopNavProps {
@@ -13,21 +14,21 @@ const TopNav: React.FC<TopNavProps> = ({ activeView, onNavigate }) => {
 				className={activeView === 'hosts' ? 'active' : ''}
 				onClick={() => onNavigate('hosts')}
 			>
-				<i className="codicon codicon-server"></i>
+				<Server size={16} />
 				Hosts
 			</button>
 			<button
 				className={activeView === 'addHost' ? 'active' : ''}
 				onClick={() => onNavigate('addHost')}
 			>
-				<i className="codicon codicon-add"></i>
+				<Plus size={16} />
 				Add Host
 			</button>
 			<button
 				className={activeView === 'credentials' ? 'active' : ''}
 				onClick={() => onNavigate('credentials')}
 			>
-				<i className="codicon codicon-key"></i>
+				<Key size={16} />
 				Credentials
 			</button>
 		</div>

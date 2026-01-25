@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { ChevronDown, ChevronRight, Edit, Settings } from 'lucide-react';
 import { Credential } from '../../common/types';
 import vscode from '../utils/vscode';
 
@@ -94,7 +95,7 @@ const HostGroup: React.FC<HostGroupProps> = ({
 							className="group-checkbox"
 						/>
 					)}
-					<i className={`codicon codicon-chevron-${isOpen ? 'down' : 'right'}`}></i>
+					{isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
 					{isRenaming ? (
 						<input
 							type="text"
@@ -114,11 +115,11 @@ const HostGroup: React.FC<HostGroupProps> = ({
 				<div className="group-actions">
 					{name !== 'Uncategorized' && (
 						<button className="icon-button" onClick={handleRenameClick} title="Rename Folder">
-							<i className="codicon codicon-edit"></i>
+							<Edit size={16} />
 						</button>
 					)}
 					<button className="icon-button" onClick={handleSettingsClick} title="Folder Settings">
-						<i className="codicon codicon-gear"></i>
+						<Settings size={16} />
 					</button>
 				</div>
 			</div>

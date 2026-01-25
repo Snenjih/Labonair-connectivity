@@ -1,4 +1,5 @@
 import React from 'react';
+import { AlertTriangle } from 'lucide-react';
 import '../styles/forms.css'; // Reuse form styles
 
 interface HostKeyDialogProps {
@@ -17,8 +18,8 @@ const HostKeyDialog: React.FC<HostKeyDialogProps> = ({ host, port, fingerprint, 
 				<div className="modal-header">
 					<h3>
 						{status === 'invalid' ? (
-							<span style={{ color: 'var(--vscode-testing-iconFailed)' }}>
-								<i className="codicon codicon-warning"></i> WARNING: Host Key Changed!
+							<span style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--vscode-testing-iconFailed)' }}>
+								<AlertTriangle size={20} /> WARNING: Host Key Changed!
 							</span>
 						) : (
 							<span>Verify Host Key</span>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Trash2, Plug, Upload, ArrowUpDown, Terminal } from 'lucide-react';
 
 interface ToolbarProps {
 	onImport: (format: 'json' | 'ssh-config') => void;
@@ -42,7 +43,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 					<span className="selected-count">{selectedCount} selected</span>
 					{onBulkDelete && (
 						<button onClick={onBulkDelete} className="danger" title="Delete Selected">
-							<i className="codicon codicon-trash"></i>
+							<Trash2 size={16} />
 							Delete
 						</button>
 					)}
@@ -61,7 +62,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 					onKeyDown={handleKeyDown}
 				/>
 				<button onClick={handleConnectClick} title="Quick Connect">
-					<i className="codicon codicon-plug"></i>
+					<Plug size={16} />
 					Connect
 				</button>
 			</div>
@@ -69,14 +70,14 @@ const Toolbar: React.FC<ToolbarProps> = ({
 			<div className="toolbar-separator"></div>
 
 			<button onClick={() => onImport('json')} title="Import hosts from JSON file">
-				<i className="codicon codicon-cloud-upload"></i>
+				<Upload size={16} />
 				Import
 			</button>
 
 			<div className="toolbar-separator"></div>
 
 			<div className="dropdown-wrapper">
-				<i className="codicon codicon-sort-precedence dropdown-icon"></i>
+				<ArrowUpDown size={16} style={{ color: 'var(--terminus-text-muted)', marginRight: '4px' }} />
 				<select
 					className="toolbar-select"
 					onChange={(e) => onSort(e.target.value as 'name' | 'lastUsed' | 'group')}
@@ -92,7 +93,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 				<>
 					<div className="toolbar-separator"></div>
 					<button onClick={onLocalTerminal} title="Open a local terminal">
-						<i className="codicon codicon-terminal"></i>
+						<Terminal size={16} />
 						Terminal
 					</button>
 				</>

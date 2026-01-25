@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Lock, Key, Save, Plus, Search, Edit, Trash2, Folder } from 'lucide-react';
 import { Credential } from '../../common/types';
 import vscode from '../utils/vscode';
 
@@ -98,7 +99,7 @@ const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit }
 								className={editingCred.type === 'password' ? 'active' : ''}
 								onClick={() => setEditingCred(p => ({ ...p, type: 'password' }))}
 							>
-								<i className="codicon codicon-lock"></i>
+								<Lock size={16} />
 								Password
 							</button>
 							<button
@@ -106,7 +107,7 @@ const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit }
 								className={editingCred.type === 'key' ? 'active' : ''}
 								onClick={() => setEditingCred(p => ({ ...p, type: 'key' }))}
 							>
-								<i className="codicon codicon-key"></i>
+								<Key size={16} />
 								Key File
 							</button>
 						</div>
@@ -138,7 +139,7 @@ const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit }
 				<div className="form-actions">
 					<button className="secondary-button" onClick={() => setIsEditing(false)}>Cancel</button>
 					<button className="primary-button" onClick={handleSave}>
-						<i className="codicon codicon-save"></i>
+						<Save size={16} />
 						Save Credential
 					</button>
 				</div>
@@ -156,7 +157,7 @@ const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit }
 					<p className="subtitle">{credentials.length} credential{credentials.length !== 1 ? 's' : ''} stored securely</p>
 				</div>
 				<button className="add-credential-btn" onClick={handleAdd}>
-					<i className="codicon codicon-add"></i>
+					<Plus size={16} />
 					Add Credential
 				</button>
 			</div>
@@ -164,7 +165,7 @@ const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit }
 			{/* Search */}
 			{credentials.length > 0 && (
 				<div className="search-bar">
-					<i className="codicon codicon-search search-icon"></i>
+					<Search size={16} className="search-icon" style={{ position: 'absolute', left: '28px', top: '50%', transform: 'translateY(-50%)', color: 'var(--terminus-text-muted)', pointerEvents: 'none' }} />
 					<input
 						type="text"
 						placeholder="Search credentials..."
@@ -178,17 +179,17 @@ const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit }
 			<div className="list-container">
 				{credentials.length === 0 ? (
 					<div className="empty-state">
-						<i className="codicon codicon-key"></i>
+						<Key size={24} style={{ marginBottom: '16px', opacity: 0.5, color: 'var(--terminus-text-subtle)' }} />
 						<h3>No Credentials Yet</h3>
 						<p>Add your first credential to securely store passwords and SSH keys.</p>
 						<button className="primary-button" onClick={handleAdd}>
-							<i className="codicon codicon-add"></i>
+							<Plus size={16} />
 							Add Your First Credential
 						</button>
 					</div>
 				) : filteredCredentials.length === 0 ? (
 					<div className="empty-state">
-						<i className="codicon codicon-search"></i>
+						<Search size={24} style={{ marginBottom: '16px', opacity: 0.5, color: 'var(--terminus-text-subtle)' }} />
 						<h3>No Results</h3>
 						<p>No credentials match your search query.</p>
 					</div>
@@ -197,20 +198,20 @@ const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit }
 						{filteredCredentials.map(cred => (
 							<div key={cred.id} className="credential-card">
 								<div className="cred-icon">
-									<i className={`codicon codicon-${cred.type === 'key' ? 'key' : 'lock'}`}></i>
+									{cred.type === 'key' ? <Key size={20} /> : <Lock size={20} />}
 								</div>
 								<div className="cred-details">
 									<div className="cred-name">{cred.name}</div>
 									<div className="cred-user">{cred.username}</div>
-									{cred.folder && <div className="cred-folder"><i className="codicon codicon-folder"></i> {cred.folder}</div>}
+									{cred.folder && <div className="cred-folder"><Folder size={14} /> {cred.folder}</div>}
 								</div>
 								<div className="cred-type-badge">{cred.type === 'key' ? 'SSH Key' : 'Password'}</div>
 								<div className="cred-actions">
 									<button onClick={() => handleEdit(cred)} title="Edit">
-										<i className="codicon codicon-edit"></i>
+										<Edit size={16} />
 									</button>
 									<button onClick={() => handleDelete(cred.id)} title="Delete" className="danger">
-										<i className="codicon codicon-trash"></i>
+										<Trash2 size={16} />
 									</button>
 								</div>
 							</div>

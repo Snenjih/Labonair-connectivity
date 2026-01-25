@@ -22,34 +22,9 @@ html, body {
 }
 
 /* =============================================================================
-   CODICON FONT SUPPORT (Phase 6.1)
-   Font file copied from node_modules/@vscode/codicons/dist/codicon.ttf via webpack
-   CSP allows: font-src ${webview.cspSource} data:;
-   Note: VS Code webviews will resolve the font via asWebviewUri, so we rely on
-   VS Code's built-in codicon font support instead of bundling our own.
+   ICON SUPPORT
+   Using Lucide React icons - codicon font support removed (Phase 7.0)
    ============================================================================= */
-/* @font-face commented out - relying on VS Code's native codicon support
-@font-face {
-    font-family: "codicon";
-    font-display: block;
-    src: url("./codicon.ttf") format("truetype");
-}
-*/
-
-.codicon {
-    font-family: "codicon" !important;
-    font-display: block;
-    font-style: normal;
-    font-weight: normal;
-    font-variant: normal;
-    text-rendering: auto;
-    text-transform: none;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    user-select: none;
-    -webkit-user-select: none;
-    -ms-user-select: none;
-}
 
 /* CSS Variables - Mapped to VS Code Theme Variables */
 :root {
@@ -153,9 +128,6 @@ html, body {
     background-color: var(--terminus-bg-active);
 }
 
-.top-nav button i.codicon {
-    font-size: 14px;
-}
 
 /* =============================================================================
    TOOLBAR
@@ -261,10 +233,6 @@ html, body {
     gap: 4px;
 }
 
-.dropdown-icon {
-    color: var(--terminus-text-muted);
-    font-size: 14px;
-}
 
 .toolbar-select {
     padding: 6px 8px;
@@ -382,8 +350,7 @@ html, body {
     min-width: 0;
 }
 
-.group-title .codicon {
-    font-size: 12px;
+.group-title svg {
     color: var(--terminus-text-muted);
     flex-shrink: 0;
 }
@@ -553,14 +520,8 @@ html, body {
     margin-bottom: 2px;
 }
 
-.host-name .codicon {
-    font-size: 12px;
+.host-name svg {
     color: var(--terminus-text-muted);
-}
-
-.host-name .pin-icon {
-    color: #eab308;
-    font-size: 11px;
 }
 
 .host-address {
@@ -605,8 +566,10 @@ html, body {
     border-radius: var(--terminus-radius-sm);
 }
 
-.tag-pill .codicon {
-    font-size: 9px;
+.tag-pill svg,
+.feature-badge svg {
+    width: 14px;
+    height: 14px;
 }
 
 .feature-badge {
@@ -619,10 +582,6 @@ html, body {
     color: var(--terminus-text-muted);
     font-size: 10px;
     border-radius: var(--terminus-radius-sm);
-}
-
-.feature-badge .codicon {
-    font-size: 9px;
 }
 
 .notes-icon {
@@ -669,10 +628,6 @@ html, body {
     background-color: var(--terminus-hover);
 }
 
-.action-btn .codicon {
-    font-size: 12px;
-}
-
 /* Icon Button (used in headers, etc.) */
 .icon-button {
     display: flex;
@@ -692,10 +647,6 @@ html, body {
 .icon-button:hover {
     background-color: var(--terminus-hover);
     color: var(--terminus-text);
-}
-
-.icon-button .codicon {
-    font-size: 12px;
 }
 
 /* Options Dropdown Menu */
@@ -764,8 +715,7 @@ html, body {
     background-color: var(--terminus-hover);
 }
 
-.option-item .codicon {
-    font-size: 14px;
+.option-item svg {
     color: var(--terminus-text-muted);
 }
 
@@ -773,7 +723,7 @@ html, body {
     color: var(--terminus-error);
 }
 
-.option-item.danger .codicon {
+.option-item.danger svg {
     color: var(--terminus-error);
 }
 
@@ -1025,11 +975,6 @@ html, body {
     color: var(--terminus-text-muted);
 }
 
-.empty-state .codicon {
-    font-size: 48px;
-    margin-bottom: 16px;
-    color: var(--terminus-text-subtle);
-}
 
 .empty-state h3 {
     font-size: 16px;
@@ -1221,9 +1166,6 @@ html, body {
     color: white;
 }
 
-.segmented-control button .codicon {
-    font-size: 16px;
-}
 
 .segmented-control button .option-desc {
     font-size: 10px;
@@ -1306,8 +1248,7 @@ html, body {
     color: var(--terminus-text-muted);
 }
 
-.info-box .codicon {
-    font-size: 14px;
+.info-box svg {
     color: var(--terminus-accent-light);
 }
 
@@ -1371,9 +1312,6 @@ html, body {
     background-color: var(--terminus-accent-hover);
 }
 
-.add-credential-btn .codicon {
-    font-size: 14px;
-}
 
 /* Credentials Grid */
 .credentials-grid {
@@ -1412,8 +1350,9 @@ html, body {
     flex-shrink: 0;
 }
 
-.credential-card .cred-icon .codicon {
-    font-size: 20px;
+.credential-card .cred-icon svg {
+    width: 20px;
+    height: 20px;
 }
 
 .credential-card .cred-details {
@@ -1442,9 +1381,6 @@ html, body {
     gap: 4px;
 }
 
-.credential-card .cred-folder .codicon {
-    font-size: 11px;
-}
 
 .cred-type-badge {
     position: absolute;
@@ -1489,7 +1425,7 @@ html, body {
 }
 
 /* Tabs with icons */
-.tabs button .codicon {
+.tabs button svg {
     margin-right: 6px;
 }
 
@@ -1510,9 +1446,6 @@ html, body {
         font-size: 11px;
     }
 
-    .toolbar button .codicon {
-        font-size: 12px;
-    }
 
     /* Hide text on small screens, show only icons */
     .toolbar button:not(.selected-count) {

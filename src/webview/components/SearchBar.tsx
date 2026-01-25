@@ -1,4 +1,5 @@
 import React from 'react';
+import { Search } from 'lucide-react';
 
 interface SearchBarProps {
 	value: string;
@@ -8,7 +9,7 @@ interface SearchBarProps {
 const SearchBar: React.FC<SearchBarProps> = ({ value, onChange }) => {
 	return (
 		<div className="search-bar">
-			<i className="codicon codicon-search search-icon"></i>
+			<Search size={16} className="search-icon" style={{ position: 'absolute', left: '28px', top: '50%', transform: 'translateY(-50%)', color: 'var(--terminus-text-muted)', pointerEvents: 'none' }} />
 			<input
 				type="text"
 				placeholder="Search hosts by name, IP, username, or tags..."

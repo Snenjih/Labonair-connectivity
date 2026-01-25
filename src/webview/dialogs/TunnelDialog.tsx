@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { X } from 'lucide-react';
 import { Host, Tunnel } from '../../common/types';
 import { TunnelList } from '../components/TunnelList';
 import '../styles/forms.css';
@@ -27,7 +28,7 @@ const TunnelDialog: React.FC<TunnelDialogProps> = ({ host, onSave, onClose }) =>
 				<div className="modal-header">
 					<h3>Manage Tunnels: {host.name}</h3>
 					<button className="vscode-button secondary icon-only" onClick={onClose}>
-						<i className="codicon codicon-close"></i>
+						<X size={16} />
 					</button>
 				</div>
 				<div className="modal-body">
