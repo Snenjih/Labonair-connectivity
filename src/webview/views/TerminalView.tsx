@@ -594,6 +594,9 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 				<TerminalHUD
 					status={status}
 					hostName={host?.name || host?.host || 'Unknown'}
+					username={host?.username}
+					host={host?.host}
+					port={host?.port}
 					onReconnect={handleReconnect}
 					onOpenSftp={handleOpenSftp}
 					onSplitVertical={handleSplitVertical}

@@ -4,6 +4,9 @@ import { RefreshCw, Folder, SplitSquareVertical, SplitSquareHorizontal } from 'l
 interface TerminalHUDProps {
 	status: 'connecting' | 'connected' | 'disconnected' | 'error';
 	hostName: string;
+	username?: string;
+	host?: string;
+	port?: number;
 	onReconnect: () => void;
 	onOpenSftp: () => void;
 	onSplitVertical?: () => void;
@@ -14,6 +17,9 @@ interface TerminalHUDProps {
 const TerminalHUD: React.FC<TerminalHUDProps> = ({
 	status,
 	hostName,
+	username,
+	host,
+	port,
 	onReconnect,
 	onOpenSftp,
 	onSplitVertical,
@@ -49,6 +55,14 @@ const TerminalHUD: React.FC<TerminalHUDProps> = ({
 		}
 	};
 
+	const getConnectionInfo = () => {
+		if (!username || !host) {
+			return hostName;
+		}
+		const portStr = port && port !== 22 ? `:${port}` : '';
+		return `${username}@${host}${portStr}`;
+	};
+
 	return (
 		<div className="terminal-hud">
 			<div className="terminal-hud-main">
@@ -61,8 +75,8 @@ const TerminalHUD: React.FC<TerminalHUDProps> = ({
 					<span className="terminal-status-text">{getStatusText()}</span>
 				</div>
 
-				{/* Host Name */}
-				<div className="terminal-host-name">{hostName}</div>
+				{/* Host Name / Connection Info */}
+				<div className="terminal-host-name">{getConnectionInfo()}</div>
 
 				{/* Actions */}
 				<div className="terminal-actions">
@@ -86,17 +100,18 @@ const TerminalHUD: React.FC<TerminalHUDProps> = ({
 					)}
 					<button
 						className="terminal-action-button"
-						onClick={onReconnect}
-						title="Reconnect"
-					>
-						<RefreshCw size={16} />
-					</button>
-					<button
-						className="terminal-action-button"
 						onClick={onOpenSftp}
 						title="Open SFTP File Manager"
 					>
 						<Folder size={16} />
+					</button>
+					<button
+						className="terminal-action-button terminal-reconnect-button"
+						onClick={onReconnect}
+						title="Reconnect"
+					>
+						<RefreshCw size={16} />
+						<span>Reconnect</span>
 					</button>
 				</div>
 			</div>

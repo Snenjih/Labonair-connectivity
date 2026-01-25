@@ -60,7 +60,32 @@ export function registerCommands(
 
 	// Register SFTP command
 	context.subscriptions.push(
-		vscode.commands.registerCommand('labonair.openSFTP', async () => {
+		vscode.commands.registerCommand('labonair.openSFTP', async (hostId?: string) => {
+			// If hostId is provided (called from terminal), open directly without asking
+			if (hostId) {
+				const host = hostService.getHostById(hostId);
+				if (host) {
+					// Open SFTP Panel directly
+					SftpPanel.createOrShow(
+						context.extensionUri,
+						host.id,
+						sftpService,
+						localFsService,
+						clipboardService,
+						stateService,
+						archiveService,
+						syncService,
+						hostService,
+						credentialService,
+						hostKeyService
+					);
+				} else {
+					vscode.window.showErrorMessage(`Host not found: ${hostId}`);
+				}
+				return;
+			}
+
+			// No hostId provided - show host selection dialog
 			const hosts = hostService.getHosts();
 
 			if (hosts.length === 0) {
@@ -96,7 +121,7 @@ export function registerCommands(
 						clipboardService,
 						stateService,
 						archiveService,
-					syncService,
+						syncService,
 						hostService,
 						credentialService,
 						hostKeyService

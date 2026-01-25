@@ -94,9 +94,11 @@
 /* Actions */
 .terminal-actions {
 	display: flex;
+	align-items: center;
 	gap: 4px;
 	padding-left: 8px;
 	border-left: 1px solid var(--vscode-panel-border);
+	margin-left: auto;
 }
 
 .terminal-action-button {
@@ -126,6 +128,15 @@
 
 .terminal-action-button:active {
 	background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+.terminal-reconnect-button {
+	width: auto;
+	padding: 0 12px;
+	gap: 6px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
 }
 
 /* Quick Settings */
