@@ -382,33 +382,32 @@ html, body {
     flex-shrink: 0;
 }
 
-.search-bar input {
-    width: 100%;
-    padding: 8px 12px 8px 40px;
+.search-bar > div {
+    display: flex;
+    align-items: center;
+    padding: 2px 12px;
     background-color: var(--terminus-bg-input);
-    color: var(--terminus-text);
     border: 1px solid var(--terminus-border);
     border-radius: var(--terminus-radius-md);
-    font-size: 13px;
+    transition: border-color 0.15s ease;
 }
 
-.search-bar input:focus {
-    outline: none;
+.search-bar > div:focus-within {
     border-color: var(--terminus-accent);
+}
+
+.search-bar input {
+    background: transparent;
+    color: var(--terminus-text);
+    border: none;
+    outline: none;
+    font-size: 13px;
+    width: 100%;
+    padding: 0;
 }
 
 .search-bar input::placeholder {
     color: var(--terminus-text-subtle);
-}
-
-.search-bar .search-icon {
-    position: absolute;
-    left: 28px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--terminus-text-muted);
-    font-size: 14px;
-    pointer-events: none;
 }
 
 /* =============================================================================

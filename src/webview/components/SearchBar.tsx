@@ -1,5 +1,5 @@
 import React, { useRef, useMemo, forwardRef } from 'react';
-import { Search, Plug, X } from 'lucide-react';
+import { X, Search } from 'lucide-react';
 
 interface SearchBarProps {
 	value: string;
@@ -34,75 +34,62 @@ const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(({ value, onChang
 		}
 	};
 
-	const handleIconClick = () => {
-		if (isConnectMode && onQuickConnect) {
-			onQuickConnect(value.trim());
-		}
-	};
-
-	const IconComponent = isConnectMode ? Plug : Search;
-	const iconColor = isConnectMode
-		? 'var(--vscode-button-background)'
-		: 'var(--terminus-text-muted)';
-
 	return (
 		<div className="search-bar">
-			<button
-				className="search-icon-btn"
-				onClick={handleIconClick}
-				disabled={!isConnectMode}
-				title={isConnectMode ? `Click to connect to ${value}` : 'Search icon'}
+			<div
 				style={{
-					position: 'absolute',
-					left: '24px',
-					top: '50%',
-					transform: 'translateY(-50%)',
-					background: 'none',
-					border: 'none',
-					padding: '4px',
-					cursor: isConnectMode ? 'pointer' : 'default',
-					color: iconColor
+					display: 'flex',
+					alignItems: 'center',
+					gap: '8px',
+					flex: 1,
+					position: 'relative'
 				}}
 			>
-				<IconComponent size={16} />
-			</button>
-			<input
-				ref={inputRef}
-				type="text"
-				placeholder="Find Host or ssh user@hostname..."
-				value={value}
-				onChange={e => onChange(e.target.value)}
-				onKeyDown={handleKeyDown}
-				title={isConnectMode ? `Press Enter to connect to ${value}` : 'Search hosts...'}
-				tabIndex={1}
-			/>
-			{value && (
-				<button
-					className="search-clear-btn"
-					onClick={handleClearClick}
-					title="Clear search"
+				<Search size={16} style={{ color: 'var(--terminus-text-subtle)', flexShrink: 0 }} />
+				<input
+					ref={inputRef}
+					type="text"
+					placeholder="Find Host or ssh user@hostname..."
+					value={value}
+					onChange={e => onChange(e.target.value)}
+					onKeyDown={handleKeyDown}
+					title={isConnectMode ? `Press Enter to connect to ${value}` : 'Search hosts...'}
+					tabIndex={1}
 					style={{
-						position: 'absolute',
-						right: '24px',
-						top: '50%',
-						transform: 'translateY(-50%)',
-						background: 'none',
+						flex: 1,
+						padding: '8px 12px',
+						background: 'transparent',
+						color: 'var(--terminus-text)',
 						border: 'none',
-						padding: '4px',
-						cursor: 'pointer',
-						color: 'var(--terminus-text-muted)',
-						borderRadius: 'var(--terminus-radius-sm)'
+						fontSize: '13px',
+						outline: 'none'
 					}}
-					onMouseEnter={(e) => {
-						e.currentTarget.style.backgroundColor = 'var(--terminus-hover)';
-					}}
-					onMouseLeave={(e) => {
-						e.currentTarget.style.backgroundColor = 'transparent';
-					}}
-				>
-					<X size={16} />
-				</button>
-			)}
+				/>
+				{value && (
+					<button
+						className="search-clear-btn"
+						onClick={handleClearClick}
+						title="Clear search"
+						style={{
+							background: 'none',
+							border: 'none',
+							padding: '4px',
+							cursor: 'pointer',
+							color: 'var(--terminus-text-muted)',
+							borderRadius: 'var(--terminus-radius-sm)',
+							flexShrink: 0
+						}}
+						onMouseEnter={(e) => {
+							e.currentTarget.style.backgroundColor = 'var(--terminus-hover)';
+						}}
+						onMouseLeave={(e) => {
+							e.currentTarget.style.backgroundColor = 'transparent';
+						}}
+					>
+						<X size={16} />
+					</button>
+				)}
+			</div>
 		</div>
 	);
 });
