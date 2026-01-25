@@ -288,7 +288,7 @@ html, body {
 
 .search-bar input {
     width: 100%;
-    padding: 8px 12px 8px 36px;
+    padding: 8px 2px 8px 2px;
     background-color: var(--terminus-bg-input);
     color: var(--terminus-text);
     border: 1px solid var(--terminus-border);
