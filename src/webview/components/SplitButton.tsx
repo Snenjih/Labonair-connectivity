@@ -41,6 +41,7 @@ const SplitButton: React.FC<SplitButtonProps> = ({
 	return (
 		<div className="split-button" ref={dropdownRef}>
 			<button
+				type="button"
 				className="split-button-primary"
 				onClick={onPrimaryClick}
 				title="New Host"
@@ -51,6 +52,7 @@ const SplitButton: React.FC<SplitButtonProps> = ({
 			</button>
 			<div className="split-button-divider" />
 			<button
+				type="button"
 				className="split-button-menu"
 				onClick={handleDropdownToggle}
 				title="More actions"
@@ -62,6 +64,7 @@ const SplitButton: React.FC<SplitButtonProps> = ({
 			{showDropdown && (
 				<div className="split-button-dropdown">
 					<button
+						type="button"
 						className="dropdown-item"
 						onClick={() => handleMenuItemClick(onImport)}
 					>
@@ -69,6 +72,7 @@ const SplitButton: React.FC<SplitButtonProps> = ({
 						Import Hosts
 					</button>
 					<button
+						type="button"
 						className="dropdown-item"
 						onClick={() => handleMenuItemClick(onPrimaryClick)}
 					>
@@ -76,6 +80,7 @@ const SplitButton: React.FC<SplitButtonProps> = ({
 						New Host
 					</button>
 					<button
+						type="button"
 						className="dropdown-item"
 						onClick={() => handleMenuItemClick(onAddCredential)}
 					>
