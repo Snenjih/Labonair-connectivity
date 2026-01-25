@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Terminal, Files, Lock, Key, Activity, Shield, Info, Check, XCircle, Folder, SplitSquareHorizontal, List, Grid3x3, Save } from 'lucide-react';
+import { Settings, Terminal, Files, Lock, Key, Activity, Shield, Info, Check, XCircle, Folder, SplitSquareHorizontal, List, Grid3x3, Save, X } from 'lucide-react';
 import { Host, Tunnel, Message, Credential } from '../../common/types';
 import { TagInput } from '../components/TagInput';
 import { TunnelList } from '../components/TunnelList';
@@ -120,7 +120,17 @@ const EditHost: React.FC<EditHostProps> = ({
 
 	return (
 		<div className="edit-host-view">
-			<h2>{initialHost ? 'Edit Host' : 'New Host'}</h2>
+			<div className="view-header">
+				<h2>{initialHost ? 'Edit Host' : 'New Host'}</h2>
+				<button
+					type="button"
+					className="icon-button close-button"
+					onClick={onCancel}
+					title="Close"
+				>
+					<X size={20} />
+				</button>
+			</div>
 
 			<div className="tabs">
 				<button

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pin, MoreVertical, Edit, Copy, Download, Trash2, Tag, Terminal, Plug, Files } from 'lucide-react';
 import { Host, HostStatus } from '../../common/types';
+import { ContextMenu, ContextMenuItem } from './ContextMenu';
 
 interface TunnelStatus {
 	type: 'local' | 'remote';
@@ -46,7 +47,7 @@ const HostCard: React.FC<HostCardProps> = ({
 	onExport,
 	onMoveToFolder
 }) => {
-	const [showOptions, setShowOptions] = useState(false);
+	const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
 	// Calculate active tunnels
 	const activeTunnels = tunnelStatuses.filter(t => t.status === 'active');
@@ -94,28 +95,58 @@ const HostCard: React.FC<HostCardProps> = ({
 
 	const handleOptionsClick = (e: React.MouseEvent) => {
 		e.stopPropagation();
-		setShowOptions(!showOptions);
+		const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+		setContextMenu({
+			x: rect.right,
+			y: rect.bottom
+		});
 	};
 
-	const handleOptionAction = (action: () => void) => {
-		return (e: React.MouseEvent) => {
-			e.stopPropagation();
-			setShowOptions(false);
-			action();
-		};
-	};
-
-	// Close options menu when clicking outside
-	React.useEffect(() => {
-		const handleClickOutside = () => setShowOptions(false);
-		if (showOptions) {
-			document.addEventListener('click', handleClickOutside);
-			return () => document.removeEventListener('click', handleClickOutside);
+	const contextMenuItems: ContextMenuItem[] = [
+		{
+			label: 'Edit Host',
+			icon: Edit,
+			action: onEdit
+		},
+		...(onClone ? [{
+			label: 'Clone Host',
+			icon: Copy,
+			action: onClone
+		}] : []),
+		...(onExport ? [{
+			label: 'Export Host',
+			icon: Download,
+			action: onExport
+		}] : []),
+		{
+			label: 'Manage Tunnels',
+			icon: Plug,
+			action: onManageTunnels
+		},
+		{
+			label: '',
+			icon: undefined,
+			action: () => {},
+			separator: true
+		},
+		{
+			label: 'Delete Host',
+			icon: Trash2,
+			action: onDelete,
+			danger: true
 		}
-	}, [showOptions]);
+	];
 
 	const statusClass = status === 'online' ? 'status-online' :
 		status === 'offline' ? 'status-offline' : 'status-unknown';
+
+	const handleDoubleClick = (e: React.MouseEvent) => {
+		// Only trigger if not clicking on a button or checkbox
+		const target = e.target as HTMLElement;
+		if (!target.closest('button') && !target.closest('input[type="checkbox"]')) {
+			onConnect();
+		}
+	};
 
 	return (
 		<div
@@ -126,6 +157,7 @@ const HostCard: React.FC<HostCardProps> = ({
 			onDragOver={handleDragOver}
 			onDragLeave={handleDragLeave}
 			onDrop={handleDrop}
+			onDoubleClick={handleDoubleClick}
 		>
 			{/* Top Row: Checkbox, Host Info, Options */}
 			<div className="card-top">
@@ -150,31 +182,6 @@ const HostCard: React.FC<HostCardProps> = ({
 					<button className="icon-button options-btn" onClick={handleOptionsClick} title="Options">
 						<MoreVertical size={16} />
 					</button>
-					{showOptions && (
-						<div className="options-menu" onClick={e => e.stopPropagation()}>
-							<button className="option-item" onClick={handleOptionAction(onEdit)}>
-								<Edit size={16} />
-								Edit Host
-							</button>
-							{onClone && (
-								<button className="option-item" onClick={handleOptionAction(onClone)}>
-									<Copy size={16} />
-									Clone Host
-								</button>
-							)}
-							{onExport && (
-								<button className="option-item" onClick={handleOptionAction(onExport)}>
-									<Download size={16} />
-									Export Host
-								</button>
-							)}
-							<div className="option-divider"></div>
-							<button className="option-item danger" onClick={handleOptionAction(onDelete)}>
-								<Trash2 size={16} />
-								Delete Host
-							</button>
-						</div>
-					)}
 				</div>
 			</div>
 
@@ -231,18 +238,28 @@ const HostCard: React.FC<HostCardProps> = ({
 			{/* Bottom: Primary Action Buttons - SSH and SFTP only */}
 			<div className="card-bottom">
 				{host.enableTerminal !== false && (
-					<button className="action-btn" onClick={(e) => { e.stopPropagation(); onConnect(); }} title="SSH Terminal">
+					<button className="primary-action-btn" onClick={(e) => { e.stopPropagation(); onConnect(); }} title="SSH Terminal">
 						<Terminal size={14} />
 						SSH
 					</button>
 				)}
 				{host.enableFileManager !== false && onOpenSftp && (
-					<button className="action-btn" onClick={(e) => { e.stopPropagation(); onOpenSftp(); }} title="SFTP File Manager">
+					<button className="primary-action-btn" onClick={(e) => { e.stopPropagation(); onOpenSftp(); }} title="SFTP File Manager">
 						<Files size={14} />
 						SFTP
 					</button>
 				)}
 			</div>
+
+			{/* Context Menu - Phase 6.4 */}
+			{contextMenu && (
+				<ContextMenu
+					x={contextMenu.x}
+					y={contextMenu.y}
+					items={contextMenuItems}
+					onClose={() => setContextMenu(null)}
+				/>
+			)}
 		</div>
 	);
 };

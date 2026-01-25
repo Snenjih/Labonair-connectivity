@@ -10,6 +10,7 @@ import TerminalHUD from '../components/Terminal/TerminalHUD';
 import PasteModal from '../components/Terminal/PasteModal';
 import { DropOverlay } from '../components/Terminal/DropOverlay';
 import SearchWidget, { SearchOptions } from '../components/Terminal/SearchWidget';
+import { ConnectionOverlay, ConnectionLog } from '../components/ConnectionOverlay';
 import '../styles/terminal.css';
 
 interface TerminalViewProps {
@@ -36,6 +37,8 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 	const [pasteData, setPasteData] = useState<string | null>(null);
 	const [fontSize, setFontSize] = useState<number>(host?.terminalFontSize || 14);
 	const [searchVisible, setSearchVisible] = useState<boolean>(false);
+	const [connectionLogs, setConnectionLogs] = useState<ConnectionLog[]>([]);
+	const [connectionError, setConnectionError] = useState<{ code: string; message: string } | undefined>();
 
 	useEffect(() => {
 		// Initialize first terminal
@@ -185,6 +188,21 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 				case 'TERM_STATUS':
 					setStatus(message.payload.status);
 					setStatusMessage(message.payload.message || '');
+					if (message.payload.status === 'error' && message.payload.message) {
+						setConnectionError({
+							code: message.payload.code || 'ERR_CONNECTION_FAILED',
+							message: message.payload.message
+						});
+					}
+					break;
+				case 'CONNECTION_PROGRESS':
+					if (message.payload.log) {
+						setConnectionLogs(prev => [...prev, {
+							timestamp: Date.now(),
+							message: message.payload.log,
+							level: message.payload.level || 'info'
+						}]);
+					}
 					break;
 				case 'UPDATE_DATA':
 					if (message.payload.splitMode) {
@@ -417,10 +435,27 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 	};
 
 	const handleReconnect = () => {
+		setStatus('connecting');
+		setConnectionLogs([]);
+		setConnectionError(undefined);
 		vscode.postMessage({
 			command: 'TERM_RECONNECT',
 			payload: { hostId }
 		});
+	};
+
+	const handleCancelConnection = () => {
+		// TODO: Implement connection cancellation in backend
+		// For now, attempt to reconnect which will reset the state
+		setStatus('disconnected');
+		setConnectionLogs([]);
+	};
+
+	const handleCloseError = () => {
+		// TODO: Implement panel closing in backend
+		// For now, just reset to disconnected state
+		setStatus('disconnected');
+		setConnectionError(undefined);
 	};
 
 	const handleOpenSftp = () => {
@@ -573,14 +608,16 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 				/>
 			)}
 
-			{status === 'error' && (
-				<div className="terminal-error-overlay">
-					<div className="terminal-error-message">
-						<h3>Connection Error</h3>
-						<p>{statusMessage}</p>
-						<button onClick={handleReconnect}>Reconnect</button>
-					</div>
-				</div>
+			{/* Connection Overlay - Phase 6.3 */}
+			{(status === 'connecting' || status === 'error') && (
+				<ConnectionOverlay
+					status={status}
+					logs={connectionLogs}
+					error={connectionError}
+					onCancel={handleCancelConnection}
+					onRetry={handleReconnect}
+					onClose={handleCloseError}
+				/>
 			)}
 
 			{/* Drop Overlay for Smart Drag & Drop */}

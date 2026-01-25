@@ -27,6 +27,7 @@ interface HostStore {
 
 	// Selection helpers
 	toggleHostSelection: (hostId: string) => void;
+	toggleGroupSelection: (groupHostIds: string[]) => void;
 	clearSelection: () => void;
 	selectAll: (hostIds: string[]) => void;
 
@@ -63,6 +64,24 @@ export const useHostStore = create<HostStore>((set, get) => ({
 		} else {
 			selected.add(hostId);
 		}
+		return { selectedHostIds: Array.from(selected) };
+	}),
+
+	toggleGroupSelection: (groupHostIds) => set((state) => {
+		const selected = new Set(state.selectedHostIds);
+		const groupSet = new Set(groupHostIds);
+
+		// Check if all hosts in the group are currently selected
+		const allSelected = groupHostIds.every(id => selected.has(id));
+
+		if (allSelected) {
+			// Deselect all hosts in the group
+			groupHostIds.forEach(id => selected.delete(id));
+		} else {
+			// Select all hosts in the group
+			groupHostIds.forEach(id => selected.add(id));
+		}
+
 		return { selectedHostIds: Array.from(selected) };
 	}),
 

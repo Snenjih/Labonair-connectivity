@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Edit, Settings } from 'lucide-react';
 import { Credential } from '../../common/types';
 import vscode from '../utils/vscode';
@@ -9,8 +9,10 @@ interface HostGroupProps {
 	credentials?: Credential[];
 	children: React.ReactNode;
 	selectedHostIds?: string[];
-	onSelectAll?: (selected: boolean) => void;
+	onToggleGroupSelection?: () => void;
 	onRenameFolder?: (oldName: string, newName: string) => void;
+	isExpanded?: boolean;
+	onToggleExpanded?: (folderName: string, expanded: boolean) => void;
 }
 
 const HostGroup: React.FC<HostGroupProps> = ({
@@ -19,22 +21,39 @@ const HostGroup: React.FC<HostGroupProps> = ({
 	credentials = [],
 	children,
 	selectedHostIds = [],
-	onSelectAll,
-	onRenameFolder
+	onToggleGroupSelection,
+	onRenameFolder,
+	isExpanded = true,
+	onToggleExpanded
 }) => {
-	const [isOpen, setIsOpen] = useState(true);
 	const [showSettings, setShowSettings] = useState(false);
 	const [isRenaming, setIsRenaming] = useState(false);
 	const [newName, setNewName] = useState(name);
 	const [config, setConfig] = useState<{ username?: string, port?: number, credentialId?: string }>({});
+	const [groupHostIds, setGroupHostIds] = useState<string[]>([]);
 
-	const toggleOpen = () => setIsOpen(!isOpen);
+	const toggleOpen = () => {
+		if (onToggleExpanded) {
+			onToggleExpanded(name, !isExpanded);
+		}
+	};
+
+	// Extract host IDs from children
+	useEffect(() => {
+		const ids: string[] = [];
+		React.Children.forEach(children, (child) => {
+			if (React.isValidElement(child) && child.props.host) {
+				ids.push(child.props.host.id);
+			}
+		});
+		setGroupHostIds(ids);
+	}, [children]);
 
 	// Check if all hosts in this group are selected
 	const allSelected = useMemo(() => {
-		// This is a simplified check - in real implementation we'd need host IDs
-		return false; // Placeholder
-	}, [selectedHostIds]);
+		if (groupHostIds.length === 0) return false;
+		return groupHostIds.every(id => selectedHostIds.includes(id));
+	}, [selectedHostIds, groupHostIds]);
 
 	const handleSettingsClick = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -64,8 +83,8 @@ const HostGroup: React.FC<HostGroupProps> = ({
 
 	const handleSelectAllClick = (e: React.MouseEvent) => {
 		e.stopPropagation();
-		if (onSelectAll) {
-			onSelectAll(!allSelected);
+		if (onToggleGroupSelection) {
+			onToggleGroupSelection();
 		}
 	};
 
@@ -86,7 +105,7 @@ const HostGroup: React.FC<HostGroupProps> = ({
 		<div className="host-group">
 			<div className="group-header" onClick={toggleOpen}>
 				<div className="group-title">
-					{onSelectAll && (
+					{onToggleGroupSelection && (
 						<input
 							type="checkbox"
 							checked={allSelected}
@@ -95,7 +114,7 @@ const HostGroup: React.FC<HostGroupProps> = ({
 							className="group-checkbox"
 						/>
 					)}
-					{isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+					{isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
 					{isRenaming ? (
 						<input
 							type="text"
@@ -123,7 +142,7 @@ const HostGroup: React.FC<HostGroupProps> = ({
 					</button>
 				</div>
 			</div>
-			{isOpen && <div className="group-content">{children}</div>}
+			{isExpanded && <div className="group-content">{children}</div>}
 
 			{showSettings && (
 				<div className="modal-overlay">

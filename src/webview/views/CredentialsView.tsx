@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Lock, Key, Save, Plus, Search, Edit, Trash2, Folder } from 'lucide-react';
+import { Lock, Key, Save, Plus, Search, Edit, Trash2, Folder, X } from 'lucide-react';
 import { Credential } from '../../common/types';
 import vscode from '../utils/vscode';
 
 interface CredentialsViewProps {
 	credentials: Credential[];
 	onEdit?: (credential: Credential) => void;
+	onNavigateBack?: () => void;
 }
 
-const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit }) => {
+const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit, onNavigateBack }) => {
 	const [isEditing, setIsEditing] = useState(false);
 	const [editingCred, setEditingCred] = useState<Partial<Credential> & { secret?: string }>({});
 	const [searchQuery, setSearchQuery] = useState('');
@@ -66,7 +67,17 @@ const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit }
 	if (isEditing) {
 		return (
 			<div className="edit-host-view">
-				<h2>{editingCred.id && credentials.find(c => c.id === editingCred.id) ? 'Edit Credential' : 'New Credential'}</h2>
+				<div className="view-header">
+					<h2>{editingCred.id && credentials.find(c => c.id === editingCred.id) ? 'Edit Credential' : 'New Credential'}</h2>
+					<button
+						type="button"
+						className="icon-button close-button"
+						onClick={() => setIsEditing(false)}
+						title="Close"
+					>
+						<X size={20} />
+					</button>
+				</div>
 
 				<div className="form-section">
 					<div className="form-group">
@@ -156,10 +167,22 @@ const CredentialsView: React.FC<CredentialsViewProps> = ({ credentials, onEdit }
 					<h2>Credentials Vault</h2>
 					<p className="subtitle">{credentials.length} credential{credentials.length !== 1 ? 's' : ''} stored securely</p>
 				</div>
-				<button className="add-credential-btn" onClick={handleAdd}>
-					<Plus size={16} />
-					Add Credential
-				</button>
+				<div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+					<button className="add-credential-btn" onClick={handleAdd}>
+						<Plus size={16} />
+						Add Credential
+					</button>
+					{onNavigateBack && (
+						<button
+							type="button"
+							className="icon-button close-button"
+							onClick={onNavigateBack}
+							title="Back to Hosts"
+						>
+							<X size={20} />
+						</button>
+					)}
+				</div>
 			</div>
 
 			{/* Search */}

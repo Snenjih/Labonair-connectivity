@@ -91,43 +91,9 @@ html, body {
 }
 
 /* =============================================================================
-   TOP NAVIGATION - Tab Bar
+   TOP NAVIGATION - Removed in Phase 6.4Extend
+   TopNav component deleted - navigation now handled via SearchBar and Toolbar
    ============================================================================= */
-.top-nav {
-    display: flex;
-    background-color: var(--terminus-bg-header);
-    border-bottom: 1px solid var(--terminus-border-panel);
-    padding: 0;
-    gap: 0;
-    flex-shrink: 0;
-}
-
-.top-nav button {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 16px;
-    background: transparent;
-    color: var(--terminus-text-muted);
-    border: none;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-bottom: 2px solid transparent;
-}
-
-.top-nav button:hover {
-    background-color: var(--terminus-hover);
-    color: var(--terminus-text);
-}
-
-.top-nav button.active {
-    color: var(--terminus-text);
-    border-bottom-color: var(--terminus-accent);
-    background-color: var(--terminus-bg-active);
-}
-
 
 /* =============================================================================
    TOOLBAR
@@ -210,20 +176,144 @@ html, body {
     border-color: var(--terminus-accent);
 }
 
-/* Bulk Actions */
-.bulk-actions {
+/* Bulk Actions Bar - Phase 6.7Extend */
+.bulk-actions-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
+    padding: 10px 16px;
+    background-color: var(--vscode-list-filterMatchBackground);
+    border-bottom: 1px solid var(--terminus-border-panel);
+    flex-shrink: 0;
 }
 
 .selected-count {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
-    color: var(--terminus-accent);
-    padding: 4px 8px;
-    background-color: rgba(59, 130, 246, 0.1);
-    border-radius: var(--terminus-radius-sm);
+    color: var(--vscode-foreground);
+    flex: 1;
+}
+
+.bulk-delete-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: transparent;
+    color: var(--vscode-errorForeground);
+    border: 1px solid var(--vscode-errorForeground);
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.bulk-delete-btn:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+}
+
+.bulk-dismiss-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: none;
+    border-radius: var(--terminus-radius-md);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.bulk-dismiss-btn:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Split Button - Phase 6.1 */
+.split-button {
+    position: relative;
+    display: inline-flex;
+    align-items: stretch;
+    border-radius: var(--terminus-radius-md);
+    overflow: hidden;
+    border: 1px solid var(--terminus-border);
+    background-color: var(--vscode-button-background);
+}
+
+.split-button-primary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background-color: transparent;
+    color: var(--vscode-button-foreground);
+    border: none;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.split-button-primary:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+.split-button-divider {
+    width: 1px;
+    background-color: rgba(255, 255, 255, 0.2);
+    align-self: stretch;
+}
+
+.split-button-menu {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 8px;
+    background-color: transparent;
+    color: var(--vscode-button-foreground);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.split-button-menu:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+.split-button-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 180px;
+    background-color: var(--vscode-menu-background);
+    border: 1px solid var(--vscode-menu-border);
+    border-radius: var(--terminus-radius-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.split-button-dropdown .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    background-color: transparent;
+    color: var(--vscode-menu-foreground);
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.1s ease;
+}
+
+.split-button-dropdown .dropdown-item:hover {
+    background-color: var(--vscode-menu-selectionBackground);
+    color: var(--vscode-menu-selectionForeground);
 }
 
 /* Dropdown */
@@ -245,18 +335,19 @@ html, body {
 }
 
 /* =============================================================================
-   SEARCH BAR
+   SEARCH BAR - Phase 6.1: Moved to top, above toolbar
    ============================================================================= */
 .search-bar {
     position: relative;
-    padding: 0 16px 12px;
+    padding: 16px 16px 12px;
     background-color: var(--terminus-bg);
+    border-bottom: 1px solid var(--terminus-border-panel);
     flex-shrink: 0;
 }
 
 .search-bar input {
     width: 100%;
-    padding: 8px 2px 8px 2px;
+    padding: 8px 12px 8px 40px;
     background-color: var(--terminus-bg-input);
     color: var(--terminus-text);
     border: 1px solid var(--terminus-border);
@@ -436,8 +527,9 @@ html, body {
 }
 
 .host-card.selected {
-    border-color: var(--terminus-accent);
-    background-color: rgba(59, 130, 246, 0.08);
+    border-color: var(--vscode-list-activeSelectionForeground);
+    background-color: var(--vscode-list-activeSelectionBackground);
+    opacity: 0.9;
 }
 
 .host-card.active-session {
@@ -628,6 +720,28 @@ html, body {
     background-color: var(--terminus-hover);
 }
 
+/* Primary Action Button - Phase 6.4 (SSH/SFTP buttons) */
+.primary-action-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    border-radius: var(--terminus-radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.primary-action-btn:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
 /* Icon Button (used in headers, etc.) */
 .icon-button {
     display: flex;
@@ -669,73 +783,7 @@ html, body {
     border-color: var(--terminus-border-hover);
 }
 
-.options-menu {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    min-width: 160px;
-    background-color: var(--terminus-bg-panel);
-    border: 1px solid var(--terminus-border);
-    border-radius: var(--terminus-radius-md);
-    padding: 4px;
-    z-index: 100;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    animation: optionsSlideIn 0.15s ease;
-}
-
-@keyframes optionsSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-4px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.option-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-    padding: 8px 12px;
-    background: transparent;
-    color: var(--terminus-text);
-    border: none;
-    border-radius: var(--terminus-radius-sm);
-    font-size: 12px;
-    cursor: pointer;
-    text-align: left;
-    transition: background-color 0.1s;
-}
-
-.option-item:hover {
-    background-color: var(--terminus-hover);
-}
-
-.option-item svg {
-    color: var(--terminus-text-muted);
-}
-
-.option-item.danger {
-    color: var(--terminus-error);
-}
-
-.option-item.danger svg {
-    color: var(--terminus-error);
-}
-
-.option-item.danger:hover {
-    background-color: rgba(239, 68, 68, 0.15);
-}
-
-.option-divider {
-    height: 1px;
-    background-color: var(--terminus-border);
-    margin: 4px 0;
-}
+/* Old options-menu classes removed - now using ContextMenu component (Phase 6.4) */
 
 
 /* =============================================================================
@@ -753,6 +801,29 @@ html, body {
     font-weight: 600;
     margin-bottom: 16px;
     color: var(--terminus-text);
+}
+
+/* View Header with Close Button - Phase 6.2 */
+.view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.view-header h2 {
+    margin: 0;
+}
+
+.view-header .close-button {
+    width: 32px;
+    height: 32px;
+    color: var(--terminus-text-muted);
+}
+
+.view-header .close-button:hover {
+    color: var(--terminus-text);
+    background-color: var(--terminus-hover);
 }
 
 .tabs {
@@ -1018,6 +1089,233 @@ html, body {
     font-weight: 600;
     margin-bottom: 16px;
     color: var(--terminus-text);
+}
+
+/* =============================================================================
+   CONNECTION OVERLAY - Phase 6.3
+   ============================================================================= */
+.connection-overlay {
+    position: absolute;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    animation: overlayFadeIn 0.3s ease;
+}
+
+@keyframes overlayFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.connection-overlay-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+}
+
+.connection-overlay-content h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 16px 0 8px 0;
+    color: var(--vscode-foreground);
+}
+
+.connection-subtitle {
+    font-size: 14px;
+    color: var(--vscode-descriptionForeground);
+    margin: 0 0 24px 0;
+}
+
+/* Connecting Spinner */
+.connection-spinner {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.connection-spinner .server-icon {
+    color: var(--vscode-button-background);
+    z-index: 1;
+}
+
+.spinner-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border: 3px solid transparent;
+    border-top-color: var(--vscode-button-background);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Error State */
+.connection-error-icon {
+    color: var(--vscode-errorForeground);
+    margin-bottom: 16px;
+}
+
+.error-code-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--vscode-errorForeground);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: var(--terminus-radius-md);
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.error-message {
+    font-size: 14px;
+    color: var(--vscode-foreground);
+    margin: 0 0 24px 0;
+    max-width: 400px;
+    line-height: 1.5;
+}
+
+/* Log Console */
+.connection-log-container {
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--terminus-border);
+    border-radius: var(--terminus-radius-md);
+    padding: 12px;
+    margin: 0 0 24px 0;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 12px;
+    text-align: left;
+    scrollbar-width: thin;
+}
+
+.log-entry {
+    display: flex;
+    gap: 12px;
+    padding: 4px 0;
+    animation: fadeInSlideUp 0.3s ease forwards;
+    opacity: 0;
+}
+
+@keyframes fadeInSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.log-time {
+    color: var(--vscode-descriptionForeground);
+    flex-shrink: 0;
+}
+
+.log-message {
+    color: var(--vscode-foreground);
+    flex: 1;
+}
+
+.log-entry.log-success .log-message {
+    color: var(--terminus-success);
+}
+
+.log-entry.log-error .log-message {
+    color: var(--vscode-errorForeground);
+}
+
+/* Action Buttons */
+.connection-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.connection-cancel-btn,
+.connection-retry-btn,
+.connection-close-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--terminus-radius-md);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.connection-cancel-btn,
+.connection-close-btn {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+
+.connection-cancel-btn:hover,
+.connection-close-btn:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.connection-retry-btn {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.connection-retry-btn:hover {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+/* Error Details */
+.error-details {
+    width: 100%;
+    margin-top: 16px;
+}
+
+.error-details summary {
+    cursor: pointer;
+    color: var(--vscode-descriptionForeground);
+    font-size: 13px;
+    padding: 8px;
+    border-radius: var(--terminus-radius-sm);
+    user-select: none;
+}
+
+.error-details summary:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.error-details .connection-log-container {
+    margin-top: 12px;
+    margin-bottom: 0;
 }
 
 /* =============================================================================

@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import vscode from './utils/vscode';
 import { Host, WebviewState, Message, Credential, ViewType, HostStatus } from '../common/types';
 import { useHostStore } from './store/useHostStore';
-import TopNav from './components/TopNav';
 import Toolbar from './components/Toolbar';
 import HostGroup from './components/HostGroup';
 import HostCard from './components/HostCard';
@@ -44,6 +43,7 @@ const App: React.FC = () => {
 	const setSshAgentAvailable = useHostStore(state => state.setSshAgentAvailable);
 	const setAvailableShells = useHostStore(state => state.setAvailableShells);
 	const toggleHostSelection = useHostStore(state => state.toggleHostSelection);
+	const toggleGroupSelection = useHostStore(state => state.toggleGroupSelection);
 	const clearSelection = useHostStore(state => state.clearSelection);
 
 	// Local UI state (view navigation, editing, dialogs)
@@ -54,6 +54,8 @@ const App: React.FC = () => {
 
 	const [filterText, setFilterText] = useState('');
 	const [sortCriteria, setSortCriteria] = useState<'name' | 'lastUsed' | 'group'>('name');
+	const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+	const searchBarRef = React.useRef<HTMLInputElement>(null);
 
 	// Check if we're in editor context (Terminal/SFTP panel) vs sidebar
 	const isEditorContext = window.LABONAIR_CONTEXT === 'editor';
@@ -67,6 +69,55 @@ const App: React.FC = () => {
 		fingerprint: string;
 		status: 'unknown' | 'invalid';
 	} | null>(null);
+
+	// Load expanded groups from localStorage on mount
+	useEffect(() => {
+		const saved = localStorage.getItem('labonair-expanded-groups');
+		if (saved) {
+			try {
+				setExpandedGroups(JSON.parse(saved));
+			} catch (e) {
+				console.error('Failed to parse saved expanded groups', e);
+			}
+		}
+	}, []);
+
+	// Restore view state from vscode state (Phase 6.6Extend)
+	useEffect(() => {
+		const savedState = vscode.getState();
+		if (savedState) {
+			if (savedState.view) setView(savedState.view);
+			if (savedState.filterText) setFilterText(savedState.filterText);
+			if (savedState.selectedHostId) {
+				const host = hosts.find(h => h.id === savedState.selectedHostId);
+				if (host) setSelectedHost(host);
+			}
+		}
+	}, []);
+
+	// Persist view state to vscode state when it changes (Phase 6.6Extend)
+	useEffect(() => {
+		vscode.setState({
+			view,
+			filterText,
+			selectedHostId: selectedHost?.id
+		});
+	}, [view, filterText, selectedHost]);
+
+	// Auto-focus search bar on mount when in hosts view (Phase 6.6Extend)
+	useEffect(() => {
+		if (view === 'hosts' && searchBarRef.current) {
+			// Small delay to ensure the component is fully rendered
+			setTimeout(() => {
+				searchBarRef.current?.focus();
+			}, 100);
+		}
+	}, [view]);
+
+	// Save expanded groups to localStorage when they change
+	useEffect(() => {
+		localStorage.setItem('labonair-expanded-groups', JSON.stringify(expandedGroups));
+	}, [expandedGroups]);
 
 	useEffect(() => {
 		const handleMessage = (event: MessageEvent) => {
@@ -111,7 +162,7 @@ const App: React.FC = () => {
 		return () => window.removeEventListener('message', handleMessage);
 	}, [setHosts, setCredentials, setActiveSessionHostIds, setHostStatuses, setAvailableShells]);
 
-	// Focus tracking for keybinding context
+	// Focus tracking for keybinding context and keyboard shortcuts
 	useEffect(() => {
 		const handleFocus = () => {
 			vscode.postMessage({
@@ -140,6 +191,31 @@ const App: React.FC = () => {
 			window.removeEventListener('blur', handleBlur);
 		};
 	}, []);
+
+	// Keyboard shortcuts - Phase 6.4Extend & 6.5Extend
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			const isMod = e.metaKey || e.ctrlKey;
+
+			// Mod+N: New Host (only when in hosts view)
+			if (isMod && e.key === 'n' && view === 'hosts') {
+				e.preventDefault();
+				setView('addHost');
+				setSelectedHost(null);
+			}
+
+			// Mod+F: Focus Search Bar (only when in hosts view)
+			if (isMod && e.key === 'f' && view === 'hosts') {
+				e.preventDefault();
+				if (searchBarRef.current) {
+					searchBarRef.current.focus();
+				}
+			}
+		};
+
+		window.addEventListener('keydown', handleKeyDown);
+		return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [view]);
 
 	// ============================================================
 	// NAVIGATION
@@ -254,6 +330,10 @@ const App: React.FC = () => {
 
 	const handleRefresh = useCallback(() => {
 		vscode.postMessage({ command: 'FETCH_DATA' });
+	}, []);
+
+	const handleToggleGroupExpanded = useCallback((folderName: string, expanded: boolean) => {
+		setExpandedGroups(prev => ({ ...prev, [folderName]: expanded }));
 	}, []);
 
 	// ============================================================
@@ -404,23 +484,27 @@ const App: React.FC = () => {
 				/>
 			)}
 
-			{/* Only show TopNav in sidebar context */}
-			{!isEditorContext && <TopNav activeView={view} onNavigate={handleNavigate} />}
-
 			{view === 'hosts' && (
 				<>
+					<SearchBar
+						ref={searchBarRef}
+						value={filterText}
+						onChange={setFilterText}
+						onQuickConnect={handleQuickConnect}
+					/>
 					<Toolbar
+						onAddHost={() => handleNavigate('addHost')}
 						onImport={handleImport}
+						onAddCredential={() => handleNavigate('credentials')}
 						onSort={setSortCriteria}
 						sortCriteria={sortCriteria}
-						onQuickConnect={handleQuickConnect}
 						selectedCount={selectedHostIds?.length || 0}
 						onBulkDelete={handleBulkDelete}
+						onClearSelection={handleClearSelection}
 					/>
-					<SearchBar value={filterText} onChange={setFilterText} />
 					<div className="host-list">
 						{hosts.length === 0 ? (
-							<EmptyState />
+							<EmptyState onCreateHost={() => handleNavigate('addHost')} />
 						) : (
 							Object.entries(groupedHosts).map(([folder, folderHosts]) => (
 								<HostGroup
@@ -429,15 +513,13 @@ const App: React.FC = () => {
 									count={folderHosts.length}
 									credentials={credentials}
 									selectedHostIds={selectedHostIds || []}
-									onSelectAll={(selected) => {
-										if (selected) {
-											handleSelectAll([...(selectedHostIds || []), ...folderHosts.map(h => h.id)]);
-										} else {
-											const hostIds = new Set(folderHosts.map(h => h.id));
-											setSelectedHostIds((selectedHostIds || []).filter(id => !hostIds.has(id)));
-										}
+									onToggleGroupSelection={() => {
+										const groupHostIds = folderHosts.map(h => h.id);
+										toggleGroupSelection(groupHostIds);
 									}}
 									onRenameFolder={handleRenameFolder}
+									isExpanded={expandedGroups[folder] !== false}
+									onToggleExpanded={handleToggleGroupExpanded}
 								>
 									{folderHosts.map(host => (
 										<HostCard
@@ -480,6 +562,7 @@ const App: React.FC = () => {
 			{view === 'credentials' && (
 				<CredentialsView
 					credentials={credentials || []}
+					onNavigateBack={() => handleNavigate('hosts')}
 				/>
 			)}
 

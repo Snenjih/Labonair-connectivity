@@ -1,104 +1,85 @@
 import React from 'react';
-import { Trash2, Plug, Upload, ArrowUpDown, Terminal } from 'lucide-react';
+import { Trash2, ArrowUpDown, Terminal, X } from 'lucide-react';
+import SplitButton from './SplitButton';
 
 interface ToolbarProps {
+	onAddHost: () => void;
 	onImport: (format: 'json' | 'ssh-config') => void;
+	onAddCredential: () => void;
 	onSort: (criteria: 'name' | 'lastUsed' | 'group') => void;
 	sortCriteria?: 'name' | 'lastUsed' | 'group';
-	onQuickConnect: (connectionString: string) => void;
 	selectedCount?: number;
 	onBulkDelete?: () => void;
+	onClearSelection?: () => void;
 	onLocalTerminal?: () => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
+	onAddHost,
 	onImport,
+	onAddCredential,
 	onSort,
 	sortCriteria,
-	onQuickConnect,
 	selectedCount = 0,
 	onBulkDelete,
+	onClearSelection,
 	onLocalTerminal
 }) => {
-	const [quickConnect, setQuickConnect] = React.useState('');
-
-	const handleConnectClick = () => {
-		if (quickConnect) {
-			onQuickConnect(quickConnect);
-			setQuickConnect('');
-		}
-	};
-
-	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === 'Enter') {
-			handleConnectClick();
-		}
-	};
-
 	return (
-		<div className="toolbar">
-			{/* Bulk Actions (shown when hosts are selected) */}
+		<>
+			<div className="toolbar">
+				{/* Split Button for Add Actions */}
+				<SplitButton
+					onPrimaryClick={onAddHost}
+					onImport={() => onImport('json')}
+					onAddCredential={onAddCredential}
+				/>
+
+				{onLocalTerminal && (
+					<>
+						<div className="toolbar-separator"></div>
+						<button onClick={onLocalTerminal} title="Open a local terminal">
+							<Terminal size={16} />
+							Local Terminal
+						</button>
+					</>
+				)}
+
+				<div className="toolbar-separator"></div>
+
+				<div className="dropdown-wrapper">
+					<ArrowUpDown size={16} style={{ color: 'var(--terminus-text-muted)', marginRight: '4px' }} />
+					<select
+						className="toolbar-select"
+						onChange={(e) => onSort(e.target.value as 'name' | 'lastUsed' | 'group')}
+						value={sortCriteria || 'name'}
+					>
+						<option value="name">Sort: Name</option>
+						<option value="lastUsed">Sort: Last Used</option>
+						<option value="group">Sort: Folder</option>
+					</select>
+				</div>
+			</div>
+
+			{/* Bulk Actions Bar - Phase 6.7Extend (shown when hosts are selected) */}
 			{selectedCount > 0 && (
-				<div className="bulk-actions">
-					<span className="selected-count">{selectedCount} selected</span>
+				<div className="bulk-actions-bar">
+					<span className="selected-count">{selectedCount} host{selectedCount > 1 ? 's' : ''} selected</span>
 					{onBulkDelete && (
-						<button onClick={onBulkDelete} className="danger" title="Delete Selected">
+						<button onClick={onBulkDelete} className="bulk-delete-btn" title="Delete Selected">
 							<Trash2 size={16} />
 							Delete
 						</button>
 					)}
-					<div className="toolbar-separator"></div>
+					{onClearSelection && (
+						<button onClick={onClearSelection} className="bulk-dismiss-btn" title="Clear Selection">
+							<X size={16} />
+							Done
+						</button>
+					)}
 				</div>
 			)}
-
-			{/* Quick Connect */}
-			<div className="quick-connect">
-				<input
-					type="text"
-					className="vscode-input"
-					placeholder="user@host:port"
-					value={quickConnect}
-					onChange={e => setQuickConnect(e.target.value)}
-					onKeyDown={handleKeyDown}
-				/>
-				<button onClick={handleConnectClick} title="Quick Connect">
-					<Plug size={16} />
-					Connect
-				</button>
-			</div>
-
-			<div className="toolbar-separator"></div>
-
-			<button onClick={() => onImport('json')} title="Import hosts from JSON file">
-				<Upload size={16} />
-				Import
-			</button>
-
-			<div className="toolbar-separator"></div>
-
-			<div className="dropdown-wrapper">
-				<ArrowUpDown size={16} style={{ color: 'var(--terminus-text-muted)', marginRight: '4px' }} />
-				<select
-					className="toolbar-select"
-					onChange={(e) => onSort(e.target.value as 'name' | 'lastUsed' | 'group')}
-					value={sortCriteria || 'name'}
-				>
-					<option value="name">Sort: Name</option>
-					<option value="lastUsed">Sort: Last Used</option>
-					<option value="group">Sort: Folder</option>
-				</select>
-			</div>
-
-			{onLocalTerminal && (
-				<>
-					<div className="toolbar-separator"></div>
-					<button onClick={onLocalTerminal} title="Open a local terminal">
-						<Terminal size={16} />
-						Terminal
-					</button>
-				</>
-			)}
-		</div>
+		</>
 	);
 };
 
