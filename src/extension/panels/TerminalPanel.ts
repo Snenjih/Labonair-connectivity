@@ -59,9 +59,9 @@ export class TerminalPanel {
 
 		// Otherwise, create a new panel
 		const isLocalShell = host.protocol === 'local' || host.protocol === 'wsl';
-		const panelTitle = isLocalShell 
+		const panelTitle = isLocalShell
 			? `Local: ${host.name || 'Shell'}`
-			: `SSH: ${host.name || host.host}`;
+			: `SSH: ${host.name || host.host} (${TerminalPanel._formatConnectionInfo(host)})`;
 
 		const panel = vscode.window.createWebviewPanel(
 			TerminalPanel.viewType,
@@ -101,6 +101,15 @@ export class TerminalPanel {
 				payload: { hostId, host }
 			});
 		}
+	}
+
+	/**
+	 * Formats connection info as "username@hostname:port"
+	 * Port is omitted if it's the default SSH port (22)
+	 */
+	private static _formatConnectionInfo(host: Host): string {
+		const portStr = host.port && host.port !== 22 ? `:${host.port}` : '';
+		return `${host.username}@${host.host}${portStr}`;
 	}
 
 	private constructor(

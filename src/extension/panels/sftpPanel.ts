@@ -11,7 +11,7 @@ import { HostKeyService } from '../security/hostKeyService';
 import { ConsoleService } from '../services/consoleService';
 import { SessionTracker } from '../sessionTracker';
 import { MediaPanel } from './MediaPanel';
-import { Message, FileEntry } from '../../common/types';
+import { Message, FileEntry, Host } from '../../common/types';
 
 /**
  * SFTP Panel Manager
@@ -68,6 +68,15 @@ export class SftpPanel {
 
 		SftpPanel.currentPanel = new SftpPanel(panel, extensionUri, hostId, sftpService, localFsService, clipboardService, stateService, archiveService, syncService, hostService, credentialService, hostKeyService, sessionTracker);
 		return SftpPanel.currentPanel;
+	}
+
+	/**
+	 * Formats connection info as "username@hostname:port"
+	 * Port is omitted if it's the default SSH port (22)
+	 */
+	private static _formatConnectionInfo(host: Host): string {
+		const portStr = host.port && host.port !== 22 ? `:${host.port}` : '';
+		return `${host.username}@${host.host}${portStr}`;
 	}
 
 	private _consoleService: ConsoleService | undefined;
@@ -136,7 +145,7 @@ export class SftpPanel {
 			this._currentPath = initialPath;
 
 			// Update panel title
-			this._panel.title = `SFTP: ${host.name || host.host}`;
+			this._panel.title = `SFTP: ${host.name || host.host} (${SftpPanel._formatConnectionInfo(host)})`;
 
 			// Get file manager defaults from configuration
 			const fileManagerConfig = vscode.workspace.getConfiguration('labonair.fileManager');
