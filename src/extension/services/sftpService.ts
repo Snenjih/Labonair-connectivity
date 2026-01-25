@@ -79,6 +79,7 @@ export class SftpService {
 
 	/**
 	 * Expands tilde paths (~, ~/...) to absolute paths using OpenSSH extension
+	 * Falls back to '.' (current directory) if expansion fails
 	 */
 	private async expandPath(sftp: SFTPWrapper, remotePath: string): Promise<string> {
 		// Only expand if path starts with tilde
@@ -86,17 +87,20 @@ export class SftpService {
 			return remotePath;
 		}
 
-		return new Promise((resolve, reject) => {
+		return new Promise((resolve) => {
+			const timeout = setTimeout(() => {
+				// Timeout: use fallback
+				console.warn(`Path expansion timeout for '${remotePath}', using current directory`);
+				resolve('.');
+			}, 5000);
+
 			sftp.ext_openssh_expandPath(remotePath, (err, expandedPath) => {
+				clearTimeout(timeout);
 				if (err) {
-					// Reject connection errors, fallback only for unsupported extension errors
-					if (err.message && (err.message.includes('No response') || err.message.includes('EOF') || err.message.includes('close'))) {
-						reject(new Error(`Connection lost while expanding path '${remotePath}': ${err.message}`));
-					} else {
-						// Fallback: If extension not supported, return original path
-						console.warn(`OpenSSH expansion not supported, using original path: ${remotePath}`);
-						resolve(remotePath);
-					}
+					// OpenSSH extension not available or connection error
+					// Fallback to current directory which always works
+					console.warn(`Failed to expand path '${remotePath}', falling back to current directory:`, err.message);
+					resolve('.');
 				} else {
 					resolve(expandedPath);
 				}
