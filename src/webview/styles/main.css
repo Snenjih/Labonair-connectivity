@@ -131,6 +131,12 @@ html, body {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.toolbar button svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .toolbar button:hover {
@@ -207,6 +213,12 @@ html, body {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.bulk-delete-btn svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .bulk-delete-btn:hover {
@@ -226,6 +238,12 @@ html, body {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.bulk-dismiss-btn svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .bulk-dismiss-btn:hover {
@@ -238,7 +256,7 @@ html, body {
     display: inline-flex;
     align-items: stretch;
     border-radius: var(--terminus-radius-md);
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid var(--terminus-border);
     background-color: var(--vscode-button-background);
 }
@@ -255,6 +273,12 @@ html, body {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.split-button-primary svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .split-button-primary:hover {
@@ -299,6 +323,7 @@ html, body {
 .split-button-dropdown .dropdown-item {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 8px;
     width: 100%;
     padding: 8px 12px;
@@ -309,6 +334,12 @@ html, body {
     cursor: pointer;
     text-align: left;
     transition: background-color 0.1s ease;
+    line-height: 1;
+}
+
+.split-button-dropdown .dropdown-item svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .split-button-dropdown .dropdown-item:hover {
@@ -321,6 +352,12 @@ html, body {
     display: flex;
     align-items: center;
     gap: 4px;
+    line-height: 1;
+}
+
+.dropdown-wrapper svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 
@@ -439,11 +476,13 @@ html, body {
     gap: 8px;
     flex: 1;
     min-width: 0;
+    line-height: 1;
 }
 
 .group-title svg {
     color: var(--terminus-text-muted);
     flex-shrink: 0;
+    display: block;
 }
 
 .group-title span {
@@ -610,10 +649,13 @@ html, body {
     font-size: 13px;
     color: var(--terminus-text);
     margin-bottom: 2px;
+    line-height: 1;
 }
 
 .host-name svg {
     color: var(--terminus-text-muted);
+    display: block;
+    flex-shrink: 0;
 }
 
 .host-address {
@@ -656,12 +698,15 @@ html, body {
     color: var(--terminus-text-muted);
     font-size: 10px;
     border-radius: var(--terminus-radius-sm);
+    line-height: 1;
 }
 
 .tag-pill svg,
 .feature-badge svg {
     width: 14px;
     height: 14px;
+    display: block;
+    flex-shrink: 0;
 }
 
 .feature-badge {
@@ -674,6 +719,7 @@ html, body {
     color: var(--terminus-text-muted);
     font-size: 10px;
     border-radius: var(--terminus-radius-sm);
+    line-height: 1;
 }
 
 .notes-icon {
@@ -702,6 +748,12 @@ html, body {
     font-size: 11px;
     cursor: pointer;
     transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.action-btn svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .action-btn:hover {
@@ -736,6 +788,12 @@ html, body {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.primary-action-btn svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .primary-action-btn:hover {
@@ -756,11 +814,19 @@ html, body {
     border-radius: var(--terminus-radius-sm);
     cursor: pointer;
     transition: all 0.15s;
+    flex-shrink: 0;
+    line-height: 1;
 }
 
 .icon-button:hover {
     background-color: var(--terminus-hover);
     color: var(--terminus-text);
+}
+
+.icon-button svg {
+    display: block;
+    width: 16px;
+    height: 16px;
 }
 
 /* Options Dropdown Menu */
@@ -996,6 +1062,13 @@ html, body {
     background-color: var(--terminus-bg-button);
     border-radius: var(--terminus-radius-md);
     color: var(--terminus-accent);
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.cred-icon svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .cred-details {
@@ -1076,12 +1149,12 @@ html, body {
     background-color: var(--terminus-bg-panel);
     border: 1px solid var(--terminus-border);
     border-radius: var(--terminus-radius-lg);
-    padding: 24px;
-    min-width: 320px;
+    padding: 6px;
     max-width: 480px;
     max-height: 80vh;
     overflow-y: auto;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    margin: 8px;
 }
 
 .modal-content h3 {
@@ -1089,6 +1162,28 @@ html, body {
     font-weight: 600;
     margin-bottom: 16px;
     color: var(--terminus-text);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.modal-header h3 {
+    flex: 1;
+    margin: 0;
+}
+
+.modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--terminus-border);
 }
 
 /* =============================================================================
@@ -1272,6 +1367,14 @@ html, body {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.connection-cancel-btn svg,
+.connection-retry-btn svg,
+.connection-close-btn svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .connection-cancel-btn,
@@ -1544,10 +1647,13 @@ html, body {
     border-radius: var(--terminus-radius-md);
     font-size: 12px;
     color: var(--terminus-text-muted);
+    line-height: 1;
 }
 
 .info-box svg {
     color: var(--terminus-accent-light);
+    display: block;
+    flex-shrink: 0;
 }
 
 .status-success {
@@ -1646,11 +1752,14 @@ html, body {
     border-radius: var(--terminus-radius-md);
     color: white;
     flex-shrink: 0;
+    line-height: 1;
 }
 
 .credential-card .cred-icon svg {
     width: 20px;
     height: 20px;
+    display: block;
+    flex-shrink: 0;
 }
 
 .credential-card .cred-details {
@@ -1892,6 +2001,12 @@ html, body {
     color: var(--terminus-text);
     cursor: pointer;
     transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.toolbar-button svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .toolbar-button:hover:not(:disabled) {
@@ -2081,6 +2196,13 @@ html, body {
     color: var(--terminus-text-muted);
     cursor: pointer;
     transition: all 0.15s ease;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.action-button svg {
+    display: block;
+    flex-shrink: 0;
 }
 
 .action-button:hover {

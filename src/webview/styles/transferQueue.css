@@ -33,6 +33,12 @@
 	gap: 8px;
 	font-size: 12px;
 	color: var(--vscode-foreground);
+	line-height: 1;
+}
+
+.transfer-summary-text svg {
+	display: block;
+	flex-shrink: 0;
 }
 
 .transfer-summary-count {
@@ -65,6 +71,12 @@
 	cursor: pointer;
 	border-radius: 2px;
 	transition: background-color 0.15s ease;
+	line-height: 1;
+}
+
+.clear-completed-btn svg {
+	display: block;
+	flex-shrink: 0;
 }
 
 .clear-completed-btn:hover {

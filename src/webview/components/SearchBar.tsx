@@ -61,10 +61,7 @@ const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(({ value, onChang
 					border: 'none',
 					padding: '4px',
 					cursor: isConnectMode ? 'pointer' : 'default',
-					color: iconColor,
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'center'
+					color: iconColor
 				}}
 			>
 				<IconComponent size={16} />
@@ -94,9 +91,6 @@ const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(({ value, onChang
 						padding: '4px',
 						cursor: 'pointer',
 						color: 'var(--terminus-text-muted)',
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
 						borderRadius: 'var(--terminus-radius-sm)'
 					}}
 					onMouseEnter={(e) => {

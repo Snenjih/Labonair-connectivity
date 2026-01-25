@@ -110,6 +110,13 @@
 	color: var(--vscode-foreground);
 	cursor: pointer;
 	transition: background-color 0.15s ease;
+	line-height: 1;
+	flex-shrink: 0;
+}
+
+.toolbar-btn svg {
+	display: block;
+	flex-shrink: 0;
 }
 
 .toolbar-btn:hover:not(:disabled) {
@@ -486,6 +493,7 @@
 	align-items: center;
 	gap: 8px;
 	overflow: hidden;
+	line-height: 1;
 }
 
 .file-name {
@@ -619,6 +627,12 @@
 	font-size: 13px;
 	text-align: left;
 	transition: background-color 0.1s ease;
+	line-height: 1;
+}
+
+.context-menu-item svg {
+	display: block;
+	flex-shrink: 0;
 }
 
 .context-menu-item:hover:not(:disabled) {
@@ -720,10 +734,12 @@
 	color: var(--vscode-errorForeground);
 	font-size: 12px;
 	margin: 8px 12px;
+	line-height: 1;
 }
 
 .error-icon {
 	flex-shrink: 0;
+	display: block;
 }
 
 /* ============================================================================
@@ -749,6 +765,7 @@
 	gap: 8px;
 	margin-bottom: 8px;
 	font-size: 12px;
+	line-height: 1;
 }
 
 .transfer-type {
@@ -864,6 +881,7 @@
 	gap: 8px;
 	font-size: 12px;
 	font-weight: 500;
+	line-height: 1;
 }
 
 .console-icon {
@@ -912,6 +930,12 @@
 	align-items: center;
 	gap: 6px;
 	min-width: 0;
+	line-height: 1;
+}
+
+.panel-status-section svg {
+	display: block;
+	flex-shrink: 0;
 }
 
 .panel-status-left {
@@ -972,6 +996,12 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	transition: background-color 0.1s ease;
+	line-height: 1;
+}
+
+.toolbar-dropdown-item svg {
+	display: block;
+	flex-shrink: 0;
 }
 
 .toolbar-dropdown-item:hover {
@@ -1032,6 +1062,12 @@
 	align-items: center;
 	justify-content: center;
 	transition: background-color 0.1s ease;
+	line-height: 1;
+}
+
+.toolbar-dropdown-bookmark-delete svg {
+	display: block;
+	flex-shrink: 0;
 }
 
 .toolbar-dropdown-bookmark-delete:hover {
