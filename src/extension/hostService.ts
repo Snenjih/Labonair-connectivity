@@ -26,8 +26,9 @@ export class HostService {
 		const hosts = this.getHosts();
 		const index = hosts.findIndex(h => h.id === host.id);
 		const now = new Date().toISOString();
+		const isUpdate = index !== -1;
 
-		if (index !== -1) {
+		if (isUpdate) {
 			host.updatedAt = now;
 			hosts[index] = host;
 		} else {
@@ -44,6 +45,14 @@ export class HostService {
 
 		if (keyPath) {
 			await this.context.secrets.store(`keypath.${host.id}`, keyPath);
+		}
+
+		// Subphase 6.4Extend: Broadcast config update to active terminal sessions
+		// This enables live font updates without reconnecting
+		if (isUpdate) {
+			// Dynamically import to avoid circular dependency
+			const { TerminalPanel } = await import('./panels/TerminalPanel');
+			TerminalPanel.broadcastHostConfigUpdate(host.id, host);
 		}
 
 		return host;

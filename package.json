@@ -118,7 +118,11 @@
 					"description": "File extension to action mapping. Actions: 'internal-preview' (show in media panel), 'external' (open with system default app), 'vscode' (open in VS Code editor)",
 					"additionalProperties": {
 						"type": "string",
-						"enum": ["internal-preview", "external", "vscode"]
+						"enum": [
+							"internal-preview",
+							"external",
+							"vscode"
+						]
 					}
 				},
 				"labonair.session.autoRestore": {
@@ -176,6 +180,7 @@
 		"@types/vscode": "^1.85.0",
 		"@typescript-eslint/eslint-plugin": "^6.15.0",
 		"@typescript-eslint/parser": "^6.15.0",
+		"copy-webpack-plugin": "^13.0.1",
 		"css-loader": "^6.8.1",
 		"eslint": "^8.56.0",
 		"style-loader": "^3.3.3",

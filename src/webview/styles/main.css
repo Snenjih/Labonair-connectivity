@@ -22,12 +22,22 @@ html, body {
 }
 
 /* =============================================================================
-   CODICON FONT SUPPORT (Phase 5.1)
-   Note: VS Code provides codicon font natively through webview.cspSource
-   The CSP has been updated to allow: font-src ${webview.cspSource} data:;
+   CODICON FONT SUPPORT (Phase 6.1)
+   Font file copied from node_modules/@vscode/codicons/dist/codicon.ttf via webpack
+   CSP allows: font-src ${webview.cspSource} data:;
+   Note: VS Code webviews will resolve the font via asWebviewUri, so we rely on
+   VS Code's built-in codicon font support instead of bundling our own.
    ============================================================================= */
-.codicon {
+/* @font-face commented out - relying on VS Code's native codicon support
+@font-face {
     font-family: "codicon";
+    font-display: block;
+    src: url("./codicon.ttf") format("truetype");
+}
+*/
+
+.codicon {
+    font-family: "codicon" !important;
     font-display: block;
     font-style: normal;
     font-weight: normal;
@@ -150,6 +160,14 @@ html, body {
 /* =============================================================================
    TOOLBAR
    ============================================================================= */
+/* Sticky header container for Host Manager (Req #3) */
+.host-manager-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--terminus-bg);
+}
+
 .toolbar {
     display: flex;
     align-items: center;

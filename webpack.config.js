@@ -1,4 +1,5 @@
 const path = require('path');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 const extensionConfig = {
 	name: 'extension',
@@ -13,7 +14,8 @@ const extensionConfig = {
 	externals: {
 		'vscode': 'commonjs vscode',
 		'ssh2': 'commonjs ssh2',
-		'node-pty': 'commonjs node-pty'
+		'node-pty': 'commonjs node-pty',
+		'keytar': 'commonjs keytar'
 	},
 	resolve: {
 		extensions: ['.ts', '.js'],
@@ -63,6 +65,16 @@ const webviewConfig = {
 			},
 		],
 	},
+	plugins: [
+		new CopyWebpackPlugin({
+			patterns: [
+				{
+					from: 'node_modules/@vscode/codicons/dist/codicon.ttf',
+					to: 'codicon.ttf'
+				}
+			]
+		})
+	],
 	devtool: 'nosources-source-map',
 };
 

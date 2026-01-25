@@ -13,10 +13,13 @@ import {
 	ExternalLink,
 	Hash,
 	Link2,
-	FolderOpen
+	FolderOpen,
+	CornerLeftUp,
+	RefreshCw
 } from 'lucide-react';
 import { FileEntry } from '../../../common/types';
 import { FileIcon } from '../FileIcon';
+import { ContextMenu, ContextMenuItem } from '../ContextMenu';
 
 interface FileListProps {
 	files: FileEntry[];
@@ -99,6 +102,7 @@ export const FileList: React.FC<FileListProps> = ({
 		x: number;
 		y: number;
 		file: FileEntry | null;
+		isBackground?: boolean;
 	} | null>(null);
 	const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
 	const [dragOver, setDragOver] = useState(false);
@@ -328,7 +332,8 @@ export const FileList: React.FC<FileListProps> = ({
 			setContextMenu({
 				x: e.clientX,
 				y: e.clientY,
-				file: null as any // Special marker for background menu
+				file: null,
+				isBackground: true
 			});
 		}
 	};
@@ -389,6 +394,7 @@ export const FileList: React.FC<FileListProps> = ({
 
 	/**
 	 * Handles drop (Req #9: Fix Cross-Panel Drag & Drop)
+	 * Explicitly uses panelId prop to differentiate Local->Remote vs within-panel moves
 	 */
 	const handleDrop = (event: React.DragEvent) => {
 		event.preventDefault();
@@ -405,6 +411,7 @@ export const FileList: React.FC<FileListProps> = ({
 					? files[0].path.split('/').slice(0, -1).join('/') || '/'
 					: '/';
 				// Pass both source and target panel IDs to handler
+				// This ensures cross-panel detection works properly
 				onInternalDrop(paths, targetPath, sourcePanel, panelId);
 			} catch (error) {
 				console.error('Failed to parse internal drag data:', error);
@@ -657,10 +664,15 @@ export const FileList: React.FC<FileListProps> = ({
 				{useVirtualScrolling && <div style={{ height: offsetY }} />}
 
 				{/* Virtual "Previous Folder" Row (Req #7) */}
+				{/* Not selectable for Delete/Move operations */}
 				{showPreviousFolderItem && (
 					<div
 						key="virtual-parent-folder"
 						className="file-list-row file-list-row-parent"
+						onClick={(e) => {
+							e.stopPropagation();
+							// Don't allow selection of parent folder item
+						}}
 						onDoubleClick={(e) => {
 							e.stopPropagation();
 							onNavigateUp?.();
@@ -672,14 +684,19 @@ export const FileList: React.FC<FileListProps> = ({
 								onNavigateUp?.();
 							}
 						}}
+						onContextMenu={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							// Don't show context menu on parent folder item
+						}}
 						tabIndex={0}
 						role="button"
-						title="Previous Folder (Double-click to navigate)"
-						style={{ opacity: 0.7 }}
+						title="Previous Folder (Double-click to navigate up)"
+						style={{ opacity: 0.7, cursor: 'pointer' }}
 					>
 						<div className="col-name">
 							<div style={{ position: 'relative', display: 'inline-block' }}>
-								<FolderOpen size={18} />
+								<CornerLeftUp size={18} />
 							</div>
 							<span className="file-name">...</span>
 						</div>
@@ -753,10 +770,15 @@ export const FileList: React.FC<FileListProps> = ({
 	const renderGridView = () => (
 		<div className="file-grid">
 			{/* Virtual "Previous Folder" Item (Req #7) */}
+			{/* Not selectable for Delete/Move operations */}
 			{showPreviousFolderItem && (
 				<div
 					key="virtual-parent-folder"
 					className="file-grid-item file-grid-item-parent"
+					onClick={(e) => {
+						e.stopPropagation();
+						// Don't allow selection of parent folder item
+					}}
 					onDoubleClick={(e) => {
 						e.stopPropagation();
 						onNavigateUp?.();
@@ -768,13 +790,18 @@ export const FileList: React.FC<FileListProps> = ({
 							onNavigateUp?.();
 						}
 					}}
+					onContextMenu={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						// Don't show context menu on parent folder item
+					}}
 					tabIndex={0}
 					role="button"
-					title="Previous Folder (Double-click to navigate)"
-					style={{ opacity: 0.7 }}
+					title="Previous Folder (Double-click to navigate up)"
+					style={{ opacity: 0.7, cursor: 'pointer' }}
 				>
 					<div className="file-grid-icon">
-						<FolderOpen size={48} />
+						<CornerLeftUp size={48} />
 					</div>
 					<div className="file-grid-name">...</div>
 				</div>
@@ -825,346 +852,167 @@ export const FileList: React.FC<FileListProps> = ({
 	);
 
 	/**
-	 * Renders Context Menu
+	 * Renders Context Menu using ContextMenu component
+	 * Supports both background and file context menus (Req #15)
 	 */
 	const renderContextMenu = () => {
 		if (!contextMenu) {return null;}
 
-		const { x, y, file } = contextMenu;
+		const { x, y, file, isBackground } = contextMenu;
 
-		// Background context menu (Req #15)
-		if (!file) {
-			return (
-				<div
-					className="context-menu"
-					style={{ top: y, left: x }}
-					onClick={(e) => e.stopPropagation()}
-				>
-					{onNewFile && (
-						<button
-							className="context-menu-item"
-							onClick={() => {
-								onNewFile();
-								closeContextMenu();
-							}}
-						>
-							<FileEdit size={14} />
-							<span>New File</span>
-						</button>
-					)}
-					{onNewFolder && (
-						<button
-							className="context-menu-item"
-							onClick={() => {
-								onNewFolder();
-								closeContextMenu();
-							}}
-						>
-							<FolderOpen size={14} />
-							<span>New Folder</span>
-						</button>
-					)}
-					{(onNewFile || onNewFolder) && onRefresh && <div className="context-menu-separator" />}
-					{onRefresh && (
-						<button
-							className="context-menu-item"
-							onClick={() => {
-								onRefresh();
-								closeContextMenu();
-							}}
-						>
-							<Download size={14} />
-							<span>Refresh</span>
-						</button>
-					)}
-					{currentPath && (
-						<>
-							<div className="context-menu-separator" />
-							<button
-								className="context-menu-item"
-								onClick={() => {
-									onCopyPath(currentPath);
-									closeContextMenu();
-								}}
-							>
-								<Copy size={14} />
-								<span>Copy Path</span>
-							</button>
-						</>
-					)}
-				</div>
-			);
+		// Build context menu items
+		const menuItems: ContextMenuItem[] = [];
+
+		// Background context menu (Req #15: Empty space context menu)
+		if (isBackground || !file) {
+			if (onNewFile) {
+				menuItems.push({
+					label: 'New File',
+					icon: FileEdit,
+					action: () => onNewFile()
+				});
+			}
+			if (onNewFolder) {
+				menuItems.push({
+					label: 'New Folder',
+					icon: FolderOpen,
+					action: () => onNewFolder()
+				});
+			}
+			if ((onNewFile || onNewFolder) && onRefresh) {
+				menuItems.push({ label: '', separator: true, action: () => {} });
+			}
+			if (onRefresh) {
+				menuItems.push({
+					label: 'Refresh',
+					icon: RefreshCw,
+					action: () => onRefresh()
+				});
+			}
+			if (currentPath) {
+				menuItems.push({ label: '', separator: true, action: () => {} });
+				menuItems.push({
+					label: 'Copy Path',
+					icon: Copy,
+					action: () => onCopyPath(currentPath)
+				});
+			}
+
+			return <ContextMenu x={x} y={y} items={menuItems} onClose={closeContextMenu} />;
 		}
 
 		// File context menu
 		const selectedFiles = filteredFiles.filter(f => selection.includes(f.path));
 		const isMultiSelect = selectedFiles.length > 1;
-
-		// Check if file is an archive
 		const isArchive = file.type === '-' && /\.(zip|tar|gz|tgz)$/i.test(file.name);
 
-		return (
-			<div
-				className="context-menu"
-				style={{ top: y, left: x }}
-				onClick={(e) => e.stopPropagation()}
-			>
-				{file.type !== 'd' && (
-					<>
-						<button
-							className="context-menu-item"
-							onClick={() => {
-								onFileEdit(file);
-								closeContextMenu();
-							}}
-						>
-							<FileEdit size={14} />
-							<span>Edit</span>
-						</button>
-						<button
-							className="context-menu-item"
-							onClick={() => {
-								onFileDownload(file);
-								closeContextMenu();
-							}}
-						>
-							<Download size={14} />
-							<span>Download</span>
-						</button>
-						<button
-							className="context-menu-item"
-							onClick={() => {
-								onCompareFile(file);
-								closeContextMenu();
-							}}
-						>
-							<GitCompare size={14} />
-							<span>Compare with...</span>
-						</button>
-						<div className="context-menu-separator" />
-					</>
-				)}
+		// File-specific actions
+		if (file.type !== 'd') {
+			menuItems.push(
+				{
+					label: 'Edit',
+					icon: FileEdit,
+					action: () => onFileEdit(file)
+				},
+				{
+					label: 'Download',
+					icon: Download,
+					action: () => onFileDownload(file)
+				},
+				{
+					label: 'Compare with...',
+					icon: GitCompare,
+					action: () => onCompareFile(file)
+				},
+				{ label: '', separator: true, action: () => {} }
+			);
+		}
 
-				{/* Open With... submenu */}
-				{(onOpenInExplorer || onOpenWithDefault) && (
-					<>
-						<div
-							className="context-menu-item submenu-trigger"
-							onMouseEnter={() => setActiveSubmenu('openWith')}
-							onMouseLeave={() => setActiveSubmenu(null)}
-						>
-							<ExternalLink size={14} />
-							<span>Open With...</span>
-							<ArrowRight size={12} style={{ marginLeft: 'auto' }} />
-							{activeSubmenu === 'openWith' && (
-								<div className="context-submenu">
-									{onOpenInExplorer && (
-										<button
-											className="context-menu-item"
-											onClick={() => {
-												onOpenInExplorer(file);
-												closeContextMenu();
-											}}
-										>
-											<FolderOpen size={14} />
-											<span>Open in System Explorer</span>
-										</button>
-									)}
-									{onOpenWithDefault && file.type !== 'd' && (
-										<button
-											className="context-menu-item"
-											onClick={() => {
-												onOpenWithDefault(file);
-												closeContextMenu();
-											}}
-										>
-											<ExternalLink size={14} />
-											<span>Open with System Default</span>
-										</button>
-									)}
-								</div>
-							)}
-						</div>
-						<div className="context-menu-separator" />
-					</>
-				)}
+		// Open With actions
+		if (onOpenInExplorer) {
+			menuItems.push({
+				label: 'Open in System Explorer',
+				icon: ExternalLink,
+				action: () => onOpenInExplorer(file)
+			});
+		}
+		if (onOpenWithDefault && file.type !== 'd') {
+			menuItems.push({
+				label: 'Open with System Default',
+				icon: ExternalLink,
+				action: () => onOpenWithDefault(file)
+			});
+		}
+		if (onOpenInExplorer || onOpenWithDefault) {
+			menuItems.push({ label: '', separator: true, action: () => {} });
+		}
 
-				{/* Archive Operations */}
-				{isArchive && onArchiveExtract && (
-					<>
-						<button
-							className="context-menu-item"
-							onClick={() => {
-								onArchiveExtract(file);
-								closeContextMenu();
-							}}
-						>
-							<Archive size={14} />
-							<span>Extract Here...</span>
-						</button>
-						<div className="context-menu-separator" />
-					</>
-				)}
-				{selectedFiles.length > 0 && onArchiveCompress && (
-					<>
-						<button
-							className="context-menu-item"
-							onClick={() => {
-								onArchiveCompress(selectedFiles);
-								closeContextMenu();
-							}}
-						>
-							<FolderArchive size={14} />
-							<span>Compress to...</span>
-						</button>
-						<div className="context-menu-separator" />
-					</>
-				)}
-				<button
-					className="context-menu-item"
-					onClick={() => {
-						onFileRename(file);
-						closeContextMenu();
-					}}
-					disabled={isMultiSelect}
-				>
-					<Edit size={14} />
-					<span>Rename</span>
-				</button>
+		// Archive operations
+		if (isArchive && onArchiveExtract) {
+			menuItems.push(
+				{
+					label: 'Extract Here...',
+					icon: Archive,
+					action: () => onArchiveExtract(file)
+				},
+				{ label: '', separator: true, action: () => {} }
+			);
+		}
+		if (selectedFiles.length > 0 && onArchiveCompress) {
+			menuItems.push(
+				{
+					label: 'Compress to...',
+					icon: FolderArchive,
+					action: () => onArchiveCompress(selectedFiles)
+				},
+				{ label: '', separator: true, action: () => {} }
+			);
+		}
 
-				{/* Copy Path submenu */}
-				{onCopyPathAdvanced && (
-					<div
-						className="context-menu-item submenu-trigger"
-						onMouseEnter={() => setActiveSubmenu('copyPath')}
-						onMouseLeave={() => setActiveSubmenu(null)}
-					>
-						<Copy size={14} />
-						<span>Copy Path</span>
-						<ArrowRight size={12} style={{ marginLeft: 'auto' }} />
-						{activeSubmenu === 'copyPath' && (
-							<div className="context-submenu">
-								<button
-									className="context-menu-item"
-									onClick={() => {
-										onCopyPathAdvanced(file, 'name');
-										closeContextMenu();
-									}}
-								>
-									<Copy size={14} />
-									<span>Copy Name</span>
-								</button>
-								<button
-									className="context-menu-item"
-									onClick={() => {
-										onCopyPathAdvanced(file, 'fullPath');
-										closeContextMenu();
-									}}
-								>
-									<Copy size={14} />
-									<span>Copy Full Path</span>
-								</button>
-								<button
-									className="context-menu-item"
-									onClick={() => {
-										onCopyPathAdvanced(file, 'url');
-										closeContextMenu();
-									}}
-								>
-									<Copy size={14} />
-									<span>Copy URL</span>
-								</button>
-							</div>
-						)}
-					</div>
-				)}
+		// Rename
+		menuItems.push({
+			label: 'Rename',
+			icon: Edit,
+			action: () => onFileRename(file),
+			disabled: isMultiSelect
+		});
 
-				{/* Calculate Checksum submenu - only for files */}
-				{file.type !== 'd' && onCalculateChecksum && (
-					<div
-						className="context-menu-item submenu-trigger"
-						onMouseEnter={() => setActiveSubmenu('checksum')}
-						onMouseLeave={() => setActiveSubmenu(null)}
-					>
-						<Hash size={14} />
-						<span>Calculate Checksum</span>
-						<ArrowRight size={12} style={{ marginLeft: 'auto' }} />
-						{activeSubmenu === 'checksum' && (
-							<div className="context-submenu">
-								<button
-									className="context-menu-item"
-									onClick={() => {
-										onCalculateChecksum(file, 'md5');
-										closeContextMenu();
-									}}
-								>
-									<Hash size={14} />
-									<span>MD5</span>
-								</button>
-								<button
-									className="context-menu-item"
-									onClick={() => {
-										onCalculateChecksum(file, 'sha1');
-										closeContextMenu();
-									}}
-								>
-									<Hash size={14} />
-									<span>SHA1</span>
-								</button>
-								<button
-									className="context-menu-item"
-									onClick={() => {
-										onCalculateChecksum(file, 'sha256');
-										closeContextMenu();
-									}}
-								>
-									<Hash size={14} />
-									<span>SHA256</span>
-								</button>
-							</div>
-						)}
-					</div>
-				)}
+		// Copy Path (simple version)
+		menuItems.push({
+			label: 'Copy Path',
+			icon: Copy,
+			action: () => onCopyPath(file.path)
+		});
 
-				<button
-					className="context-menu-item"
-					onClick={() => {
-						onFileProperties(file);
-						closeContextMenu();
-					}}
-					disabled={isMultiSelect}
-				>
-					<Info size={14} />
-					<span>Properties</span>
-				</button>
+		// Properties
+		menuItems.push({
+			label: 'Properties',
+			icon: Info,
+			action: () => onFileProperties(file),
+			disabled: isMultiSelect
+		});
 
-				{/* Create Link */}
-				{onCreateSymlink && !isMultiSelect && (
-					<button
-						className="context-menu-item"
-						onClick={() => {
-							onCreateSymlink(file);
-							closeContextMenu();
-						}}
-					>
-						<Link2 size={14} />
-						<span>Create Link</span>
-					</button>
-				)}
+		// Create Link
+		if (onCreateSymlink && !isMultiSelect) {
+			menuItems.push({
+				label: 'Create Link',
+				icon: Link2,
+				action: () => onCreateSymlink(file)
+			});
+		}
 
-				<div className="context-menu-separator" />
-				<button
-					className="context-menu-item danger"
-					onClick={() => {
-						onFileDelete(selectedFiles);
-						closeContextMenu();
-					}}
-				>
-					<Trash2 size={14} />
-					<span>Delete {isMultiSelect ? `(${selectedFiles.length})` : ''}</span>
-				</button>
-			</div>
+		// Delete
+		menuItems.push(
+			{ label: '', separator: true, action: () => {} },
+			{
+				label: `Delete${isMultiSelect ? ` (${selectedFiles.length})` : ''}`,
+				icon: Trash2,
+				action: () => onFileDelete(selectedFiles),
+				danger: true
+			}
 		);
+
+		return <ContextMenu x={x} y={y} items={menuItems} onClose={closeContextMenu} />;
 	};
 
 	return (
@@ -1197,6 +1045,10 @@ export const FileList: React.FC<FileListProps> = ({
 									<div
 										key="virtual-parent-folder"
 										className="file-list-row file-list-row-parent"
+										onClick={(e) => {
+											e.stopPropagation();
+											// Don't allow selection of parent folder item
+										}}
 										onDoubleClick={(e) => {
 											e.stopPropagation();
 											onNavigateUp?.();
@@ -1208,14 +1060,19 @@ export const FileList: React.FC<FileListProps> = ({
 												onNavigateUp?.();
 											}
 										}}
+										onContextMenu={(e) => {
+											e.preventDefault();
+											e.stopPropagation();
+											// Don't show context menu on parent folder item
+										}}
 										tabIndex={0}
 										role="button"
-										title="Previous Folder (Double-click to navigate)"
-										style={{ opacity: 0.7 }}
+										title="Previous Folder (Double-click to navigate up)"
+										style={{ opacity: 0.7, cursor: 'pointer' }}
 									>
 										<div className="col-name">
 											<div style={{ position: 'relative', display: 'inline-block' }}>
-												<FolderOpen size={18} />
+												<CornerLeftUp size={18} />
 											</div>
 											<span className="file-name">...</span>
 										</div>
@@ -1231,6 +1088,10 @@ export const FileList: React.FC<FileListProps> = ({
 								<div
 									key="virtual-parent-folder"
 									className="file-grid-item file-grid-item-parent"
+									onClick={(e) => {
+										e.stopPropagation();
+										// Don't allow selection of parent folder item
+									}}
 									onDoubleClick={(e) => {
 										e.stopPropagation();
 										onNavigateUp?.();
@@ -1242,13 +1103,18 @@ export const FileList: React.FC<FileListProps> = ({
 											onNavigateUp?.();
 										}
 									}}
+									onContextMenu={(e) => {
+										e.preventDefault();
+										e.stopPropagation();
+										// Don't show context menu on parent folder item
+									}}
 									tabIndex={0}
 									role="button"
-									title="Previous Folder (Double-click to navigate)"
-									style={{ opacity: 0.7 }}
+									title="Previous Folder (Double-click to navigate up)"
+									style={{ opacity: 0.7, cursor: 'pointer' }}
 								>
 									<div className="file-grid-icon">
-										<FolderOpen size={48} />
+										<CornerLeftUp size={48} />
 									</div>
 									<div className="file-grid-name">...</div>
 								</div>

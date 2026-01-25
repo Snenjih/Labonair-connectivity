@@ -138,7 +138,8 @@ export class TerminalPanel {
 			this._sessionTracker.registerPanel(this._hostId, {
 				hostId: this._hostId,
 				splitMode: this._splitMode,
-				type: 'terminal'
+				type: 'terminal',
+				timestamp: Date.now()
 			});
 		}
 
@@ -280,7 +281,8 @@ export class TerminalPanel {
 						this._sessionTracker.registerPanel(this._hostId, {
 							hostId: this._hostId,
 							splitMode: this._splitMode,
-							type: 'terminal'
+							type: 'terminal',
+							timestamp: Date.now()
 						});
 					}
 				}
@@ -302,7 +304,8 @@ export class TerminalPanel {
 						this._sessionTracker.registerPanel(this._hostId, {
 							hostId: this._hostId,
 							splitMode: this._splitMode,
-							type: 'terminal'
+							type: 'terminal',
+							timestamp: Date.now()
 						});
 					}
 				}

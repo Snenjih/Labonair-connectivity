@@ -469,6 +469,18 @@
 	outline-offset: -1px;
 }
 
+/* Parent folder row styling (Req #7: Virtual ... folder) */
+.file-list-row-parent {
+	background: var(--vscode-editor-background) !important;
+	font-weight: 600;
+	border-top: 1px solid var(--vscode-panel-border);
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.file-list-row-parent:hover {
+	background: var(--vscode-list-hoverBackground) !important;
+}
+
 .col-name {
 	display: flex;
 	align-items: center;
@@ -534,6 +546,18 @@
 .file-grid-item.focused {
 	outline: 1px solid var(--vscode-focusBorder);
 	outline-offset: -1px;
+}
+
+/* Parent folder grid item styling (Req #7: Virtual ... folder) */
+.file-grid-item-parent {
+	background: var(--vscode-editor-background) !important;
+	font-weight: 600;
+	border: 1px solid var(--vscode-panel-border);
+}
+
+.file-grid-item-parent:hover {
+	background: var(--vscode-list-hoverBackground) !important;
+	border-color: var(--vscode-focusBorder);
 }
 
 .file-grid-icon {

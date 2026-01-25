@@ -111,7 +111,8 @@ export class SftpPanel {
 			this._sessionTracker.registerPanel(this._hostId, {
 				hostId: this._hostId,
 				splitMode: 'none',
-				type: 'sftp'
+				type: 'sftp',
+				timestamp: Date.now()
 			});
 		}
 
