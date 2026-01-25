@@ -35,7 +35,7 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 	const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
 	const [statusMessage, setStatusMessage] = useState<string>('');
 	const [pasteData, setPasteData] = useState<string | null>(null);
-	const [fontSize, setFontSize] = useState<number>(host?.terminalFontSize || 14);
+	const [fontSize, setFontSize] = useState<number>(host?.terminalFontSize || 16);
 	const [searchVisible, setSearchVisible] = useState<boolean>(false);
 	const [connectionLogs, setConnectionLogs] = useState<ConnectionLog[]>([]);
 	const [connectionError, setConnectionError] = useState<{ code: string; message: string } | undefined>();
@@ -47,9 +47,9 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 		const term1 = new Terminal({
 			fontFamily: 'var(--vscode-editor-font-family, monospace)',
 			fontSize: host?.terminalFontSize || fontSize,
-			fontWeight: (host?.terminalFontWeight as any) || 'normal',
-			lineHeight: host?.terminalLineHeight || 1.0,
-			letterSpacing: host?.terminalLetterSpacing || 0,
+			fontWeight: (host?.terminalFontWeight as any) || '500',
+			lineHeight: host?.terminalLineHeight || 1.5,
+			letterSpacing: host?.terminalLetterSpacing || 2,
 			cursorBlink: host?.terminalCursorBlink ?? true,
 			cursorStyle: host?.terminalCursorStyle || 'bar',
 			theme: {
@@ -214,10 +214,10 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 					if (message.payload?.hostId === hostId && message.payload?.host) {
 						const updatedHost = message.payload.host;
 						if (xterm1Ref.current) {
-							xterm1Ref.current.options.fontSize = updatedHost.terminalFontSize || 14;
-							xterm1Ref.current.options.fontWeight = (updatedHost.terminalFontWeight as any) || 'normal';
-							xterm1Ref.current.options.lineHeight = updatedHost.terminalLineHeight || 1.0;
-							xterm1Ref.current.options.letterSpacing = updatedHost.terminalLetterSpacing || 0;
+							xterm1Ref.current.options.fontSize = updatedHost.terminalFontSize || 16;
+							xterm1Ref.current.options.fontWeight = (updatedHost.terminalFontWeight as any) || '500';
+							xterm1Ref.current.options.lineHeight = updatedHost.terminalLineHeight || 1.5;
+							xterm1Ref.current.options.letterSpacing = updatedHost.terminalLetterSpacing || 2;
 							xterm1Ref.current.options.cursorBlink = updatedHost.terminalCursorBlink ?? true;
 							xterm1Ref.current.options.cursorStyle = updatedHost.terminalCursorStyle || 'bar';
 							if (fitAddon1Ref.current) {
@@ -225,17 +225,17 @@ const TerminalView: React.FC<TerminalViewProps> = ({ hostId, host }) => {
 							}
 						}
 						if (xterm2Ref.current) {
-							xterm2Ref.current.options.fontSize = updatedHost.terminalFontSize || 14;
-							xterm2Ref.current.options.fontWeight = (updatedHost.terminalFontWeight as any) || 'normal';
-							xterm2Ref.current.options.lineHeight = updatedHost.terminalLineHeight || 1.0;
-							xterm2Ref.current.options.letterSpacing = updatedHost.terminalLetterSpacing || 0;
+							xterm2Ref.current.options.fontSize = updatedHost.terminalFontSize || 16;
+							xterm2Ref.current.options.fontWeight = (updatedHost.terminalFontWeight as any) || '500';
+							xterm2Ref.current.options.lineHeight = updatedHost.terminalLineHeight || 1.5;
+							xterm2Ref.current.options.letterSpacing = updatedHost.terminalLetterSpacing || 2;
 							xterm2Ref.current.options.cursorBlink = updatedHost.terminalCursorBlink ?? true;
 							xterm2Ref.current.options.cursorStyle = updatedHost.terminalCursorStyle || 'bar';
 							if (fitAddon2Ref.current) {
 								fitAddon2Ref.current.fit();
 							}
 						}
-						setFontSize(updatedHost.terminalFontSize || 14);
+						setFontSize(updatedHost.terminalFontSize || 16);
 					}
 					break;
 			}

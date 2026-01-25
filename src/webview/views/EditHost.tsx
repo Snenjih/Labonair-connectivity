@@ -48,10 +48,10 @@ const EditHost: React.FC<EditHostProps> = ({
 	// Terminal Settings
 	const [cursorStyle, setCursorStyle] = useState<'bar' | 'block' | 'underline'>(initialHost?.terminalCursorStyle || 'block');
 	const [cursorBlink, setCursorBlink] = useState(initialHost?.terminalCursorBlink ?? true);
-	const [terminalFontSize, setTerminalFontSize] = useState(initialHost?.terminalFontSize || 14);
-	const [terminalFontWeight, setTerminalFontWeight] = useState(initialHost?.terminalFontWeight || 'normal');
-	const [terminalLineHeight, setTerminalLineHeight] = useState(initialHost?.terminalLineHeight || 1.0);
-	const [terminalLetterSpacing, setTerminalLetterSpacing] = useState(initialHost?.terminalLetterSpacing || 0);
+	const [terminalFontSize, setTerminalFontSize] = useState(initialHost?.terminalFontSize || 16);
+	const [terminalFontWeight, setTerminalFontWeight] = useState(initialHost?.terminalFontWeight || '500');
+	const [terminalLineHeight, setTerminalLineHeight] = useState(initialHost?.terminalLineHeight || 1.5);
+	const [terminalLetterSpacing, setTerminalLetterSpacing] = useState(initialHost?.terminalLetterSpacing || 2);
 
 	// File Manager Settings
 	const [fileManagerLayout, setFileManagerLayout] = useState<'explorer' | 'commander'>(initialHost?.fileManagerLayout || 'explorer');
@@ -359,10 +359,10 @@ const EditHost: React.FC<EditHostProps> = ({
 									className="vscode-input"
 									type="number"
 									value={terminalFontSize}
-									onChange={e => setTerminalFontSize(parseInt(e.target.value) || 14)}
+									onChange={e => setTerminalFontSize(parseInt(e.target.value) || 16)}
 									min="8"
 									max="32"
-									placeholder="14"
+									placeholder="16"
 								/>
 								<small>Font size in pixels (8-32)</small>
 							</div>
@@ -388,11 +388,11 @@ const EditHost: React.FC<EditHostProps> = ({
 									className="vscode-input"
 									type="number"
 									value={terminalLineHeight}
-									onChange={e => setTerminalLineHeight(parseFloat(e.target.value) || 1.0)}
+									onChange={e => setTerminalLineHeight(parseFloat(e.target.value) || 1.5)}
 									min="0.5"
 									max="3.0"
 									step="0.1"
-									placeholder="1.0"
+									placeholder="1.5"
 								/>
 								<small>Line height multiplier (0.5-3.0)</small>
 							</div>
@@ -402,10 +402,10 @@ const EditHost: React.FC<EditHostProps> = ({
 									className="vscode-input"
 									type="number"
 									value={terminalLetterSpacing}
-									onChange={e => setTerminalLetterSpacing(parseInt(e.target.value) || 0)}
+									onChange={e => setTerminalLetterSpacing(parseInt(e.target.value) || 2)}
 									min="-5"
 									max="10"
-									placeholder="0"
+									placeholder="2"
 								/>
 								<small>Letter spacing in pixels (-5 to 10)</small>
 							</div>
