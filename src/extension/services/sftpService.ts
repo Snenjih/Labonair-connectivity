@@ -60,9 +60,15 @@ export class SftpService {
 			this.hostKeyService
 		);
 
-		// Request SFTP subsystem
+		// Request SFTP subsystem with timeout
 		return new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				ConnectionPool.release(hostId);
+				reject(new Error('Timeout waiting for SFTP subsystem - connection may be unresponsive'));
+			}, 10000); // 10 second timeout for SFTP subsystem initialization
+
 			client.sftp((err, sftp) => {
+				clearTimeout(timeout);
 				if (err) {
 					ConnectionPool.release(hostId);
 					reject(err);
@@ -75,6 +81,18 @@ export class SftpService {
 				resolve(sftp);
 			});
 		});
+	}
+
+	/**
+	 * Wraps SFTP operations with a timeout to prevent hanging connections
+	 */
+	private withTimeout<T>(operation: Promise<T>, timeoutMs: number = 10000, operationName: string = 'SFTP operation'): Promise<T> {
+		return Promise.race([
+			operation,
+			new Promise<T>((_, reject) =>
+				setTimeout(() => reject(new Error(`Timeout during ${operationName} - connection may be unresponsive`)), timeoutMs)
+			)
+		]);
 	}
 
 	/**
@@ -148,7 +166,12 @@ export class SftpService {
 		}
 
 		return new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				reject(new Error(`Timeout listing directory: ${expandedPath} - connection may be unresponsive`));
+			}, 10000); // 10 second timeout for readdir
+
 			sftp.readdir(expandedPath, async (err, list) => {
+				clearTimeout(timeout);
 				if (err) {
 					reject(new Error(`Failed to list directory: ${err.message}`));
 					return;
@@ -250,7 +273,12 @@ export class SftpService {
 		const expandedPath = await this.expandPath(sftp, remotePath);
 
 		return new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				reject(new Error(`Timeout getting file stats for: ${expandedPath} - connection may be unresponsive`));
+			}, 10000); // 10 second timeout for stat
+
 			sftp.stat(expandedPath, (err, stats) => {
+				clearTimeout(timeout);
 				if (err) {
 					reject(new Error(`Failed to stat file: ${err.message}`));
 					return;
