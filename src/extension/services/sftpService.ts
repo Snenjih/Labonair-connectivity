@@ -65,12 +65,20 @@ export class SftpService {
 	/**
 	 * Gets or creates an SFTP session for a host
 	 * Uses ConnectionPool for shared SSH connection
+	 * Implements fallback and diagnostics for problematic servers
 	 */
 	private async getSftpSession(hostId: string): Promise<SFTPWrapper> {
-		// Check if session already exists
+		// Check if session already exists and is still valid
 		const existing = this.activeSessions.get(hostId);
 		if (existing) {
-			return existing.sftp;
+			// Validate that the session is still responsive
+			const isValid = await this.validateSftpSession(existing.sftp, hostId);
+			if (isValid) {
+				return existing.sftp;
+			}
+			// Session is dead, will reconnect below
+			console.log(`[SftpService] Existing SFTP session for ${hostId} is unresponsive, creating new connection`);
+			ConnectionPool.release(hostId);
 		}
 
 		// Get shared SSH connection from pool
@@ -82,25 +90,88 @@ export class SftpService {
 			this.hostKeyService
 		);
 
-		// Request SFTP subsystem with configurable timeout
+		// Request SFTP subsystem with configurable timeout and retry logic
 		return new Promise((resolve, reject) => {
-			const timeout = setTimeout(() => {
-				ConnectionPool.release(hostId);
-				reject(new Error(`Timeout waiting for SFTP subsystem after ${this.TIMEOUT_CONFIG.sftpInit}ms - this can happen on low-power devices or high-latency connections. Try increasing sftp.initTimeout in settings.`));
-			}, this.TIMEOUT_CONFIG.sftpInit);
+			let timeoutHandle: NodeJS.Timeout | null = null;
+			let isResolved = false;
 
-			client.sftp((err, sftp) => {
+			const cleanup = () => {
+				if (timeoutHandle) clearTimeout(timeoutHandle);
+				isResolved = true;
+			};
+
+			const attemptSftpConnection = (attempt: number = 1) => {
+				timeoutHandle = setTimeout(() => {
+					isResolved = true;
+					const timeoutMs = this.TIMEOUT_CONFIG.sftpInit;
+
+					// On timeout, try to reconnect instead of failing immediately
+					if (attempt === 1) {
+						console.warn(`[SftpService] SFTP subsystem init attempt ${attempt} timeout after ${timeoutMs}ms, retrying with fresh connection...`);
+						ConnectionPool.release(hostId);
+
+						// Force reconnect on next attempt
+						ConnectionPool.acquire(
+							host,
+							this.hostService,
+							this.credentialService,
+							this.hostKeyService
+						).then(newClient => {
+							isResolved = false;
+							attemptSftpConnection(2);
+						}).catch(err => {
+							reject(new Error(`Failed to reconnect after SFTP timeout: ${err.message}`));
+						});
+					} else {
+						// Second attempt also failed
+						ConnectionPool.release(hostId);
+						reject(new Error(`SFTP subsystem failed to initialize after ${timeoutMs}ms (attempt ${attempt}). This typically means: 1) SFTP is disabled on server, 2) Server is overloaded, 3) Firewall/NAT issues. Try increasing sftp.initTimeout in settings or check server logs.`));
+					}
+				}, this.TIMEOUT_CONFIG.sftpInit);
+
+				client.sftp((err, sftp) => {
+					if (isResolved) return; // Ignore callback if already resolved/rejected
+					cleanup();
+
+					if (err) {
+						console.error(`[SftpService] SFTP subsystem error: ${err.message}`);
+						ConnectionPool.release(hostId);
+						reject(err);
+						return;
+					}
+
+					// Cache the SFTP wrapper (Client is managed by ConnectionPool)
+					this.activeSessions.set(hostId, { sftp });
+					resolve(sftp);
+				});
+			};
+
+			attemptSftpConnection(1);
+		});
+	}
+
+	/**
+	 * Validates that an SFTP session is still responsive
+	 * Quick stat check to ensure connection is alive
+	 */
+	private validateSftpSession(sftp: SFTPWrapper, hostId: string): Promise<boolean> {
+		return new Promise((resolve) => {
+			const timeout = setTimeout(() => {
+				console.warn(`[SftpService] SFTP session validation timed out for ${hostId}`);
+				this.activeSessions.delete(hostId);
+				resolve(false);
+			}, 5000);
+
+			// Try a quick stat on root directory
+			sftp.stat('.', (err) => {
 				clearTimeout(timeout);
 				if (err) {
-					ConnectionPool.release(hostId);
-					reject(err);
-					return;
+					console.warn(`[SftpService] SFTP session validation failed: ${err.message}`);
+					this.activeSessions.delete(hostId);
+					resolve(false);
+				} else {
+					resolve(true);
 				}
-
-				// Cache the SFTP wrapper (Client is managed by ConnectionPool)
-				this.activeSessions.set(hostId, { sftp });
-
-				resolve(sftp);
 			});
 		});
 	}
@@ -188,13 +259,38 @@ export class SftpService {
 		}
 
 		return new Promise((resolve, reject) => {
-			const timeout = setTimeout(() => {
-				reject(new Error(`Timeout listing directory '${expandedPath}' after ${this.TIMEOUT_CONFIG.fileOp}ms - the server may be overloaded or experiencing high latency. This is common on Raspberry Pi or low-power NAS devices. Try increasing sftp.operationTimeout in settings.`));
+			let timeoutHandle: NodeJS.Timeout | null = null;
+			let isResolved = false;
+
+			const cleanup = () => {
+				if (timeoutHandle) clearTimeout(timeoutHandle);
+				isResolved = true;
+			};
+
+			timeoutHandle = setTimeout(() => {
+				isResolved = true;
+				// Kill the connection on timeout - it's likely in a bad state
+				console.warn(`[SftpService] Timeout during readdir for '${expandedPath}', clearing SFTP session cache`);
+				this.activeSessions.delete(hostId);
+				ConnectionPool.release(hostId);
+				reject(new Error(`Timeout listing directory '${expandedPath}' after ${this.TIMEOUT_CONFIG.fileOp}ms - SFTP session may be unresponsive. The connection has been reset. Try again or increase sftp.operationTimeout in settings.`));
 			}, this.TIMEOUT_CONFIG.fileOp);
 
 			sftp.readdir(expandedPath, async (err, list) => {
-				clearTimeout(timeout);
+				if (isResolved) return; // Ignore callback if already timed out or resolved
+				cleanup();
+
 				if (err) {
+					// Check if it's a permission or invalid path error
+					const isPermissionError = err.message.includes('Permission') || err.message.includes('permission');
+					const isInvalidPath = err.message.includes('No such file') || err.message.includes('not found');
+
+					if (!isPermissionError && !isInvalidPath) {
+						// For other errors, clear the session - it might be corrupted
+						console.warn(`[SftpService] Clearing SFTP session due to readdir error: ${err.message}`);
+						this.activeSessions.delete(hostId);
+					}
+
 					reject(new Error(`Failed to list directory: ${err.message}`));
 					return;
 				}

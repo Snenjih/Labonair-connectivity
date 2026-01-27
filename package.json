@@ -9,10 +9,6 @@
 	"categories": [
 		"Other"
 	],
-	"activationEvents": [
-		"onView:labonair.views.hosts",
-		"onView:labonair.views.queue"
-	],
 	"main": "./dist/extension.js",
 	"contributes": {
 		"viewsContainers": {
