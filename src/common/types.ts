@@ -387,6 +387,11 @@ export type Message =
 	| { command: 'ADVANCED_SELECT'; payload: { hostId: string; criteria: SelectionCriteria; fileSystem: 'local' | 'remote' } }
 	| { command: 'ADVANCED_SELECT_RESULT'; payload: { selectedPaths: string[] } }
 
+	// Directory Size Calculation
+	| { command: 'CALCULATE_DIR_SIZE'; payload: { hostId: string; path: string; fileSystem: 'local' | 'remote' } }
+	| { command: 'DIR_SIZE_RESULT'; payload: { path: string; size: number; filesScanned: number } }
+	| { command: 'DIR_SIZE_PROGRESS'; payload: { path: string; currentSize: number; filesScanned: number } }
+
 	// Logging (Subphase 4.8)
 	| { command: 'SHOW_LOGS' }
 	| { command: 'CLEAR_LOGS' }

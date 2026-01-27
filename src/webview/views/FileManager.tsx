@@ -145,6 +145,13 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					const panelId = message.payload.panelId || 'left';
 					const setState = panelId === 'left' ? setLeftPanel : setRightPanel;
 
+					// Clear delayed loading timeout if it hasn't triggered yet
+					const timeoutId = (window as any)[`loadingTimeout_${panelId}`];
+					if (timeoutId) {
+						clearTimeout(timeoutId);
+						delete (window as any)[`loadingTimeout_${panelId}`];
+					}
+
 					setState(prev => ({
 						...prev,
 						files: message.payload.files,
@@ -160,6 +167,15 @@ export const FileManager: React.FC<FileManagerProps> = ({
 					break;
 
 				case 'SFTP_ERROR':
+					// Clear any pending loading timeouts
+					['left', 'right'].forEach(panelId => {
+						const timeoutId = (window as any)[`loadingTimeout_${panelId}`];
+						if (timeoutId) {
+							clearTimeout(timeoutId);
+							delete (window as any)[`loadingTimeout_${panelId}`];
+						}
+					});
+
 					setError(message.payload.message);
 					setLeftPanel(prev => ({ ...prev, isLoading: false }));
 					setRightPanel(prev => ({ ...prev, isLoading: false }));
@@ -624,13 +640,21 @@ export const FileManager: React.FC<FileManagerProps> = ({
 
 	/**
 	 * Loads a directory listing
+	 * Loading indicator appears only after 500ms to avoid flickering on fast operations
 	 */
 	const loadDirectory = (path: string, panelId: 'left' | 'right' = activePanel, overrideFileSystem?: 'local' | 'remote') => {
 		const setState = panelId === 'left' ? setLeftPanel : setRightPanel;
 		const panel = panelId === 'left' ? leftPanel : rightPanel;
 
-		setState(prev => ({ ...prev, isLoading: true }));
 		setError(null);
+
+		// Delayed loading indicator - only show if operation takes longer than 500ms
+		const loadingTimeoutId = setTimeout(() => {
+			setState(prev => ({ ...prev, isLoading: true }));
+		}, 500);
+
+		// Store timeout ID to clear it if response comes quickly
+		(window as any)[`loadingTimeout_${panelId}`] = loadingTimeoutId;
 
 		// Use override if provided, otherwise use panel's current fileSystem
 		const fileSystem = overrideFileSystem !== undefined ? overrideFileSystem : panel.fileSystem;

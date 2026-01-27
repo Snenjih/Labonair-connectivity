@@ -240,6 +240,7 @@ export class SftpService {
 
 	/**
 	 * Lists files in a remote directory with caching
+	 * Note: Directory sizes are set to -1 to indicate they need manual calculation
 	 */
 	public async listFiles(hostId: string, remotePath: string, useCache: boolean = true): Promise<FileEntry[]> {
 		const sftp = await this.getSftpSession(hostId);
@@ -320,10 +321,18 @@ export class SftpService {
 					// Decode filename using host's encoding
 					const decodedFilename = this.decodeFilename(item.filename, encoding);
 					const filePath = path.posix.join(expandedPath, decodedFilename);
+
+					// For directories, set size to -1 to indicate it needs calculation
+					// For files, use actual size
+					let fileSize = item.attrs.size || 0;
+					if (type === 'd') {
+						fileSize = -1; // Mark directories for manual size calculation
+					}
+
 					const fileEntry: FileEntry = {
 						name: decodedFilename,
 						path: filePath,
-						size: item.attrs.size || 0,
+						size: fileSize,
 						type,
 						modTime: new Date((item.attrs.mtime || 0) * 1000),
 						permissions,
@@ -371,7 +380,12 @@ export class SftpService {
 	 */
 	private async readSymlink(sftp: SFTPWrapper, linkPath: string): Promise<string> {
 		return new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				reject(new Error(`Timeout reading symlink after ${this.TIMEOUT_CONFIG.fileOp}ms`));
+			}, this.TIMEOUT_CONFIG.fileOp);
+
 			sftp.readlink(linkPath, (err, target) => {
+				clearTimeout(timeout);
 				if (err) {
 					reject(err);
 				} else {
@@ -520,10 +534,11 @@ export class SftpService {
 		// Expand tilde paths to absolute paths
 		const expandedPath = await this.expandPath(sftp, remotePath);
 
+		// Get local file size (async)
+		const stats = await fs.promises.stat(localPath);
+		const totalSize = stats.size;
+
 		return new Promise((resolve, reject) => {
-			// Get local file size
-			const stats = fs.statSync(localPath);
-			const totalSize = stats.size;
 			let transferred = 0;
 			const startTime = Date.now();
 
@@ -653,7 +668,12 @@ export class SftpService {
 		const expandedNewPath = await this.expandPath(sftp, newPath);
 
 		return new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				reject(new Error(`Timeout renaming file after ${this.TIMEOUT_CONFIG.fileOp}ms - try increasing sftp.operationTimeout in settings`));
+			}, this.TIMEOUT_CONFIG.fileOp);
+
 			sftp.rename(expandedOldPath, expandedNewPath, (err) => {
+				clearTimeout(timeout);
 				if (err) {
 					reject(new Error(`Failed to rename: ${err.message}`));
 				} else {
@@ -694,8 +714,14 @@ export class SftpService {
 				// Use 'cp -r' for recursive copy (works for both files and directories)
 				const command = `cp -r "${expandedSourcePath}" "${expandedDestPath}"`;
 
+				const timeout = setTimeout(() => {
+					console.warn('SSH shell copy timeout, falling back to SFTP method');
+					this.copyViaSftp(hostId, expandedSourcePath, expandedDestPath).then(resolve).catch(reject);
+				}, this.TIMEOUT_CONFIG.fileOp);
+
 				client.exec(command, (err, stream) => {
 					if (err) {
+						clearTimeout(timeout);
 						// Shell not available, fall back to SFTP method
 						console.warn('SSH shell copy failed, falling back to SFTP method:', err);
 						this.copyViaSftp(hostId, expandedSourcePath, expandedDestPath).then(resolve).catch(reject);
@@ -709,6 +735,7 @@ export class SftpService {
 					});
 
 					stream.on('close', (code: number) => {
+						clearTimeout(timeout);
 						if (code === 0) {
 							// Clear cache for target directory
 							const parentPath = expandedDestPath.split('/').slice(0, -1).join('/') || '/';
@@ -1075,7 +1102,12 @@ export class SftpService {
 		const modeNum = parseInt(mode, 8);
 
 		return new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				reject(new Error(`Timeout changing permissions after ${this.TIMEOUT_CONFIG.fileOp}ms - try increasing sftp.operationTimeout in settings`));
+			}, this.TIMEOUT_CONFIG.fileOp);
+
 			sftp.chmod(expandedPath, modeNum, (err) => {
+				clearTimeout(timeout);
 				if (err) {
 					reject(new Error(`Failed to change permissions: ${err.message}`));
 				} else {
@@ -1396,5 +1428,82 @@ export class SftpService {
 		} catch (error) {
 			throw new Error(`Failed to change ownership for ${remotePath}: ${error}`);
 		}
+	}
+
+	/**
+	 * Calculates the size of a directory recursively
+	 * This operation can be slow for large directories
+	 *
+	 * @param hostId - The host identifier
+	 * @param directoryPath - Path to the directory
+	 * @param maxDepth - Maximum recursion depth (default: unlimited)
+	 * @param onProgress - Optional callback for progress updates
+	 * @returns Total size in bytes
+	 */
+	public async calculateDirectorySize(
+		hostId: string,
+		directoryPath: string,
+		maxDepth: number = -1,
+		onProgress?: (current: number, scanned: number) => void
+	): Promise<number> {
+		const sftp = await this.getSftpSession(hostId);
+		const expandedPath = await this.expandPath(sftp, directoryPath);
+
+		let totalSize = 0;
+		let filesScanned = 0;
+
+		const scanDirectory = async (currentPath: string, depth: number = 0): Promise<void> => {
+			// Check depth limit
+			if (maxDepth !== -1 && depth > maxDepth) {
+				return;
+			}
+
+			try {
+				const entries = await new Promise<any[]>((resolve, reject) => {
+					const timeout = setTimeout(() => {
+						reject(new Error(`Timeout reading directory ${currentPath}`));
+					}, this.TIMEOUT_CONFIG.fileOp);
+
+					sftp.readdir(currentPath, (err, list) => {
+						clearTimeout(timeout);
+						if (err) {
+							reject(err);
+						} else {
+							resolve(list);
+						}
+					});
+				});
+
+				for (const entry of entries) {
+					const entryPath = path.posix.join(currentPath, entry.filename);
+					filesScanned++;
+
+					if (entry.attrs.isDirectory()) {
+						// Recursively scan subdirectory
+						await scanDirectory(entryPath, depth + 1);
+					} else {
+						// Add file size
+						totalSize += entry.attrs.size || 0;
+					}
+
+					// Report progress every 10 files
+					if (onProgress && filesScanned % 10 === 0) {
+						onProgress(totalSize, filesScanned);
+					}
+				}
+			} catch (error) {
+				console.warn(`Failed to scan directory ${currentPath}:`, error);
+				// Continue with other directories even if one fails
+			}
+		};
+
+		await scanDirectory(expandedPath);
+
+		// Final progress update
+		if (onProgress) {
+			onProgress(totalSize, filesScanned);
+		}
+
+		return totalSize;
 	}
 }
