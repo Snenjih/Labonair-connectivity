@@ -1,6 +1,7 @@
 import { SFTPWrapper } from 'ssh2';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import * as vscode from 'vscode';
 import * as iconv from 'iconv-lite';
 import { Host, FileEntry } from '../../common/types';
@@ -10,11 +11,14 @@ import { ConnectionPool } from './connectionPool';
 import { HostKeyService } from '../security/hostKeyService';
 
 /**
- * Cache entry for directory listings
+ * Cache entry for directory listings with LRU metadata
  */
 interface DirectoryCacheEntry {
 	files: FileEntry[];
 	timestamp: number;
+	lastAccess: number;
+	accessCount: number;
+	size: number; // Estimated memory size in bytes
 }
 
 /**
@@ -28,6 +32,40 @@ interface TimeoutConfig {
 }
 
 /**
+ * Retry configuration for failed operations
+ */
+interface RetryConfig {
+	maxRetries: number;
+	initialDelay: number;  // Initial delay in ms
+	maxDelay: number;      // Maximum delay in ms
+	backoffFactor: number; // Exponential backoff multiplier
+}
+
+/**
+ * Connection health metrics for monitoring
+ */
+interface ConnectionHealth {
+	hostId: string;
+	lastCheck: number;
+	consecutiveFailures: number;
+	averageLatency: number;
+	latencyHistory: number[];  // Last 10 measurements
+	isHealthy: boolean;
+	lastError?: string;
+}
+
+/**
+ * Transfer statistics for adaptive throttling
+ */
+interface TransferStats {
+	startTime: number;
+	bytesTransferred: number;
+	lastProgressTime: number;
+	stallCount: number;  // Number of times transfer stalled
+	averageSpeed: number;
+}
+
+/**
  * SFTP Service
  * Manages SFTP connections and file operations
  */
@@ -37,8 +75,18 @@ export class SftpService {
 	private progressCallbacks: Map<string, (progress: number, speed: string) => void> = new Map();
 	private directoryCache: Map<string, DirectoryCacheEntry> = new Map();
 	private readonly CACHE_TTL: number;
+	private readonly CACHE_MAX_SIZE: number; // Max cache size in bytes (default: 50MB)
+	private currentCacheSize: number = 0;
 	private readonly PAGINATION_THRESHOLD: number;
 	private readonly TIMEOUT_CONFIG: TimeoutConfig;
+	private readonly RETRY_CONFIG: RetryConfig;
+
+	// Connection health monitoring
+	private connectionHealth: Map<string, ConnectionHealth> = new Map();
+	private healthCheckIntervals: Map<string, NodeJS.Timeout> = new Map();
+	private readonly HEALTH_CHECK_INTERVAL: number = 30000; // 30s default
+	private readonly LATENCY_HISTORY_SIZE: number = 10;
+	private readonly STALL_THRESHOLD: number = 5000; // 5s without progress = stall
 
 	constructor(
 		private readonly hostService: HostService,
@@ -47,7 +95,8 @@ export class SftpService {
 	) {
 		// Load transfer settings from configuration
 		const config = vscode.workspace.getConfiguration('labonair.transfer');
-		this.CACHE_TTL = config.get<number>('cacheTTL', 10000);
+		this.CACHE_TTL = config.get<number>('cacheTTL', 30000); // Increased to 30s for better performance
+		this.CACHE_MAX_SIZE = config.get<number>('cacheMaxSize', 50 * 1024 * 1024); // 50MB default
 		this.PAGINATION_THRESHOLD = config.get<number>('paginationThreshold', 1000);
 
 		// Load timeout settings - use generous timeouts for compatibility with all systems
@@ -59,7 +108,163 @@ export class SftpService {
 			pathExpand: sftpConfig.get<number>('pathExpandTimeout', 15000) // 15s for path expansion
 		};
 
+		// Load retry settings for robustness
+		this.RETRY_CONFIG = {
+			maxRetries: sftpConfig.get<number>('maxRetries', 3),
+			initialDelay: sftpConfig.get<number>('retryInitialDelay', 1000),  // 1s
+			maxDelay: sftpConfig.get<number>('retryMaxDelay', 10000),         // 10s
+			backoffFactor: sftpConfig.get<number>('retryBackoffFactor', 2)    // Exponential x2
+		};
+
 		console.log(`[SftpService] Timeout configuration: SFTP Init=${this.TIMEOUT_CONFIG.sftpInit}ms, FileOp=${this.TIMEOUT_CONFIG.fileOp}ms, PathExpand=${this.TIMEOUT_CONFIG.pathExpand}ms`);
+		console.log(`[SftpService] Retry configuration: MaxRetries=${this.RETRY_CONFIG.maxRetries}, InitialDelay=${this.RETRY_CONFIG.initialDelay}ms, Backoff=${this.RETRY_CONFIG.backoffFactor}x`);
+		console.log(`[SftpService] Health monitoring enabled: Check interval=${this.HEALTH_CHECK_INTERVAL}ms`);
+	}
+
+	/**
+	 * Starts health monitoring for a connection
+	 */
+	private startHealthMonitoring(hostId: string): void {
+		// Don't start if already monitoring
+		if (this.healthCheckIntervals.has(hostId)) {
+			return;
+		}
+
+		// Initialize health metrics
+		this.connectionHealth.set(hostId, {
+			hostId,
+			lastCheck: Date.now(),
+			consecutiveFailures: 0,
+			averageLatency: 0,
+			latencyHistory: [],
+			isHealthy: true
+		});
+
+		// Start periodic health checks
+		const interval = setInterval(() => {
+			this.performHealthCheck(hostId).catch(err => {
+				console.warn(`[SftpService] Health check failed for ${hostId}:`, err.message);
+			});
+		}, this.HEALTH_CHECK_INTERVAL);
+
+		this.healthCheckIntervals.set(hostId, interval);
+		console.log(`[SftpService] Started health monitoring for ${hostId}`);
+	}
+
+	/**
+	 * Stops health monitoring for a connection
+	 */
+	private stopHealthMonitoring(hostId: string): void {
+		const interval = this.healthCheckIntervals.get(hostId);
+		if (interval) {
+			clearInterval(interval);
+			this.healthCheckIntervals.delete(hostId);
+			this.connectionHealth.delete(hostId);
+			console.log(`[SftpService] Stopped health monitoring for ${hostId}`);
+		}
+	}
+
+	/**
+	 * Performs a health check on the connection
+	 */
+	private async performHealthCheck(hostId: string): Promise<void> {
+		const health = this.connectionHealth.get(hostId);
+		if (!health) {
+			return;
+		}
+
+		const startTime = Date.now();
+
+		try {
+			// Quick stat operation to check responsiveness
+			const sftp = await this.getSftpSession(hostId);
+
+			await new Promise<void>((resolve, reject) => {
+				const timeout = setTimeout(() => {
+					reject(new Error('Health check timeout'));
+				}, 5000); // 5s timeout for health check
+
+				sftp.stat('.', (err) => {
+					clearTimeout(timeout);
+					if (err) {
+						reject(err);
+					} else {
+						resolve();
+					}
+				});
+			});
+
+			// Health check successful
+			const latency = Date.now() - startTime;
+
+			// Update latency history
+			health.latencyHistory.push(latency);
+			if (health.latencyHistory.length > this.LATENCY_HISTORY_SIZE) {
+				health.latencyHistory.shift();
+			}
+
+			// Calculate average latency
+			health.averageLatency = health.latencyHistory.reduce((a, b) => a + b, 0) / health.latencyHistory.length;
+
+			// Reset failure count
+			health.consecutiveFailures = 0;
+			health.isHealthy = true;
+			health.lastCheck = Date.now();
+			delete health.lastError;
+
+			// Log if latency is high
+			if (health.averageLatency > 1000) {
+				console.warn(`[SftpService] High latency detected for ${hostId}: ${Math.round(health.averageLatency)}ms average`);
+			}
+
+		} catch (error: any) {
+			// Health check failed
+			health.consecutiveFailures++;
+			health.lastCheck = Date.now();
+			health.lastError = error.message;
+
+			console.warn(`[SftpService] Health check failed for ${hostId} (${health.consecutiveFailures} consecutive): ${error.message}`);
+
+			// Mark as unhealthy after 3 consecutive failures
+			if (health.consecutiveFailures >= 3) {
+				health.isHealthy = false;
+				console.error(`[SftpService] Connection ${hostId} marked as unhealthy. Clearing session.`);
+
+				// Clear the problematic session to force reconnection
+				this.activeSessions.delete(hostId);
+				ConnectionPool.release(hostId);
+			}
+		}
+	}
+
+	/**
+	 * Gets connection health status
+	 */
+	public getConnectionHealth(hostId: string): ConnectionHealth | undefined {
+		return this.connectionHealth.get(hostId);
+	}
+
+	/**
+	 * Checks if connection should be preemptively reconnected
+	 */
+	private shouldReconnect(hostId: string): boolean {
+		const health = this.connectionHealth.get(hostId);
+		if (!health) {
+			return false;
+		}
+
+		// Reconnect if marked unhealthy
+		if (!health.isHealthy) {
+			return true;
+		}
+
+		// Reconnect if average latency is very high (>5s)
+		if (health.averageLatency > 5000) {
+			console.warn(`[SftpService] Preemptive reconnection due to high latency: ${Math.round(health.averageLatency)}ms`);
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
@@ -68,6 +273,13 @@ export class SftpService {
 	 * Implements fallback and diagnostics for problematic servers
 	 */
 	private async getSftpSession(hostId: string): Promise<SFTPWrapper> {
+		// Check if we should preemptively reconnect
+		if (this.shouldReconnect(hostId)) {
+			console.log(`[SftpService] Preemptive reconnection for ${hostId}`);
+			this.activeSessions.delete(hostId);
+			ConnectionPool.release(hostId);
+		}
+
 		// Check if session already exists and is still valid
 		const existing = this.activeSessions.get(hostId);
 		if (existing) {
@@ -142,6 +354,10 @@ export class SftpService {
 
 					// Cache the SFTP wrapper (Client is managed by ConnectionPool)
 					this.activeSessions.set(hostId, { sftp });
+
+					// Start health monitoring for this connection
+					this.startHealthMonitoring(hostId);
+
 					resolve(sftp);
 				});
 			};
@@ -186,6 +402,70 @@ export class SftpService {
 				setTimeout(() => reject(new Error(`Timeout during ${operationName} - connection may be unresponsive`)), timeoutMs)
 			)
 		]);
+	}
+
+	/**
+	 * Checks if an error is retryable (temporary network issues)
+	 */
+	private isRetryableError(error: any): boolean {
+		const errorMessage = error.message || error.toString();
+		const retryablePatterns = [
+			'ECONNRESET',
+			'ETIMEDOUT',
+			'ENOTFOUND',
+			'EAI_AGAIN',
+			'EPIPE',
+			'ECONNREFUSED',
+			'Connection lost',
+			'Connection closed',
+			'socket hang up',
+			'network error',
+			'timeout',
+			'timed out'
+		];
+
+		return retryablePatterns.some(pattern =>
+			errorMessage.toLowerCase().includes(pattern.toLowerCase())
+		);
+	}
+
+	/**
+	 * Retries an operation with exponential backoff
+	 * @param operation - Operation to retry
+	 * @param operationName - Name for logging
+	 * @param attempt - Current attempt number (internal)
+	 */
+	private async withRetry<T>(
+		operation: () => Promise<T>,
+		operationName: string,
+		attempt: number = 0
+	): Promise<T> {
+		try {
+			return await operation();
+		} catch (error: any) {
+			// Check if we should retry
+			if (attempt < this.RETRY_CONFIG.maxRetries && this.isRetryableError(error)) {
+				// Calculate delay with exponential backoff
+				const delay = Math.min(
+					this.RETRY_CONFIG.initialDelay * Math.pow(this.RETRY_CONFIG.backoffFactor, attempt),
+					this.RETRY_CONFIG.maxDelay
+				);
+
+				console.warn(`[SftpService] ${operationName} failed (attempt ${attempt + 1}/${this.RETRY_CONFIG.maxRetries}): ${error.message}. Retrying in ${delay}ms...`);
+
+				// Wait before retry
+				await new Promise(resolve => setTimeout(resolve, delay));
+
+				// Retry operation
+				return this.withRetry(operation, operationName, attempt + 1);
+			}
+
+			// No more retries or non-retryable error
+			if (attempt > 0) {
+				console.error(`[SftpService] ${operationName} failed after ${attempt + 1} attempts: ${error.message}`);
+			}
+			throw error;
+		}
 	}
 
 	/**
@@ -255,6 +535,9 @@ export class SftpService {
 		if (useCache) {
 			const cached = this.directoryCache.get(cacheKey);
 			if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL)) {
+				// Update access metadata
+				cached.lastAccess = Date.now();
+				cached.accessCount++;
 				return cached.files;
 			}
 		}
@@ -364,11 +647,16 @@ export class SftpService {
 					return a.name.localeCompare(b.name);
 				});
 
-				// Cache the result
-				this.directoryCache.set(cacheKey, {
+				// Cache the result with LRU metadata
+				const cacheEntry: DirectoryCacheEntry = {
 					files,
-					timestamp: Date.now()
-				});
+					timestamp: Date.now(),
+					lastAccess: Date.now(),
+					accessCount: 1,
+					size: this.estimateCacheSize(files)
+				};
+
+				this.addToCache(cacheKey, cacheEntry);
 
 				resolve(files);
 			});
@@ -457,9 +745,25 @@ export class SftpService {
 	}
 
 	/**
-	 * Downloads a file from remote to local
+	 * Downloads a file from remote to local with retry support
 	 */
 	public async getFile(
+		hostId: string,
+		remotePath: string,
+		localPath: string,
+		onProgress?: (progress: number, speed: string) => void
+	): Promise<void> {
+		return this.withRetry(
+			() => this._getFileInternal(hostId, remotePath, localPath, onProgress),
+			`Download ${remotePath}`
+		);
+	}
+
+	/**
+	 * Internal download implementation (called by retry wrapper)
+	 * Supports resuming partial downloads via .part files
+	 */
+	private async _getFileInternal(
 		hostId: string,
 		remotePath: string,
 		localPath: string,
@@ -476,7 +780,7 @@ export class SftpService {
 				reject(new Error(`Timeout getting remote file stats after ${this.TIMEOUT_CONFIG.fileOp}ms - try increasing sftp.operationTimeout in settings`));
 			}, this.TIMEOUT_CONFIG.fileOp);
 
-			sftp.stat(expandedPath, (err, stats) => {
+			sftp.stat(expandedPath, async (err, stats) => {
 				clearTimeout(timeout);
 				if (err) {
 					reject(new Error(`Failed to stat remote file: ${err.message}`));
@@ -484,14 +788,60 @@ export class SftpService {
 				}
 
 				const totalSize = stats.size;
-				let transferred = 0;
-				const startTime = Date.now();
+				const partPath = localPath + '.part';
+				let startPos = 0;
 
-				const readStream = sftp.createReadStream(expandedPath);
-				const writeStream = fs.createWriteStream(localPath);
+				// Check if partial file exists for resume
+				try {
+					if (fs.existsSync(partPath)) {
+						const partStats = await fs.promises.stat(partPath);
+						startPos = partStats.size;
+
+						// Only resume if partial file is smaller than total
+						if (startPos >= totalSize) {
+							// Partial file is complete or larger, remove and restart
+							await fs.promises.unlink(partPath);
+							startPos = 0;
+						} else {
+							console.log(`[SftpService] Resuming download from byte ${startPos} of ${totalSize}`);
+						}
+					}
+				} catch (error) {
+					console.warn(`[SftpService] Could not check partial file: ${error}`);
+					startPos = 0;
+				}
+
+				let transferred = startPos;
+				const startTime = Date.now();
+				let lastProgressTime = Date.now();
+				let lastTransferred = transferred;
+
+				// Stall detection timer
+				const stallCheckInterval = setInterval(() => {
+					const timeSinceProgress = Date.now() - lastProgressTime;
+					const bytesSinceCheck = transferred - lastTransferred;
+
+					// If no progress for STALL_THRESHOLD ms, log warning
+					if (timeSinceProgress > this.STALL_THRESHOLD && bytesSinceCheck === 0) {
+						console.warn(`[SftpService] Transfer stalled for ${timeSinceProgress}ms at ${transferred}/${totalSize} bytes`);
+
+						// Update connection health
+						const health = this.connectionHealth.get(hostId);
+						if (health) {
+							health.consecutiveFailures++;
+						}
+					}
+
+					lastTransferred = transferred;
+				}, 2000); // Check every 2s
+
+				// Create read stream with start position for resume
+				const readStream = sftp.createReadStream(expandedPath, { start: startPos });
+				const writeStream = fs.createWriteStream(partPath, { flags: 'a' }); // Append mode
 
 				readStream.on('data', (chunk: Buffer) => {
 					transferred += chunk.length;
+					lastProgressTime = Date.now(); // Update progress timestamp
 
 					if (onProgress) {
 						const progress = Math.round((transferred / totalSize) * 100);
@@ -502,17 +852,59 @@ export class SftpService {
 				});
 
 				readStream.on('error', (err: Error) => {
+					clearInterval(stallCheckInterval);
 					writeStream.close();
+					// Keep .part file for resume
 					reject(new Error(`Download failed: ${err.message}`));
 				});
 
 				writeStream.on('error', (err: Error) => {
+					clearInterval(stallCheckInterval);
 					readStream.destroy();
 					reject(new Error(`Write failed: ${err.message}`));
 				});
 
-				writeStream.on('finish', () => {
-					resolve();
+				writeStream.on('finish', async () => {
+					clearInterval(stallCheckInterval);
+
+					try {
+						// Verify file size
+						const finalStats = await fs.promises.stat(partPath);
+						if (finalStats.size !== totalSize) {
+							reject(new Error(`Download incomplete: expected ${totalSize} bytes, got ${finalStats.size} bytes`));
+							return;
+						}
+
+						// Optional: Verify checksum if enabled
+						const config = vscode.workspace.getConfiguration('labonair.transfer');
+						const verifyChecksum = config.get<boolean>('verifyChecksum', false);
+
+						if (verifyChecksum) {
+							try {
+								// Calculate local file checksum
+								const localChecksum = await this.calculateLocalChecksum(partPath, 'md5');
+
+								// Calculate remote file checksum
+								const remoteChecksum = await this.calculateChecksum(hostId, expandedPath, 'md5');
+
+								if (localChecksum !== remoteChecksum) {
+									reject(new Error(`Checksum mismatch: local=${localChecksum}, remote=${remoteChecksum}. File may be corrupted.`));
+									return;
+								}
+
+								console.log(`[SftpService] Checksum verified: ${localChecksum}`);
+							} catch (checksumError) {
+								console.warn(`[SftpService] Checksum verification failed: ${checksumError}`);
+								// Continue without checksum verification
+							}
+						}
+
+						// Download complete, rename .part to final name
+						await fs.promises.rename(partPath, localPath);
+						resolve();
+					} catch (error) {
+						reject(new Error(`Failed to finalize download: ${error}`));
+					}
 				});
 
 				readStream.pipe(writeStream);
@@ -697,9 +1089,24 @@ export class SftpService {
 	}
 
 	/**
-	 * Uploads a file from local to remote
+	 * Uploads a file from local to remote with retry support
 	 */
 	public async putFile(
+		hostId: string,
+		localPath: string,
+		remotePath: string,
+		onProgress?: (progress: number, speed: string) => void
+	): Promise<void> {
+		return this.withRetry(
+			() => this._putFileInternal(hostId, localPath, remotePath, onProgress),
+			`Upload ${localPath}`
+		);
+	}
+
+	/**
+	 * Internal upload implementation (called by retry wrapper)
+	 */
+	private async _putFileInternal(
 		hostId: string,
 		localPath: string,
 		remotePath: string,
@@ -717,12 +1124,34 @@ export class SftpService {
 		return new Promise((resolve, reject) => {
 			let transferred = 0;
 			const startTime = Date.now();
+			let lastProgressTime = Date.now();
+			let lastTransferred = 0;
+
+			// Stall detection timer
+			const stallCheckInterval = setInterval(() => {
+				const timeSinceProgress = Date.now() - lastProgressTime;
+				const bytesSinceCheck = transferred - lastTransferred;
+
+				// If no progress for STALL_THRESHOLD ms, log warning
+				if (timeSinceProgress > this.STALL_THRESHOLD && bytesSinceCheck === 0) {
+					console.warn(`[SftpService] Upload stalled for ${timeSinceProgress}ms at ${transferred}/${totalSize} bytes`);
+
+					// Update connection health
+					const health = this.connectionHealth.get(hostId);
+					if (health) {
+						health.consecutiveFailures++;
+					}
+				}
+
+				lastTransferred = transferred;
+			}, 2000); // Check every 2s
 
 			const readStream = fs.createReadStream(localPath);
 			const writeStream = sftp.createWriteStream(expandedPath);
 
 			readStream.on('data', (chunk: Buffer) => {
 				transferred += chunk.length;
+				lastProgressTime = Date.now(); // Update progress timestamp
 
 				if (onProgress) {
 					const progress = Math.round((transferred / totalSize) * 100);
@@ -733,16 +1162,19 @@ export class SftpService {
 			});
 
 			readStream.on('error', (err: Error) => {
+				clearInterval(stallCheckInterval);
 				writeStream.end();
 				reject(new Error(`Read failed: ${err.message}`));
 			});
 
 			writeStream.on('error', (err: Error) => {
+				clearInterval(stallCheckInterval);
 				readStream.destroy();
 				reject(new Error(`Upload failed: ${err.message}`));
 			});
 
 			writeStream.on('finish', () => {
+				clearInterval(stallCheckInterval);
 				resolve();
 			});
 
@@ -825,8 +1257,7 @@ export class SftpService {
 					reject(new Error(`Failed to create directory: ${err.message}`));
 				} else {
 					// Invalidate directory cache for parent directory
-					const parentPath = expandedPath.split('/').slice(0, -1).join('/') || '/';
-					this.directoryCache.delete(`${hostId}:${parentPath}`);
+					this.invalidatePath(hostId, expandedPath);
 					resolve();
 				}
 			});
@@ -854,10 +1285,8 @@ export class SftpService {
 					reject(new Error(`Failed to rename: ${err.message}`));
 				} else {
 					// Invalidate cache for both old and new parent directories
-					const oldParent = expandedOldPath.split('/').slice(0, -1).join('/') || '/';
-					const newParent = expandedNewPath.split('/').slice(0, -1).join('/') || '/';
-					this.directoryCache.delete(`${hostId}:${oldParent}`);
-					this.directoryCache.delete(`${hostId}:${newParent}`);
+					this.invalidatePath(hostId, expandedOldPath);
+					this.invalidatePath(hostId, expandedNewPath);
 					resolve();
 				}
 			});
@@ -914,8 +1343,7 @@ export class SftpService {
 						clearTimeout(timeout);
 						if (code === 0) {
 							// Clear cache for target directory
-							const parentPath = expandedDestPath.split('/').slice(0, -1).join('/') || '/';
-							this.directoryCache.delete(`${hostId}:${parentPath}`);
+							this.invalidatePath(hostId, expandedDestPath);
 							resolve();
 						} else {
 							// Shell command failed, try SFTP fallback
@@ -972,8 +1400,7 @@ export class SftpService {
 
 					writeStream.on('finish', () => {
 						// Clear cache for target directory
-						const parentPath = destPath.split('/').slice(0, -1).join('/') || '/';
-						this.directoryCache.delete(`${hostId}:${parentPath}`);
+						this.invalidatePath(hostId, destPath);
 						resolve();
 					});
 
@@ -1043,8 +1470,7 @@ export class SftpService {
 		}
 
 		// Clear cache for target directory
-		const parentPath = destPath.split('/').slice(0, -1).join('/') || '/';
-		this.directoryCache.delete(`${hostId}:${parentPath}`);
+		this.invalidatePath(hostId, destPath);
 	}
 
 	/**
@@ -1057,21 +1483,99 @@ export class SftpService {
 	}
 
 	/**
+	 * Estimates the memory size of a cache entry
+	 */
+	private estimateCacheSize(files: FileEntry[]): number {
+		// Rough estimation: JSON string length as proxy for memory usage
+		return JSON.stringify(files).length;
+	}
+
+	/**
+	 * Adds entry to cache with LRU eviction if needed
+	 */
+	private addToCache(key: string, entry: DirectoryCacheEntry): void {
+		// Check if we need to evict entries
+		while (this.currentCacheSize + entry.size > this.CACHE_MAX_SIZE && this.directoryCache.size > 0) {
+			this.evictLRU();
+		}
+
+		// Remove old entry if exists
+		const oldEntry = this.directoryCache.get(key);
+		if (oldEntry) {
+			this.currentCacheSize -= oldEntry.size;
+		}
+
+		// Add new entry
+		this.directoryCache.set(key, entry);
+		this.currentCacheSize += entry.size;
+	}
+
+	/**
+	 * Evicts the least recently used cache entry
+	 */
+	private evictLRU(): void {
+		let oldestKey: string | null = null;
+		let oldestAccess = Date.now();
+
+		for (const [key, entry] of this.directoryCache.entries()) {
+			if (entry.lastAccess < oldestAccess) {
+				oldestAccess = entry.lastAccess;
+				oldestKey = key;
+			}
+		}
+
+		if (oldestKey) {
+			const entry = this.directoryCache.get(oldestKey);
+			if (entry) {
+				this.currentCacheSize -= entry.size;
+			}
+			this.directoryCache.delete(oldestKey);
+			console.log(`[SftpService] Evicted LRU cache entry: ${oldestKey}`);
+		}
+	}
+
+	/**
+	 * Smart cache invalidation - only invalidates affected paths
+	 * @param hostId - Host identifier
+	 * @param affectedPath - Path that was modified
+	 */
+	private invalidatePath(hostId: string, affectedPath: string): void {
+		const parentPath = affectedPath.split('/').slice(0, -1).join('/') || '/';
+		const cacheKey = `${hostId}:${parentPath}`;
+
+		const entry = this.directoryCache.get(cacheKey);
+		if (entry) {
+			this.currentCacheSize -= entry.size;
+			this.directoryCache.delete(cacheKey);
+		}
+	}
+
+	/**
 	 * Clears the directory cache for a specific path or all paths
 	 */
 	public clearCache(hostId?: string, remotePath?: string): void {
 		if (hostId && remotePath) {
-			this.directoryCache.delete(`${hostId}:${remotePath}`);
+			const cacheKey = `${hostId}:${remotePath}`;
+			const entry = this.directoryCache.get(cacheKey);
+			if (entry) {
+				this.currentCacheSize -= entry.size;
+			}
+			this.directoryCache.delete(cacheKey);
 		} else if (hostId) {
 			// Clear all cache entries for this host
 			for (const key of this.directoryCache.keys()) {
 				if (key.startsWith(`${hostId}:`)) {
+					const entry = this.directoryCache.get(key);
+					if (entry) {
+						this.currentCacheSize -= entry.size;
+					}
 					this.directoryCache.delete(key);
 				}
 			}
 		} else {
 			// Clear entire cache
 			this.directoryCache.clear();
+			this.currentCacheSize = 0;
 		}
 	}
 
@@ -1082,6 +1586,9 @@ export class SftpService {
 	public closeSession(hostId: string): void {
 		const session = this.activeSessions.get(hostId);
 		if (session) {
+			// Stop health monitoring
+			this.stopHealthMonitoring(hostId);
+
 			// Release connection back to pool
 			ConnectionPool.release(hostId);
 			this.activeSessions.delete(hostId);
@@ -1093,6 +1600,12 @@ export class SftpService {
 	 * Releases all connections back to the pool
 	 */
 	public dispose(): void {
+		// Stop all health monitoring
+		for (const hostId of this.healthCheckIntervals.keys()) {
+			this.stopHealthMonitoring(hostId);
+		}
+
+		// Release all connections
 		for (const hostId of this.activeSessions.keys()) {
 			ConnectionPool.release(hostId);
 		}
@@ -1288,8 +1801,7 @@ export class SftpService {
 					reject(new Error(`Failed to change permissions: ${err.message}`));
 				} else {
 					// Invalidate cache for parent directory
-					const parentPath = expandedPath.split('/').slice(0, -1).join('/') || '/';
-					this.directoryCache.delete(`${hostId}:${parentPath}`);
+					this.invalidatePath(hostId, expandedPath);
 					resolve();
 				}
 			});
@@ -1424,6 +1936,31 @@ export class SftpService {
 	}
 
 	/**
+	 * Calculates checksum for a local file
+	 * @param localPath - Path to the local file
+	 * @param algorithm - Hash algorithm (md5, sha1, sha256)
+	 * @returns The hex-encoded checksum string
+	 */
+	private async calculateLocalChecksum(localPath: string, algorithm: 'md5' | 'sha1' | 'sha256'): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const hash = crypto.createHash(algorithm);
+			const stream = fs.createReadStream(localPath);
+
+			stream.on('data', (chunk) => {
+				hash.update(chunk);
+			});
+
+			stream.on('end', () => {
+				resolve(hash.digest('hex'));
+			});
+
+			stream.on('error', (err) => {
+				reject(new Error(`Failed to calculate local checksum: ${err.message}`));
+			});
+		});
+	}
+
+	/**
 	 * Calculates checksum for a remote file using SSH commands
 	 * @param hostId - The host identifier
 	 * @param remotePath - Path to the remote file
@@ -1467,8 +2004,7 @@ export class SftpService {
 		await this.executeCommand(hostId, command);
 
 		// Invalidate cache for parent directory
-		const parentPath = expandedTargetPath.split('/').slice(0, -1).join('/') || '/';
-		this.directoryCache.delete(`${hostId}:${parentPath}`);
+		this.invalidatePath(hostId, expandedTargetPath);
 	}
 
 	/**
