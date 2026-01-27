@@ -521,6 +521,182 @@ export class SftpService {
 	}
 
 	/**
+	 * Downloads a directory recursively from remote to local
+	 * @param hostId - Host identifier
+	 * @param remotePath - Remote directory path
+	 * @param localPath - Local directory path
+	 * @param onProgress - Optional callback for progress updates
+	 */
+	public async getDirectory(
+		hostId: string,
+		remotePath: string,
+		localPath: string,
+		onProgress?: (current: number, total: number, currentFile: string) => void
+	): Promise<void> {
+		const sftp = await this.getSftpSession(hostId);
+		const expandedPath = await this.expandPath(sftp, remotePath);
+
+		// Create local directory
+		await fs.promises.mkdir(localPath, { recursive: true });
+
+		let filesProcessed = 0;
+		let totalFiles = 0;
+
+		// Count total files first
+		const countFiles = async (dirPath: string): Promise<number> => {
+			let count = 0;
+			const entries = await new Promise<any[]>((resolve, reject) => {
+				const timeout = setTimeout(() => reject(new Error('Timeout counting files')), this.TIMEOUT_CONFIG.fileOp);
+				sftp.readdir(dirPath, (err, list) => {
+					clearTimeout(timeout);
+					if (err) {
+						reject(err);
+					} else {
+						resolve(list);
+					}
+				});
+			});
+
+			for (const entry of entries) {
+				const entryPath = path.posix.join(dirPath, entry.filename);
+				if (entry.attrs.isDirectory()) {
+					count += await countFiles(entryPath);
+				} else {
+					count++;
+				}
+			}
+			return count;
+		};
+
+		// Recursively download directory
+		const downloadDir = async (remoteDirPath: string, localDirPath: string): Promise<void> => {
+			const entries = await new Promise<any[]>((resolve, reject) => {
+				const timeout = setTimeout(() => reject(new Error('Timeout reading directory')), this.TIMEOUT_CONFIG.fileOp);
+				sftp.readdir(remoteDirPath, (err, list) => {
+					clearTimeout(timeout);
+					if (err) {
+						reject(err);
+					} else {
+						resolve(list);
+					}
+				});
+			});
+
+			for (const entry of entries) {
+				const remoteEntryPath = path.posix.join(remoteDirPath, entry.filename);
+				const localEntryPath = path.join(localDirPath, entry.filename);
+
+				if (entry.attrs.isDirectory()) {
+					// Create subdirectory
+					await fs.promises.mkdir(localEntryPath, { recursive: true });
+					// Recursively download subdirectory
+					await downloadDir(remoteEntryPath, localEntryPath);
+				} else {
+					// Download file
+					await this.getFile(hostId, remoteEntryPath, localEntryPath);
+					filesProcessed++;
+
+					if (onProgress) {
+						onProgress(filesProcessed, totalFiles, entry.filename);
+					}
+				}
+			}
+		};
+
+		// Count files and download
+		totalFiles = await countFiles(expandedPath);
+		await downloadDir(expandedPath, localPath);
+	}
+
+	/**
+	 * Uploads a directory recursively from local to remote
+	 * @param hostId - Host identifier
+	 * @param localPath - Local directory path
+	 * @param remotePath - Remote directory path
+	 * @param onProgress - Optional callback for progress updates
+	 */
+	public async putDirectory(
+		hostId: string,
+		localPath: string,
+		remotePath: string,
+		onProgress?: (current: number, total: number, currentFile: string) => void
+	): Promise<void> {
+		const sftp = await this.getSftpSession(hostId);
+		const expandedPath = await this.expandPath(sftp, remotePath);
+
+		let filesProcessed = 0;
+		let totalFiles = 0;
+
+		// Count total files first
+		const countLocalFiles = async (dirPath: string): Promise<number> => {
+			let count = 0;
+			const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+
+			for (const entry of entries) {
+				const entryPath = path.join(dirPath, entry.name);
+				if (entry.isDirectory()) {
+					count += await countLocalFiles(entryPath);
+				} else {
+					count++;
+				}
+			}
+			return count;
+		};
+
+		// Create remote directory
+		await new Promise<void>((resolve, reject) => {
+			const timeout = setTimeout(() => reject(new Error('Timeout creating directory')), this.TIMEOUT_CONFIG.fileOp);
+			sftp.mkdir(expandedPath, (err) => {
+				clearTimeout(timeout);
+				if (err && !err.message.includes('File exists')) {
+					reject(err);
+				} else {
+					resolve();
+				}
+			});
+		});
+
+		// Recursively upload directory
+		const uploadDir = async (localDirPath: string, remoteDirPath: string): Promise<void> => {
+			const entries = await fs.promises.readdir(localDirPath, { withFileTypes: true });
+
+			for (const entry of entries) {
+				const localEntryPath = path.join(localDirPath, entry.name);
+				const remoteEntryPath = path.posix.join(remoteDirPath, entry.name);
+
+				if (entry.isDirectory()) {
+					// Create remote subdirectory
+					await new Promise<void>((resolve, reject) => {
+						const timeout = setTimeout(() => reject(new Error('Timeout creating subdirectory')), this.TIMEOUT_CONFIG.fileOp);
+						sftp.mkdir(remoteEntryPath, (err) => {
+							clearTimeout(timeout);
+							if (err && !err.message.includes('File exists')) {
+								reject(err);
+							} else {
+								resolve();
+							}
+						});
+					});
+					// Recursively upload subdirectory
+					await uploadDir(localEntryPath, remoteEntryPath);
+				} else {
+					// Upload file
+					await this.putFile(hostId, localEntryPath, remoteEntryPath);
+					filesProcessed++;
+
+					if (onProgress) {
+						onProgress(filesProcessed, totalFiles, entry.name);
+					}
+				}
+			}
+		};
+
+		// Count files and upload
+		totalFiles = await countLocalFiles(localPath);
+		await uploadDir(localPath, expandedPath);
+	}
+
+	/**
 	 * Uploads a file from local to remote
 	 */
 	public async putFile(

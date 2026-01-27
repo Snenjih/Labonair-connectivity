@@ -182,7 +182,7 @@ export class SftpPanel {
 			}
 
 			case 'SFTP_DOWNLOAD': {
-				await this._downloadFile(message.payload.remotePath);
+				await this._downloadFile(message.payload.remotePath, message.payload.localPath);
 				break;
 			}
 
@@ -419,38 +419,112 @@ export class SftpPanel {
 	}
 
 	/**
-	 * Downloads a file from remote to local
+	 * Downloads a file or directory from remote to local
+	 * @param remotePath - Remote file/directory path to download
+	 * @param localPath - Optional local target path. If not provided, shows save dialog
 	 */
-	private async _downloadFile(remotePath: string): Promise<void> {
+	private async _downloadFile(remotePath: string, localPath?: string): Promise<void> {
 		try {
-			// Prompt user for save location
 			const fileName = remotePath.split('/').pop() || 'file';
-			const uri = await vscode.window.showSaveDialog({
-				defaultUri: vscode.Uri.file(fileName),
-				saveLabel: 'Download'
-			});
+			let targetLocalPath = localPath;
 
-			if (!uri) {
-				return;
+			// Check if remote path is a directory
+			const remoteStats = await this._sftpService.stat(this._hostId, remotePath);
+			const isDirectory = remoteStats.type === 'd';
+
+			// If no local path provided, prompt user for save location
+			if (!targetLocalPath) {
+				if (isDirectory) {
+					// For directories, use folder picker
+					const uri = await vscode.window.showOpenDialog({
+						canSelectFiles: false,
+						canSelectFolders: true,
+						canSelectMany: false,
+						openLabel: 'Select Download Location'
+					});
+
+					if (!uri || uri.length === 0) {
+						return;
+					}
+
+					targetLocalPath = uri[0].fsPath;
+					// Append directory name to target path
+					const path = require('path');
+					targetLocalPath = path.join(targetLocalPath, fileName);
+				} else {
+					// For files, use save dialog
+					const uri = await vscode.window.showSaveDialog({
+						defaultUri: vscode.Uri.file(fileName),
+						saveLabel: 'Download'
+					});
+
+					if (!uri) {
+						return;
+					}
+
+					targetLocalPath = uri.fsPath;
+				}
+			} else {
+				// If localPath is a directory, append filename
+				const fs = require('fs');
+				if (fs.existsSync(targetLocalPath)) {
+					const stats = await fs.promises.stat(targetLocalPath);
+					if (stats.isDirectory()) {
+						const path = require('path');
+						targetLocalPath = path.join(targetLocalPath, fileName);
+					}
+				} else {
+					// If localPath doesn't exist, assume it's a directory and create it
+					const path = require('path');
+					await fs.promises.mkdir(targetLocalPath, { recursive: true });
+					targetLocalPath = path.join(targetLocalPath, fileName);
+				}
 			}
 
-			// Download the file with progress
-			await this._sftpService.getFile(
-				this._hostId,
-				remotePath,
-				uri.fsPath,
-				(progress, speed) => {
-					this._panel.webview.postMessage({
-						command: 'SFTP_TRANSFER_PROGRESS',
-						payload: {
-							filename: fileName,
-							progress,
-							speed,
-							type: 'download'
-						}
-					});
-				}
-			);
+			// Ensure targetLocalPath is set
+			if (!targetLocalPath) {
+				throw new Error('Target local path not specified');
+			}
+
+			// Download file or directory with progress
+			if (isDirectory) {
+				let currentFile = '';
+				await this._sftpService.getDirectory(
+					this._hostId,
+					remotePath,
+					targetLocalPath,
+					(current, total, file) => {
+						currentFile = file;
+						const progress = Math.round((current / total) * 100);
+						this._panel.webview.postMessage({
+							command: 'SFTP_TRANSFER_PROGRESS',
+							payload: {
+								filename: `${fileName} (${current}/${total})`,
+								progress,
+								speed: currentFile,
+								type: 'download'
+							}
+						});
+					}
+				);
+			} else {
+				await this._sftpService.getFile(
+					this._hostId,
+					remotePath,
+					targetLocalPath,
+					(progress, speed) => {
+						this._panel.webview.postMessage({
+							command: 'SFTP_TRANSFER_PROGRESS',
+							payload: {
+								filename: fileName,
+								progress,
+								speed,
+								type: 'download'
+							}
+						});
+					}
+				);
+			}
 
 			vscode.window.showInformationMessage(`Downloaded: ${fileName}`);
 
@@ -467,16 +541,20 @@ export class SftpPanel {
 	}
 
 	/**
-	 * Uploads a file from local to remote
+	 * Uploads a file or directory from local to remote
+	 * @param remotePath - Remote target path (directory)
+	 * @param localPath - Optional local source path. If not provided, shows file/folder picker
 	 */
 	private async _uploadFile(remotePath: string, localPath?: string): Promise<void> {
 		try {
 			let sourceLocalPath = localPath;
 
-			// If no local path provided, prompt user to select file
+			// If no local path provided, prompt user to select file or folder
 			if (!sourceLocalPath) {
 				const uris = await vscode.window.showOpenDialog({
 					canSelectMany: false,
+					canSelectFiles: true,
+					canSelectFolders: true,
 					openLabel: 'Upload'
 				});
 
@@ -487,28 +565,66 @@ export class SftpPanel {
 				sourceLocalPath = uris[0].fsPath;
 			}
 
-			const fileName = sourceLocalPath.split(/[\\/]/).pop() || 'file';
-			const targetPath = remotePath.endsWith('/')
-				? remotePath + fileName
-				: remotePath + '/' + fileName;
+			// Ensure sourceLocalPath is set
+			if (!sourceLocalPath) {
+				throw new Error('Source local path not specified');
+			}
 
-			// Upload the file with progress
-			await this._sftpService.putFile(
-				this._hostId,
-				sourceLocalPath,
-				targetPath,
-				(progress, speed) => {
-					this._panel.webview.postMessage({
-						command: 'SFTP_TRANSFER_PROGRESS',
-						payload: {
-							filename: fileName,
-							progress,
-							speed,
-							type: 'upload'
-						}
-					});
-				}
-			);
+			const fs = require('fs');
+			const fileName = sourceLocalPath.split(/[\\/]/).pop() || 'file';
+
+			// Check if local path is a directory
+			const localStats = await fs.promises.stat(sourceLocalPath);
+			const isDirectory = localStats.isDirectory();
+
+			// Determine target path - if remotePath is a directory, append filename
+			let targetPath = remotePath;
+			if (remotePath.endsWith('/') || !remotePath.includes('.')) {
+				// Remote path is a directory, append filename
+				targetPath = remotePath.endsWith('/')
+					? remotePath + fileName
+					: remotePath + '/' + fileName;
+			}
+
+			// Upload file or directory with progress
+			if (isDirectory) {
+				let currentFile = '';
+				await this._sftpService.putDirectory(
+					this._hostId,
+					sourceLocalPath,
+					targetPath,
+					(current, total, file) => {
+						currentFile = file;
+						const progress = Math.round((current / total) * 100);
+						this._panel.webview.postMessage({
+							command: 'SFTP_TRANSFER_PROGRESS',
+							payload: {
+								filename: `${fileName} (${current}/${total})`,
+								progress,
+								speed: currentFile,
+								type: 'upload'
+							}
+						});
+					}
+				);
+			} else {
+				await this._sftpService.putFile(
+					this._hostId,
+					sourceLocalPath,
+					targetPath,
+					(progress, speed) => {
+						this._panel.webview.postMessage({
+							command: 'SFTP_TRANSFER_PROGRESS',
+							payload: {
+								filename: fileName,
+								progress,
+								speed,
+								type: 'upload'
+							}
+						});
+					}
+				);
+			}
 
 			vscode.window.showInformationMessage(`Uploaded: ${fileName}`);
 
