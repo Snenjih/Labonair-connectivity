@@ -38,7 +38,7 @@ interface PanelState {
  */
 export const FileManager: React.FC<FileManagerProps> = ({
 	hostId,
-	initialPath = '~',
+	initialPath = '/',
 	layout: initialLayout = 'explorer',
 	defaultView: initialView = 'list'
 }) => {

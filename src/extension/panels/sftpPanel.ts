@@ -132,7 +132,9 @@ export class SftpPanel {
 			}
 
 			// Use default path or home directory
-			const initialPath = host.defaultPath || '~';
+			// Avoid ~ because it requires path expansion which can fail/timeout on some servers
+		// Use / (root) which always exists and is universally accessible
+		const initialPath = host.defaultPath || '/';
 			this._currentPath = initialPath;
 
 			// Update panel title
