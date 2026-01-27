@@ -95,6 +95,24 @@
 						"type": "string"
 					}
 				},
+				"labonair.sftp.initTimeout": {
+					"type": "number",
+					"default": 30000,
+					"minimum": 5000,
+					"description": "Timeout in milliseconds for SFTP subsystem initialization. Increase this for low-power devices (Raspberry Pi, NAS) or high-latency connections"
+				},
+				"labonair.sftp.operationTimeout": {
+					"type": "number",
+					"default": 30000,
+					"minimum": 5000,
+					"description": "Timeout in milliseconds for SFTP file operations (readdir, stat, mkdir, delete, etc.). Increase this for slow servers or high latency"
+				},
+				"labonair.sftp.pathExpandTimeout": {
+					"type": "number",
+					"default": 15000,
+					"minimum": 3000,
+					"description": "Timeout in milliseconds for SSH path expansion (~). Servers without OpenSSH extensions will fall back to current directory"
+				},
 				"labonair.files.associations": {
 					"type": "object",
 					"default": {

@@ -18,6 +18,16 @@ interface DirectoryCacheEntry {
 }
 
 /**
+ * SFTP operation timeout configuration
+ * Longer timeouts for resource-limited systems (Raspberry Pi, NAS, etc.)
+ */
+interface TimeoutConfig {
+	sftpInit: number;      // SFTP subsystem initialization (slower on low-power devices)
+	fileOp: number;        // File operations: readdir, stat, etc.
+	pathExpand: number;    // Path expansion with OpenSSH extension
+}
+
+/**
  * SFTP Service
  * Manages SFTP connections and file operations
  */
@@ -28,6 +38,7 @@ export class SftpService {
 	private directoryCache: Map<string, DirectoryCacheEntry> = new Map();
 	private readonly CACHE_TTL: number;
 	private readonly PAGINATION_THRESHOLD: number;
+	private readonly TIMEOUT_CONFIG: TimeoutConfig;
 
 	constructor(
 		private readonly hostService: HostService,
@@ -38,6 +49,17 @@ export class SftpService {
 		const config = vscode.workspace.getConfiguration('labonair.transfer');
 		this.CACHE_TTL = config.get<number>('cacheTTL', 10000);
 		this.PAGINATION_THRESHOLD = config.get<number>('paginationThreshold', 1000);
+
+		// Load timeout settings - use generous timeouts for compatibility with all systems
+		// (Raspberry Pi, NAS, older servers, high-latency connections)
+		const sftpConfig = vscode.workspace.getConfiguration('labonair.sftp');
+		this.TIMEOUT_CONFIG = {
+			sftpInit: sftpConfig.get<number>('initTimeout', 30000),      // 30s for SFTP subsystem
+			fileOp: sftpConfig.get<number>('operationTimeout', 30000),   // 30s for file operations
+			pathExpand: sftpConfig.get<number>('pathExpandTimeout', 15000) // 15s for path expansion
+		};
+
+		console.log(`[SftpService] Timeout configuration: SFTP Init=${this.TIMEOUT_CONFIG.sftpInit}ms, FileOp=${this.TIMEOUT_CONFIG.fileOp}ms, PathExpand=${this.TIMEOUT_CONFIG.pathExpand}ms`);
 	}
 
 	/**
@@ -60,12 +82,12 @@ export class SftpService {
 			this.hostKeyService
 		);
 
-		// Request SFTP subsystem with timeout
+		// Request SFTP subsystem with configurable timeout
 		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
 				ConnectionPool.release(hostId);
-				reject(new Error('Timeout waiting for SFTP subsystem - connection may be unresponsive'));
-			}, 10000); // 10 second timeout for SFTP subsystem initialization
+				reject(new Error(`Timeout waiting for SFTP subsystem after ${this.TIMEOUT_CONFIG.sftpInit}ms - this can happen on low-power devices or high-latency connections. Try increasing sftp.initTimeout in settings.`));
+			}, this.TIMEOUT_CONFIG.sftpInit);
 
 			client.sftp((err, sftp) => {
 				clearTimeout(timeout);
@@ -107,10 +129,10 @@ export class SftpService {
 
 		return new Promise((resolve) => {
 			const timeout = setTimeout(() => {
-				// Timeout: use fallback
-				console.warn(`Path expansion timeout for '${remotePath}', using current directory`);
+				// Timeout: use fallback (this is common on servers without OpenSSH extension or slow connections)
+				console.warn(`Path expansion timeout for '${remotePath}' after ${this.TIMEOUT_CONFIG.pathExpand}ms, using current directory as fallback`);
 				resolve('.');
-			}, 5000);
+			}, this.TIMEOUT_CONFIG.pathExpand);
 
 			sftp.ext_openssh_expandPath(remotePath, (err, expandedPath) => {
 				clearTimeout(timeout);
@@ -167,8 +189,8 @@ export class SftpService {
 
 		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
-				reject(new Error(`Timeout listing directory: ${expandedPath} - connection may be unresponsive`));
-			}, 10000); // 10 second timeout for readdir
+				reject(new Error(`Timeout listing directory '${expandedPath}' after ${this.TIMEOUT_CONFIG.fileOp}ms - the server may be overloaded or experiencing high latency. This is common on Raspberry Pi or low-power NAS devices. Try increasing sftp.operationTimeout in settings.`));
+			}, this.TIMEOUT_CONFIG.fileOp);
 
 			sftp.readdir(expandedPath, async (err, list) => {
 				clearTimeout(timeout);
@@ -274,8 +296,8 @@ export class SftpService {
 
 		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
-				reject(new Error(`Timeout getting file stats for: ${expandedPath} - connection may be unresponsive`));
-			}, 10000); // 10 second timeout for stat
+				reject(new Error(`Timeout getting file stats for '${expandedPath}' after ${this.TIMEOUT_CONFIG.fileOp}ms - the server may be overloaded. Try increasing sftp.operationTimeout in settings.`));
+			}, this.TIMEOUT_CONFIG.fileOp);
 
 			sftp.stat(expandedPath, (err, stats) => {
 				clearTimeout(timeout);
@@ -340,7 +362,12 @@ export class SftpService {
 
 		return new Promise((resolve, reject) => {
 			// Get file size for progress tracking
+			const timeout = setTimeout(() => {
+				reject(new Error(`Timeout getting remote file stats after ${this.TIMEOUT_CONFIG.fileOp}ms - try increasing sftp.operationTimeout in settings`));
+			}, this.TIMEOUT_CONFIG.fileOp);
+
 			sftp.stat(expandedPath, (err, stats) => {
+				clearTimeout(timeout);
 				if (err) {
 					reject(new Error(`Failed to stat remote file: ${err.message}`));
 					return;
@@ -447,7 +474,12 @@ export class SftpService {
 
 		return new Promise((resolve, reject) => {
 			// First check if it's a directory
+			const timeout = setTimeout(() => {
+				reject(new Error(`Timeout checking file type after ${this.TIMEOUT_CONFIG.fileOp}ms - try increasing sftp.operationTimeout in settings`));
+			}, this.TIMEOUT_CONFIG.fileOp);
+
 			sftp.stat(expandedPath, (statErr, stats) => {
+				clearTimeout(timeout);
 				if (statErr) {
 					reject(new Error(`Failed to stat path: ${statErr.message}`));
 					return;
@@ -455,7 +487,12 @@ export class SftpService {
 
 				if (stats.isDirectory()) {
 					// Remove directory
+					const rmTimeout = setTimeout(() => {
+						reject(new Error(`Timeout removing directory after ${this.TIMEOUT_CONFIG.fileOp}ms - try increasing sftp.operationTimeout in settings`));
+					}, this.TIMEOUT_CONFIG.fileOp);
+
 					sftp.rmdir(expandedPath, (err) => {
+						clearTimeout(rmTimeout);
 						if (err) {
 							reject(new Error(`Failed to remove directory: ${err.message}`));
 						} else {
@@ -464,7 +501,12 @@ export class SftpService {
 					});
 				} else {
 					// Remove file
+					const rmTimeout = setTimeout(() => {
+						reject(new Error(`Timeout removing file after ${this.TIMEOUT_CONFIG.fileOp}ms - try increasing sftp.operationTimeout in settings`));
+					}, this.TIMEOUT_CONFIG.fileOp);
+
 					sftp.unlink(expandedPath, (err) => {
+						clearTimeout(rmTimeout);
 						if (err) {
 							reject(new Error(`Failed to remove file: ${err.message}`));
 						} else {
@@ -486,7 +528,12 @@ export class SftpService {
 		const expandedPath = await this.expandPath(sftp, remotePath);
 
 		return new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				reject(new Error(`Timeout creating directory after ${this.TIMEOUT_CONFIG.fileOp}ms - try increasing sftp.operationTimeout in settings`));
+			}, this.TIMEOUT_CONFIG.fileOp);
+
 			sftp.mkdir(expandedPath, (err) => {
+				clearTimeout(timeout);
 				if (err) {
 					reject(new Error(`Failed to create directory: ${err.message}`));
 				} else {
