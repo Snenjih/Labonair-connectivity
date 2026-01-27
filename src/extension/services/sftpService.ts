@@ -11,6 +11,18 @@ import { ConnectionPool } from './connectionPool';
 import { HostKeyService } from '../security/hostKeyService';
 
 /**
+ * Escapes a string for safe use in shell commands
+ * Prevents shell injection by properly escaping single quotes
+ * @param arg - The argument to escape
+ * @returns Safely escaped argument surrounded by single quotes
+ */
+function escapeShellArg(arg: string): string {
+	// Replace each single quote with '\'' (end quote, escaped quote, start quote)
+	// This is the POSIX-compliant way to escape single quotes in shell arguments
+	return "'" + arg.replace(/'/g, "'\\''") + "'";
+}
+
+/**
  * Cache entry for directory listings with LRU metadata
  */
 interface DirectoryCacheEntry {
@@ -1315,44 +1327,50 @@ export class SftpService {
 				this.hostKeyService
 			);
 
-			return new Promise((resolve, reject) => {
-				// Use 'cp -r' for recursive copy (works for both files and directories)
-				const command = `cp -r "${expandedSourcePath}" "${expandedDestPath}"`;
+			try {
+				return await new Promise((resolve, reject) => {
+					// Use 'cp -r' for recursive copy (works for both files and directories)
+					// Use escapeShellArg to prevent shell injection
+					const command = `cp -r ${escapeShellArg(expandedSourcePath)} ${escapeShellArg(expandedDestPath)}`;
 
-				const timeout = setTimeout(() => {
-					console.warn('SSH shell copy timeout, falling back to SFTP method');
-					this.copyViaSftp(hostId, expandedSourcePath, expandedDestPath).then(resolve).catch(reject);
-				}, this.TIMEOUT_CONFIG.fileOp);
-
-				client.exec(command, (err, stream) => {
-					if (err) {
-						clearTimeout(timeout);
-						// Shell not available, fall back to SFTP method
-						console.warn('SSH shell copy failed, falling back to SFTP method:', err);
+					const timeout = setTimeout(() => {
+						console.warn('SSH shell copy timeout, falling back to SFTP method');
 						this.copyViaSftp(hostId, expandedSourcePath, expandedDestPath).then(resolve).catch(reject);
-						return;
-					}
+					}, this.TIMEOUT_CONFIG.fileOp);
 
-					let errorOutput = '';
-
-					stream.stderr.on('data', (data: Buffer) => {
-						errorOutput += data.toString();
-					});
-
-					stream.on('close', (code: number) => {
-						clearTimeout(timeout);
-						if (code === 0) {
-							// Clear cache for target directory
-							this.invalidatePath(hostId, expandedDestPath);
-							resolve();
-						} else {
-							// Shell command failed, try SFTP fallback
-							console.warn(`SSH shell copy failed with code ${code}, falling back to SFTP method:`, errorOutput);
+					client.exec(command, (err, stream) => {
+						if (err) {
+							clearTimeout(timeout);
+							// Shell not available, fall back to SFTP method
+							console.warn('SSH shell copy failed, falling back to SFTP method:', err);
 							this.copyViaSftp(hostId, expandedSourcePath, expandedDestPath).then(resolve).catch(reject);
+							return;
 						}
+
+						let errorOutput = '';
+
+						stream.stderr.on('data', (data: Buffer) => {
+							errorOutput += data.toString();
+						});
+
+						stream.on('close', (code: number) => {
+							clearTimeout(timeout);
+							if (code === 0) {
+								// Clear cache for target directory
+								this.invalidatePath(hostId, expandedDestPath);
+								resolve();
+							} else {
+								// Shell command failed, try SFTP fallback
+								console.warn(`SSH shell copy failed with code ${code}, falling back to SFTP method:`, errorOutput);
+								this.copyViaSftp(hostId, expandedSourcePath, expandedDestPath).then(resolve).catch(reject);
+							}
+						});
 					});
 				});
-			});
+			} finally {
+				// Always release connection, even if operation fails
+				ConnectionPool.release(hostId);
+			}
 		} catch (error) {
 			// Connection failed, try SFTP fallback
 			console.warn('Failed to acquire SSH connection for copy, falling back to SFTP method:', error);
@@ -1655,51 +1673,57 @@ export class SftpService {
 			this.hostKeyService
 		);
 
-		return new Promise((resolve, reject) => {
-			// Detect archive type
-			const ext = expandedArchivePath.toLowerCase();
-			let command: string;
+		try {
+			return await new Promise((resolve, reject) => {
+				// Detect archive type
+				const ext = expandedArchivePath.toLowerCase();
+				const targetDir = expandedArchivePath.substring(0, expandedArchivePath.lastIndexOf('/')) || '/';
+				let command: string;
 
-			if (ext.endsWith('.zip')) {
-				// Extract zip file
-				command = `unzip -o '${expandedArchivePath}' -d '${expandedArchivePath.substring(0, expandedArchivePath.lastIndexOf('/'))}'`;
-			} else if (ext.endsWith('.tar.gz') || ext.endsWith('.tgz')) {
-				// Extract tar.gz file
-				command = `tar -xzf '${expandedArchivePath}' -C '${expandedArchivePath.substring(0, expandedArchivePath.lastIndexOf('/'))}'`;
-			} else if (ext.endsWith('.tar')) {
-				// Extract tar file
-				command = `tar -xf '${expandedArchivePath}' -C '${expandedArchivePath.substring(0, expandedArchivePath.lastIndexOf('/'))}'`;
-			} else {
-				reject(new Error('Unsupported archive format. Supported formats: .zip, .tar, .tar.gz, .tgz'));
-				return;
-			}
-
-			client.exec(command, (err, stream) => {
-				if (err) {
-					reject(new Error(`Failed to execute extraction command: ${err.message}`));
+				if (ext.endsWith('.zip')) {
+					// Extract zip file
+					command = `unzip -o ${escapeShellArg(expandedArchivePath)} -d ${escapeShellArg(targetDir)}`;
+				} else if (ext.endsWith('.tar.gz') || ext.endsWith('.tgz')) {
+					// Extract tar.gz file
+					command = `tar -xzf ${escapeShellArg(expandedArchivePath)} -C ${escapeShellArg(targetDir)}`;
+				} else if (ext.endsWith('.tar')) {
+					// Extract tar file
+					command = `tar -xf ${escapeShellArg(expandedArchivePath)} -C ${escapeShellArg(targetDir)}`;
+				} else {
+					reject(new Error('Unsupported archive format. Supported formats: .zip, .tar, .tar.gz, .tgz'));
 					return;
 				}
 
-				let output = '';
-				let errorOutput = '';
-
-				stream.on('data', (data: Buffer) => {
-					output += data.toString();
-				});
-
-				stream.stderr.on('data', (data: Buffer) => {
-					errorOutput += data.toString();
-				});
-
-				stream.on('close', (code: number) => {
-					if (code === 0) {
-						resolve();
-					} else {
-						reject(new Error(`Extraction failed with code ${code}: ${errorOutput || output}`));
+				client.exec(command, (err, stream) => {
+					if (err) {
+						reject(new Error(`Failed to execute extraction command: ${err.message}`));
+						return;
 					}
+
+					let output = '';
+					let errorOutput = '';
+
+					stream.on('data', (data: Buffer) => {
+						output += data.toString();
+					});
+
+					stream.stderr.on('data', (data: Buffer) => {
+						errorOutput += data.toString();
+					});
+
+					stream.on('close', (code: number) => {
+						if (code === 0) {
+							resolve();
+						} else {
+							reject(new Error(`Extraction failed with code ${code}: ${errorOutput || output}`));
+						}
+					});
 				});
 			});
-		});
+		} finally {
+			// Always release connection
+			ConnectionPool.release(hostId);
+		}
 	}
 
 	/**
@@ -1726,56 +1750,62 @@ export class SftpService {
 			this.hostKeyService
 		);
 
-		return new Promise((resolve, reject) => {
-			if (expandedPaths.length === 0) {
-				reject(new Error('No paths specified for compression'));
-				return;
-			}
-
-			// Build command based on archive type
-			let command: string;
-			const quotedPaths = expandedPaths.map(p => `'${p}'`).join(' ');
-
-			if (archiveType === 'zip') {
-				// Create zip archive
-				command = `zip -r '${expandedArchiveName}' ${quotedPaths}`;
-			} else if (archiveType === 'tar.gz') {
-				// Create tar.gz archive
-				command = `tar -czf '${expandedArchiveName}' ${quotedPaths}`;
-			} else if (archiveType === 'tar') {
-				// Create tar archive
-				command = `tar -cf '${expandedArchiveName}' ${quotedPaths}`;
-			} else {
-				reject(new Error('Unsupported archive type. Supported types: zip, tar, tar.gz'));
-				return;
-			}
-
-			client.exec(command, (err, stream) => {
-				if (err) {
-					reject(new Error(`Failed to execute compression command: ${err.message}`));
+		try {
+			return await new Promise((resolve, reject) => {
+				if (expandedPaths.length === 0) {
+					reject(new Error('No paths specified for compression'));
 					return;
 				}
 
-				let output = '';
-				let errorOutput = '';
+				// Build command based on archive type with proper shell escaping
+				let command: string;
+				const escapedPaths = expandedPaths.map(p => escapeShellArg(p)).join(' ');
+				const escapedArchiveName = escapeShellArg(expandedArchiveName);
 
-				stream.on('data', (data: Buffer) => {
-					output += data.toString();
-				});
+				if (archiveType === 'zip') {
+					// Create zip archive
+					command = `zip -r ${escapedArchiveName} ${escapedPaths}`;
+				} else if (archiveType === 'tar.gz') {
+					// Create tar.gz archive
+					command = `tar -czf ${escapedArchiveName} ${escapedPaths}`;
+				} else if (archiveType === 'tar') {
+					// Create tar archive
+					command = `tar -cf ${escapedArchiveName} ${escapedPaths}`;
+				} else {
+					reject(new Error('Unsupported archive type. Supported types: zip, tar, tar.gz'));
+					return;
+				}
 
-				stream.stderr.on('data', (data: Buffer) => {
-					errorOutput += data.toString();
-				});
-
-				stream.on('close', (code: number) => {
-					if (code === 0) {
-						resolve();
-					} else {
-						reject(new Error(`Compression failed with code ${code}: ${errorOutput || output}`));
+				client.exec(command, (err, stream) => {
+					if (err) {
+						reject(new Error(`Failed to execute compression command: ${err.message}`));
+						return;
 					}
+
+					let output = '';
+					let errorOutput = '';
+
+					stream.on('data', (data: Buffer) => {
+						output += data.toString();
+					});
+
+					stream.stderr.on('data', (data: Buffer) => {
+						errorOutput += data.toString();
+					});
+
+					stream.on('close', (code: number) => {
+						if (code === 0) {
+							resolve();
+						} else {
+							reject(new Error(`Compression failed with code ${code}: ${errorOutput || output}`));
+						}
+					});
 				});
 			});
-		});
+		} finally {
+			// Always release connection
+			ConnectionPool.release(hostId);
+		}
 	}
 
 	/**
@@ -1906,33 +1936,44 @@ export class SftpService {
 			this.hostKeyService
 		);
 
-		return new Promise((resolve, reject) => {
-			client.exec(command, (err, stream) => {
-				if (err) {
-					reject(new Error(`Failed to execute command: ${err.message}`));
-					return;
-				}
+		try {
+			return await new Promise((resolve, reject) => {
+				const timeout = setTimeout(() => {
+					reject(new Error(`Command execution timeout after ${this.TIMEOUT_CONFIG.fileOp}ms`));
+				}, this.TIMEOUT_CONFIG.fileOp);
 
-				let output = '';
-				let errorOutput = '';
-
-				stream.on('data', (data: Buffer) => {
-					output += data.toString();
-				});
-
-				stream.stderr.on('data', (data: Buffer) => {
-					errorOutput += data.toString();
-				});
-
-				stream.on('close', (code: number) => {
-					if (code === 0) {
-						resolve(output);
-					} else {
-						reject(new Error(`Command failed with code ${code}: ${errorOutput || output}`));
+				client.exec(command, (err, stream) => {
+					if (err) {
+						clearTimeout(timeout);
+						reject(new Error(`Failed to execute command: ${err.message}`));
+						return;
 					}
+
+					let output = '';
+					let errorOutput = '';
+
+					stream.on('data', (data: Buffer) => {
+						output += data.toString();
+					});
+
+					stream.stderr.on('data', (data: Buffer) => {
+						errorOutput += data.toString();
+					});
+
+					stream.on('close', (code: number) => {
+						clearTimeout(timeout);
+						if (code === 0) {
+							resolve(output);
+						} else {
+							reject(new Error(`Command failed with code ${code}: ${errorOutput || output}`));
+						}
+					});
 				});
 			});
-		});
+		} finally {
+			// Always release connection
+			ConnectionPool.release(hostId);
+		}
 	}
 
 	/**
@@ -1975,7 +2016,7 @@ export class SftpService {
 			'sha256': 'sha256sum'
 		};
 
-		const command = `${commandMap[algorithm]} '${remotePath}'`;
+		const command = `${commandMap[algorithm]} ${escapeShellArg(remotePath)}`;
 		const output = await this.executeCommand(hostId, command);
 
 		// Parse output: "checksum  filename"
@@ -2000,7 +2041,7 @@ export class SftpService {
 		const expandedSourcePath = await this.expandPath(sftp, sourcePath);
 		const expandedTargetPath = await this.expandPath(sftp, targetPath);
 
-		const command = `ln -s '${expandedSourcePath}' '${expandedTargetPath}'`;
+		const command = `ln -s ${escapeShellArg(expandedSourcePath)} ${escapeShellArg(expandedTargetPath)}`;
 		await this.executeCommand(hostId, command);
 
 		// Invalidate cache for parent directory
@@ -2030,8 +2071,8 @@ export class SftpService {
 
 		const results: FileEntry[] = [];
 
-		// Build find command
-		let findCmd = `find '${expandedBasePath}'`;
+		// Build find command with proper escaping
+		let findCmd = `find ${escapeShellArg(expandedBasePath)}`;
 
 		// Add depth restriction if not recursive
 		if (!recursive) {
@@ -2040,18 +2081,14 @@ export class SftpService {
 
 		// Add filename pattern if provided
 		if (pattern) {
-			// Escape single quotes in pattern
-			const escapedPattern = pattern.replace(/'/g, "'\\''");
-			findCmd += ` -name '${escapedPattern}'`;
+			// Pattern is used as a shell glob, so we escape it for safe shell usage
+			findCmd += ` -name ${escapeShellArg(pattern)}`;
 		}
 
 		// If content search is specified, use grep to filter files
 		if (content) {
-			// Escape single quotes in content
-			const escapedContent = content.replace(/'/g, "'\\''");
-
-			// Find files, then grep for content
-			findCmd += ` -type f -exec grep -l '${escapedContent}' {} \\;`;
+			// Escape content for safe grep usage
+			findCmd += ` -type f -exec grep -l ${escapeShellArg(content)} {} \\;`;
 		} else {
 			// Just list all matching files/directories
 			findCmd += ' 2>/dev/null';
@@ -2101,7 +2138,7 @@ export class SftpService {
 			const expandedSymlinkPath = await this.expandPath(sftp, symlinkPath);
 
 			// Use readlink -f to follow the symlink chain and get the absolute path
-			const command = `readlink -f '${expandedSymlinkPath}'`;
+			const command = `readlink -f ${escapeShellArg(expandedSymlinkPath)}`;
 			const output = await this.executeCommand(hostId, command);
 
 			return output.trim();
@@ -2131,10 +2168,10 @@ export class SftpService {
 			// Expand tilde paths to absolute paths
 			const expandedRemotePath = await this.expandPath(sftp, remotePath);
 
-			// Build chown command
+			// Build chown command with proper escaping
 			const ownerGroup = group ? `${owner}:${group}` : owner;
 			const recursiveFlag = recursive ? '-R ' : '';
-			const command = `chown ${recursiveFlag}'${ownerGroup}' '${expandedRemotePath}'`;
+			const command = `chown ${recursiveFlag}${escapeShellArg(ownerGroup)} ${escapeShellArg(expandedRemotePath)}`;
 
 			await this.executeCommand(hostId, command);
 		} catch (error) {
