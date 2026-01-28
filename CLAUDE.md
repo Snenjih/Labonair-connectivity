@@ -184,3 +184,74 @@ The extension activates when:
 - Validate host keys before establishing connections
 - Sanitize file paths to prevent path traversal attacks
 - Use sudo mode carefully and validate user permissions
+
+---
+
+# Labonair Connectivity - Implementation Guidelines & Constraints
+
+## 1. Architektur & Kommunikation (RPC First)
+**Ziel:** Entkopplung von Frontend und Backend, Typsicherheit.
+
+*   **Constraint:** Die Datei `src/extension/main.ts` darf **keine Geschäftslogik** mehr enthalten. Sie dient ausschließlich dem Bootstrapping (Initialisierung von Services & Controllern).
+*   **Constraint:** Direkte Aufrufe von `webview.postMessage` sind in Controllern verboten. Nutze ausschließlich den `NotificationService` für Events oder den Rückgabewert des RPC-Handlers für Antworten.
+*   **Guideline:** Jede Interaktion zwischen Webview und Extension muss über das `RpcRouter` / `RpcClient` Pattern laufen.
+    *   *Request/Response:* `await rpc.request('method', params)`
+    *   *Streaming:* `rpc.subscribe('stream', params, callback)`
+*   **Guideline:** Alle RPC-Methoden müssen in `src/common/rpc.ts` typisiert sein. Keine "Magic Strings".
+
+## 2. Frontend State Management & React
+**Ziel:** Vermeidung von unnötigen Re-Renders und "Prop-Drilling".
+
+*   **Constraint:** Die Hauptkomponente `App.tsx` darf **keinen Domain-State** (Hosts, Dateien, Terminals) halten. Sie ist nur für das Layout-Routing zuständig.
+*   **Constraint:** Nutze **Zustand Stores** (`useHostStore`, `useFileStore`, `useTransferStore`) für alle Daten.
+*   **Guideline:** Verwende selektive Hooks, um Re-Renders zu minimieren:
+    *   *Falsch:* `const { leftPanel } = useFileStore()` (Rendert bei jeder Änderung im Store neu).
+    *   *Richtig:* `const files = useFileStore(state => state.leftPanel.files)` (Rendert nur, wenn sich `files` ändern).
+*   **Constraint:** Keine neuen UI-Bibliotheken (kein Tailwind, kein Radix). Nutze Standard CSS Modules und die existierende Struktur.
+
+## 3. UI/UX & Design System
+**Ziel:** 100% native Integration in VS Code ("Look & Feel").
+
+*   **Constraint:** **Verwende NIEMALS feste Farben.** Nutze ausschließlich VS Code CSS-Variablen.
+    *   *Hintergrund:* `var(--vscode-editor-background)`
+    *   *Rahmen:* `var(--vscode-panel-border)`
+    *   *Input:* `var(--vscode-input-background)`
+    *   *Fokus:* `var(--vscode-focusBorder)`
+*   **Guideline:** Achte auf High-Contrast-Modus. Rahmen müssen sichtbar sein, wenn Hintergründe transparent werden.
+*   **Guideline:** Nutze `react-virtuoso` für **jede** Liste, die potenziell mehr als 100 Elemente enthalten kann (Dateilisten, Logs).
+
+## 4. Security (Zero Trust)
+**Ziel:** Verhinderung von Shell-Injection und Man-in-the-Middle Angriffen.
+
+*   **Constraint (Kritisch):** Passwörter dürfen **niemals** per String-Interpolation in Shell-Befehle eingefügt werden.
+    *   *Verboten:* `exec('echo ' + password + ' | sudo -S ...')`
+    *   *Pflicht:* Schreiben in `stdin` des Streams: `stream.write(password + '\n')`.
+*   **Constraint:** SSH-Verbindungen müssen standardmäßig die Host-Key-Verifizierung durchführen. Die Option `rejectUnauthorized: false` ist nur erlaubt, wenn der User explizit "Connect Anyway" im Dialog gewählt hat.
+*   **Constraint:** Sensible Daten (Passwörter, Keys) dürfen **niemals** in `globalState` oder JSON-Dateien gespeichert werden. Nutze zwingend `vscode.SecretStorage`.
+
+## 5. Performance & Ressourcen
+**Ziel:** 60 FPS UI und geringe CPU-Last.
+
+*   **Constraint:** Vermeide synchrone Dateisystem-Operationen (`fs.readFileSync`) im Extension Host, besonders bei Netzwerk-Mounts. Nutze immer `fs.promises`.
+*   **Guideline (SFTP):** Nutze Pipelining (`Promise.all` mit Limit) statt serieller `await` Schleifen für Batch-Operationen (chmod, delete).
+*   **Guideline (Webview):** Große Datenmengen (Dateilisten > 1000 Items) müssen vom Backend in **Chunks** (Häppchen) gesendet werden, um den Main-Thread nicht zu blockieren.
+*   **Guideline:** Beende ungenutzte Watcher und Event-Listener in `useEffect` Cleanup-Funktionen zwingend.
+
+## 6. Code Qualität & TypeScript
+**Ziel:** Wartbarkeit und Stabilität.
+
+*   **Constraint:** `tsconfig.json` muss `"strict": true` und `"noImplicitAny": true` gesetzt haben.
+*   **Constraint:** Keine Verwendung von `any`, es sei denn, es handelt sich um externe Bibliotheken ohne Typen (und selbst dann: definiere ein Interface).
+*   **Constraint:** Native Module (`ssh2`, `node-pty`) müssen in `webpack.config.js` als `externals` markiert sein und im Code mit `try/catch` geladen werden (Graceful Degradation).
+
+---
+
+### Checkliste für den Agenten vor Abschluss einer Subphase:
+
+1.  [ ] Wurde `main.ts` bereinigt oder weiter aufgebläht? (Ziel: Bereinigen)
+2.  [ ] Werden VS Code CSS-Variablen genutzt?
+3.  [ ] Ist die Kommunikation zwischen Frontend/Backend typisiert (RPC)?
+4.  [ ] Sind Passwörter sicher (Secrets API & STDIN)?
+5.  [ ] Wurden native Module (`node-pty`) sicher geladen?
+
+Halte dich strikt an diese Vorgaben. Wenn ein User-Request gegen diese Constraints verstößt (z.B. "Speichere das Passwort in der JSON"), weise darauf hin und implementiere die sichere Variante.
